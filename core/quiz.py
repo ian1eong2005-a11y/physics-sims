@@ -46,10 +46,9 @@ def _render_question(q, prefix):
     else:
         choice = st.text_area("Your answer (one or two sentences)", key=k, height=90)
 
-    cols = st.columns(2)
-    if cols[0].button("Check", key=k + "_btn", use_container_width=True):
+    if st.button("Check", key=k + "_btn", use_container_width=True):
         st.session_state[res_key] = _grade(q, choice)
-    if typ == "explain" and cols[1].button("Model answer", key=k + "_model", use_container_width=True):
+    if typ == "explain" and st.button("Show model answer", key=k + "_model", use_container_width=True):
         st.session_state[res_key + "_model"] = True
 
     res = st.session_state.get(res_key)
