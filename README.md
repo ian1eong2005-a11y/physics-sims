@@ -24,9 +24,15 @@ streamlit run app.py
 
 ## Deploy (Streamlit Community Cloud)
 
-1. Push this folder to a public GitHub repository.
-2. At share.streamlit.io choose **New app**, pick the repo, branch `main`, main file `app.py`.
-3. Share the app URL with students. No login is needed to use it.
+Repository: https://github.com/ian1eong2005-a11y/physics-sims
+
+1. Sign in at https://share.streamlit.io with the GitHub account that owns this repo.
+2. Open https://share.streamlit.io/deploy?repository=ian1eong2005-a11y/physics-sims&branch=main&mainModule=app.py
+   (or choose **Create app**, then repo `ian1eong2005-a11y/physics-sims`, branch `main`, main file `app.py`).
+3. Optionally pick a custom subdomain, e.g. `qtss-physics.streamlit.app`, then **Deploy**.
+4. Share the app URL with students. No login is needed to use it.
+
+Every push to `main` redeploys the app automatically.
 
 ## Layout
 
