@@ -15,6 +15,8 @@ Each chapter page has an **Explore** tab (the applet plus predict-then-test prom
 | Forces | Ch 4–5 | Resultant Force Trolley, Moments See-saw |
 | Circuits | Ch 13 | Series and Parallel Bench |
 
+**Live app:** https://ian1eong2005-a11y-physics-sims-app-rk6zvk.streamlit.app/
+
 ## Run locally
 
 ```bash
