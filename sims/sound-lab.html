@@ -1,0 +1,193 @@
+<title>Sound Lab</title>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap" media="print" onload="this.media='all'">
+<style>
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --fg:#1d2430; --muted:#5b6675; --line:#cfd6de;
+  --accent:#1f6feb; --wave:#2a7de1; --comp:#e4572e; --rare:#2e9e5b; --pulse:#7b3fe4;
+  --display:"Bricolage Grotesque",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#141920;--panel:#1d242e;--fg:#e8edf3;--muted:#98a4b3;--line:#303a47;--accent:#5a9cff;--wave:#5aa6ff;--comp:#ff7a50;--rare:#4cc078;--pulse:#b08cff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141920;--panel:#1d242e;--fg:#e8edf3;--muted:#98a4b3;--line:#303a47;--accent:#5a9cff;--wave:#5aa6ff;--comp:#ff7a50;--rare:#4cc078;--pulse:#b08cff;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px;line-height:1.45}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-bottom:12px}
+h1{font-family:var(--display);font-weight:700;font-size:1.5rem;margin:0}
+.lo{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+@media (max-width:820px){.wrap{grid-template-columns:1fr}}
+.stage{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+canvas{display:block;width:100%;height:auto}
+.notice{font-size:.9rem;color:var(--muted);margin:8px 2px 0}
+.notice b{color:var(--fg)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:14px;align-self:start}
+.ctl{display:flex;flex-direction:column;gap:6px}
+label,.lbl{font-size:.82rem;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;align-items:center;gap:8px}
+.val{font-family:var(--mono);font-size:.85rem;margin-left:auto;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.seg button{font:inherit;font-size:.85rem;padding:6px 4px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:6px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+.check{display:flex;align-items:center;gap:8px;font-size:.9rem;text-transform:none;letter-spacing:0;font-weight:400;color:var(--fg)}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+.buttons{display:flex;gap:8px}
+.btn{flex:1;font:inherit;font-weight:600;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:disabled{opacity:.5;cursor:default}
+.read{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center}
+.read div{background:var(--bg);border-radius:8px;padding:8px 4px}
+.read span{display:block;font-family:var(--mono);font-size:1rem;font-variant-numeric:tabular-nums}
+.read small{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+[hidden]{display:none!important}
+</style>
+
+<header>
+  <h1>Sound Lab</h1>
+  <span class="lo">5086 · 9f–9i · sound waves and echoes</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="470" aria-label="Loudspeaker making a sound wave in air"></canvas>
+    <p class="notice" id="notice"></p>
+  </div>
+
+  <div class="panel">
+    <div class="ctl">
+      <span class="lbl">Mode</span>
+      <div class="seg" id="modeSeg">
+        <button data-v="wave" aria-pressed="true">Sound wave</button>
+        <button data-v="echo" aria-pressed="false">Echo</button>
+      </div>
+    </div>
+    <div id="waveCtls" class="ctl" style="gap:14px">
+      <div class="ctl">
+        <div class="row"><label for="amp">Loudness (amplitude)</label><span class="val" id="ampV">60%</span></div>
+        <input type="range" id="amp" min="10" max="100" value="60">
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="freq">Pitch (frequency)</label><span class="val" id="freqV">440 Hz</span></div>
+        <input type="range" id="freq" min="200" max="900" step="10" value="440">
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="vacuum"> Remove the air (vacuum)</label>
+        <label class="check"><input type="checkbox" id="labels" checked> Label compressions and rarefactions</label>
+      </div>
+      <div class="buttons"><button class="btn" id="tone">Play the tone</button></div>
+    </div>
+    <div id="echoCtls" class="ctl" style="gap:14px" hidden>
+      <div class="ctl">
+        <div class="row"><label for="dist">Distance to wall</label><span class="val" id="distV">170 m</span></div>
+        <input type="range" id="dist" min="50" max="400" step="10" value="170">
+      </div>
+      <div class="read">
+        <div><small>Speed of sound</small><span>340 m/s</span></div>
+        <div><small>Stopwatch</small><span id="clock">0.00 s</span></div>
+      </div>
+      <div class="buttons"><button class="btn primary" id="clap">Clap</button><button class="btn" id="echoReset">Reset</button></div>
+    </div>
+    <div class="ctl">
+      <div class="row"><label for="speed">Simulation speed</label><span class="val" id="speedV">1.0×</span></div>
+      <input type="range" id="speed" min="0.1" max="2" step="0.1" value="1">
+    </div>
+    <div class="buttons"><button class="btn primary" id="play">Pause</button></div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let mode='wave', t=0, running=true, pulse=null, clock=0;
+const S=()=>({A:+$('amp').value/100, f:+$('freq').value, vac:$('vacuum').checked, speed:+$('speed').value, d:+$('dist').value});
+
+// the animation runs far slower than real sound so the wave can be seen; the labels stay in real Hz
+const COLS=60, ROWS=9;
+function drawWave(){
+  const W=cv.width,H=cv.height,s=S(), fg=css('--fg'),muted=css('--muted'),line=css('--line'),wave=css('--wave'),comp=css('--comp'),rare=css('--rare');
+  const x0=120, x1=W-30, airY=60, airH=170;
+  const lam = 26000/s.f;               // px: higher pitch = shorter wavelength on screen
+  const omega = s.f/440*2.2;           // visual angular speed
+  const phase = x=>2*Math.PI*((x-x0)/lam) - omega*t*2*Math.PI;
+  const ampPx = s.A*lam*0.16;
+  // speaker: cone moves with the wave at x0
+  const cone = s.vac?0:ampPx*Math.sin(-omega*t*2*Math.PI);
+  ctx.fillStyle=fg; ctx.fillRect(40,airY+20,30,airH-40); ctx.beginPath(); ctx.moveTo(70,airY+40); ctx.lineTo(104+cone,airY+10); ctx.lineTo(104+cone,airY+airH-10); ctx.lineTo(70,airY+airH-40); ctx.closePath(); ctx.fillStyle=css('--panel'); ctx.fill(); ctx.strokeStyle=fg; ctx.lineWidth=2; ctx.stroke(); ctx.lineWidth=1;
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('loudspeaker', 75, airY+airH+18); ctx.fillText(s.vac?'(cone still vibrates)':'vibrating cone', 75, airY+airH+34);
+  // box of air
+  ctx.strokeStyle=line; ctx.strokeRect(x0-10,airY,x1-x0+10,airH);
+  if (s.vac){ ctx.fillStyle=muted; ctx.font='600 15px IBM Plex Sans, sans-serif'; ctx.fillText('Vacuum: no particles, so nothing can be pushed along. No sound reaches the far side.', (x0+x1)/2, airY+airH/2+5); }
+  else {
+    const dx=(x1-x0)/COLS;
+    for (let c=0;c<COLS;c++){ const xe=x0+c*dx+dx/2, xd=xe+ampPx*Math.sin(phase(xe)); for (let r=0;r<ROWS;r++){ const y=airY+airH*(r+0.5)/ROWS + ((c*7+r*3)%5-2)*1.5; ctx.fillStyle=wave; ctx.beginPath(); ctx.arc(xd,y,3,0,7); ctx.fill(); } }
+    if ($('labels').checked){ // compressions where displacement gradient is most negative (particles squeezed together)
+      ctx.font='600 12px IBM Plex Mono, monospace';
+      for (let k=-1;k<8;k++){ const xc = x0 + lam*(k + 0.75) + (omega*t*lam); const xcm=((xc-x0)%lam+lam)%lam+x0; const xr=((xcm-x0+lam/2)%lam)+x0;
+        if (xcm<x1-10){ ctx.fillStyle=comp; ctx.fillText('C', xcm, airY-8); } if (xr<x1-10){ ctx.fillStyle=rare; ctx.fillText('R', xr, airY-8); } }
+      ctx.fillStyle=comp; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('C = compression (particles close, higher pressure)', x0, airY+airH+18); ctx.fillStyle=rare; ctx.fillText('R = rarefaction (particles spread out, lower pressure)', x0, airY+airH+34);
+    }
+    ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('each particle only vibrates left–right about its own spot; the pattern of C and R moves along', x1, airY+airH+50);
+  }
+  // waveform as an oscilloscope would show it
+  const gY=330, gH=55, gX0=x0, gX1=x1;
+  ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gX0,gY); ctx.lineTo(gX1,gY); ctx.moveTo(gX0,gY-gH-10); ctx.lineTo(gX0,gY+gH+10); ctx.stroke();
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('the same sound wave drawn as a graph (displacement of the particles)', gX0, gY-gH-18);
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('distance from speaker →', gX1-130, gY+gH+22);
+  if (!s.vac){ ctx.strokeStyle=wave; ctx.lineWidth=2.5; ctx.beginPath(); for (let x=gX0;x<=gX1;x+=2){ const y=gY - s.A*gH*Math.sin(phase(x)); x===gX0?ctx.moveTo(x,y):ctx.lineTo(x,y); } ctx.stroke(); ctx.lineWidth=1;
+    // amplitude and wavelength markers
+    const mk=css('--rare'); ctx.strokeStyle=mk; ctx.fillStyle=mk; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center';
+    const ax=gX1-20; ctx.beginPath(); ctx.moveTo(ax,gY); ctx.lineTo(ax,gY-s.A*gH); ctx.stroke(); ctx.fillText('A', ax, gY-s.A*gH-6);
+    let xc=gX0+((lam*0.25 + omega*t*lam)%lam); ctx.beginPath(); ctx.moveTo(xc,gY+gH+4); ctx.lineTo(xc+lam,gY+gH+4); ctx.moveTo(xc,gY+gH); ctx.lineTo(xc,gY+gH+8); ctx.moveTo(xc+lam,gY+gH); ctx.lineTo(xc+lam,gY+gH+8); ctx.stroke(); ctx.fillText('λ', xc+lam/2, gY+gH+20);
+  }
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  ctx.fillText(`Louder sound = bigger amplitude (taller graph).  Higher pitch = higher frequency (more waves per second, shorter wavelength).`, 40, H-14);
+}
+function drawEcho(dt){
+  const W=cv.width,H=cv.height,s=S(), fg=css('--fg'),muted=css('--muted'),line=css('--line'),pulseC=css('--pulse');
+  const x0=90, xw=W-60, groundY=300, scale=(xw-x0)/s.d; // px per metre
+  ctx.fillStyle=line; ctx.fillRect(x0-60,groundY,xw-x0+90,4); ctx.fillRect(xw,groundY-170,12,174);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('wall', xw+6, groundY-180); ctx.fillText('person claps and starts the stopwatch', x0, groundY+40);
+  ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(x0,groundY-110,12,0,7); ctx.fill(); ctx.fillRect(x0-6,groundY-98,12,60);
+  // distance bracket
+  ctx.strokeStyle=fg; ctx.beginPath(); ctx.moveTo(x0,groundY+60); ctx.lineTo(xw,groundY+60); ctx.moveTo(x0,groundY+54); ctx.lineTo(x0,groundY+66); ctx.moveTo(xw,groundY+54); ctx.lineTo(xw,groundY+66); ctx.stroke();
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Mono, monospace'; ctx.fillText(`d = ${s.d} m`, (x0+xw)/2, groundY+82);
+  if (pulse){ if (running){ pulse.s += 340*dt; clock += dt; }
+    const total = 2*s.d; if (pulse.s>=total){ pulse.s=total; pulse.done=true; }
+    const pos = pulse.s<=s.d ? pulse.s : 2*s.d-pulse.s; const px=x0+pos*scale, out=pulse.s<=s.d;
+    ctx.strokeStyle=pulseC; ctx.lineWidth=3; for (let k=0;k<3;k++){ ctx.globalAlpha=1-k*0.3; ctx.beginPath(); ctx.arc(px-(out?1:-1)*k*10, groundY-110, 18+k*8, out?-1.1:Math.PI-1.1, out?1.1:Math.PI+1.1); ctx.stroke(); } ctx.globalAlpha=1; ctx.lineWidth=1;
+    ctx.fillStyle=pulseC; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText(out?'sound travelling to the wall →':'← echo coming back', px, groundY-150);
+    if (pulse.done){ if (running) running=false, $('play').textContent='Play'; ctx.fillStyle=fg; ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.fillText(`Echo heard after ${clock.toFixed(2)} s.  The sound travelled there AND back: 2d = 340 × t`, W/2, 60); }
+  } else { ctx.fillStyle=muted; ctx.font='13px IBM Plex Sans, sans-serif'; ctx.fillText('Press Clap. Time how long the echo takes, then work out the distance to the wall.', W/2, 60); }
+  $('clock').textContent=clock.toFixed(2)+' s';
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Slow the simulation speed down to watch the pulse. The stopwatch always shows real time.', 40, H-14);
+}
+
+let last=performance.now();
+function frame(now){ let dt=Math.min(0.05,(now-last)/1000); last=now; const sp=S().speed; ctx.clearRect(0,0,cv.width,cv.height);
+  if (mode==='wave'){ if (running) t+=dt*sp; drawWave(); } else drawEcho(dt*sp);
+  requestAnimationFrame(frame); }
+
+// tone
+let ac=null, osc=null, gain=null;
+function tone(){ if (osc){ osc.stop(); osc=null; $('tone').textContent='Play the tone'; return; }
+  ac=ac||new (window.AudioContext||window.webkitAudioContext)(); osc=ac.createOscillator(); gain=ac.createGain(); osc.type='sine'; osc.connect(gain); gain.connect(ac.destination); updTone(); osc.start(); $('tone').textContent='Stop the tone'; }
+function updTone(){ if (!osc) return; const s=S(); osc.frequency.setTargetAtTime(s.f, ac.currentTime, 0.02); gain.gain.setTargetAtTime(s.vac?0:0.15*s.A, ac.currentTime, 0.02); }
+
+function notice(){ $('notice').innerHTML = mode==='wave'
+  ? '<b>What to notice.</b> The cone pushes the air particles next to it, which push the next ones. Compressions (C) and rarefactions (R) travel to the right, but each particle only vibrates about its own position: sound is a longitudinal wave. Turn up the loudness and the particles swing further (bigger amplitude). Turn up the pitch and the C–R pattern repeats more often (higher frequency).'
+  : '<b>What to notice.</b> The echo is the sound reflected from the wall. It travels to the wall and back, so the distance covered is <b>2d</b>. Distance to the wall = speed × time ÷ 2.'; }
+$('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; mode=b.dataset.v; [...$('modeSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); $('waveCtls').hidden=mode!=='wave'; $('echoCtls').hidden=mode!=='echo'; running=true; $('play').textContent='Pause'; notice(); });
+$('amp').addEventListener('input',()=>{ $('ampV').textContent=$('amp').value+'%'; updTone(); });
+$('freq').addEventListener('input',()=>{ $('freqV').textContent=$('freq').value+' Hz'; updTone(); });
+$('vacuum').addEventListener('change',updTone);
+$('speed').addEventListener('input',()=>$('speedV').textContent=(+$('speed').value).toFixed(1)+'×');
+$('dist').addEventListener('input',()=>{ $('distV').textContent=$('dist').value+' m'; pulse=null; clock=0; });
+$('clap').addEventListener('click',()=>{ pulse={s:0,done:false}; clock=0; running=true; $('play').textContent='Pause'; });
+$('echoReset').addEventListener('click',()=>{ pulse=null; clock=0; running=true; $('play').textContent='Pause'; });
+$('tone').addEventListener('click',tone);
+$('play').addEventListener('click',()=>{ running=!running; $('play').textContent=running?'Pause':'Play'; });
+notice(); requestAnimationFrame(frame);
+})();
+</script>

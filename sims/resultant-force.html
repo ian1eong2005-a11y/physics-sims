@@ -1,0 +1,216 @@
+<title>Resultant Force Trolley</title>
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap" media="print" onload="this.media='all'">
+<style>
+/* Layout: lab bench. Wide canvas stage on the left, instrument panel on the right; stacks on phones. */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --fg:#1d2430; --muted:#5b6675; --line:#cfd6de;
+  --accent:#1f6feb; --applied:#2e9e5b; --friction:#e4572e; --drag:#d9a400; --result:#7b3fe4; --vert:#8a94a3;
+  --display:"Bricolage Grotesque",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#141920;--panel:#1d242e;--fg:#e8edf3;--muted:#98a4b3;--line:#303a47;--accent:#5a9cff;--applied:#4cc078;--friction:#ff7a50;--drag:#ffd24a;--result:#b08cff;--vert:#6f7a89;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141920;--panel:#1d242e;--fg:#e8edf3;--muted:#98a4b3;--line:#303a47;--accent:#5a9cff;--applied:#4cc078;--friction:#ff7a50;--drag:#ffd24a;--result:#b08cff;--vert:#6f7a89;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px;line-height:1.45}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-bottom:12px}
+h1{font-family:var(--display);font-weight:700;font-size:1.5rem;margin:0;text-wrap:balance}
+.lo{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+@media (max-width:820px){.wrap{grid-template-columns:1fr}}
+.stage{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+canvas{display:block;width:100%;height:auto}
+.notice{font-size:.9rem;color:var(--muted);margin:8px 2px 0;min-height:2.6em}
+.notice b{color:var(--fg)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:14px;align-self:start}
+.ctl{display:flex;flex-direction:column;gap:6px}
+label,.lbl{font-size:.82rem;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;align-items:center;gap:8px}
+.val{font-family:var(--mono);font-size:.85rem;margin-left:auto;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.check{display:flex;align-items:center;gap:8px;font-size:.9rem;text-transform:none;letter-spacing:0;font-weight:400;color:var(--fg)}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+.buttons{display:flex;gap:8px;flex-wrap:wrap}
+.btn{flex:1;font:inherit;font-weight:600;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.small{font-weight:400;font-size:.85rem;padding:7px 8px}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.read{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.read div{background:var(--bg);border-radius:8px;padding:8px 4px}
+.read span{display:block;font-family:var(--mono);font-size:1.05rem;font-variant-numeric:tabular-nums}
+.read small{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+.dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+</style>
+
+<header>
+  <h1>Resultant Force Trolley</h1>
+  <span class="lo">5086 · 4a, 4c, 4d · balanced and unbalanced forces</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="560" aria-label="Trolley with force arrows and a speed-time graph"></canvas>
+    <p class="notice" id="notice"></p>
+  </div>
+
+  <div class="panel">
+    <div class="ctl">
+      <div class="row"><label for="F"><span class="dot" style="background:var(--applied)"></span>Applied force</label><span class="val" id="FV">20 N →</span></div>
+      <input type="range" id="F" min="-50" max="50" step="1" value="20">
+    </div>
+    <div class="ctl">
+      <div class="row"><label for="f"><span class="dot" style="background:var(--friction)"></span>Friction</label><span class="val" id="fV">8 N</span></div>
+      <input type="range" id="f" min="0" max="50" step="1" value="8">
+    </div>
+    <div class="ctl">
+      <div class="row"><label for="m">Mass of trolley</label><span class="val" id="mV">4 kg</span></div>
+      <input type="range" id="m" min="1" max="20" step="1" value="4">
+    </div>
+    <div class="ctl">
+      <label class="check"><input type="checkbox" id="air"> <span><span class="dot" style="background:var(--drag)"></span>Air resistance (grows with speed)</span></label>
+      <label class="check"><input type="checkbox" id="vert"> Show weight and normal force</label>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Try this</span>
+      <div class="buttons">
+        <button class="btn small" id="balance">Balance the forces</button>
+        <button class="btn small" id="letgo">Let go (F = 0)</button>
+        <button class="btn small" id="space">No friction</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <div class="row"><label for="speed">Simulation speed</label><span class="val" id="speedV">1.0×</span></div>
+      <input type="range" id="speed" min="0.2" max="3" step="0.1" value="1">
+    </div>
+    <div class="read">
+      <div><small>Resultant</small><span id="rFr">0 N</span></div>
+      <div><small>Acceleration</small><span id="rA">0 m/s²</span></div>
+      <div><small>Velocity</small><span id="rV">0 m/s</span></div>
+    </div>
+    <div class="buttons">
+      <button class="btn primary" id="play">Pause</button>
+      <button class="btn" id="reset">Reset</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const K_AIR = 0.04; // air resistance = K v²
+
+let v=0, s=0, t=0, running=true, hist=[], lastForces={F:0,fr:0,dr:0,Fr:0,a:0};
+const S=()=>({F:+$('F').value, f:+$('f').value, m:+$('m').value, air:$('air').checked, speed:+$('speed').value});
+
+function reset(){ v=0; s=0; t=0; hist=[]; }
+
+function step(dt){
+  const c=S(); let fr, dr=0;
+  if (c.air) dr = -K_AIR*v*Math.abs(v);
+  if (Math.abs(v)<1e-3 && Math.abs(c.F+dr)<=c.f){ fr = -(c.F+dr); v=0; }      // static: friction matches the push
+  else fr = -c.f*Math.sign(Math.abs(v)<1e-3 ? c.F : v);                         // kinetic: opposes motion
+  const Fr = c.F+fr+dr, a = Fr/c.m;
+  const v0=v; v += a*dt;
+  if (Math.abs(v0)>1e-3 && Math.sign(v)!==Math.sign(v0) && Math.abs(c.F)<=c.f) v=0; // friction stops it, never reverses it
+  s += v*dt; t += dt;
+  lastForces={F:c.F,fr,dr,Fr:Math.abs(v)<1e-3&&Math.abs(c.F+dr)<=c.f?0:Fr,a:Math.abs(v)<1e-3&&Math.abs(c.F+dr)<=c.f?0:a};
+  hist.push([t,v]); while (hist.length && hist[0][0] < t-20) hist.shift();
+}
+
+function arrow(x,y,len,color,label,thick=4){
+  if (Math.abs(len)<1) return;
+  ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=thick;
+  ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+len,y); ctx.stroke();
+  const d=Math.sign(len); ctx.beginPath(); ctx.moveTo(x+len+d*10,y); ctx.lineTo(x+len-d*4,y-7); ctx.lineTo(x+len-d*4,y+7); ctx.fill();
+  ctx.font='600 13px IBM Plex Mono, monospace'; ctx.textAlign=d>0?'left':'right'; ctx.fillText(label, x+len+d*16, y+5); ctx.lineWidth=1;
+}
+function varrow(x,y,len,color,label){
+  ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+len); ctx.stroke();
+  const d=Math.sign(len); ctx.beginPath(); ctx.moveTo(x,y+len+d*9); ctx.lineTo(x-6,y+len-d*4); ctx.lineTo(x+6,y+len-d*4); ctx.fill();
+  ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillText(label, x+10, y+len+(d>0?4:8)); ctx.lineWidth=1;
+}
+
+function draw(){
+  const W=cv.width,H=cv.height,c=S(),L=lastForces;
+  ctx.clearRect(0,0,W,H);
+  const fg=css('--fg'),muted=css('--muted'),line=css('--line'),ap=css('--applied'),frc=css('--friction'),drg=css('--drag'),res=css('--result'),vert=css('--vert');
+
+  // track with distance markers that scroll past (camera follows the trolley)
+  const groundY=250, scale=18, cx=W/2;
+  ctx.fillStyle=line; ctx.fillRect(0,groundY,W,4);
+  ctx.font='12px IBM Plex Mono, monospace'; ctx.fillStyle=muted; ctx.textAlign='center';
+  const first=Math.floor((s-cx/scale)/5)*5;
+  for (let d=first; d<s+cx/scale+5; d+=5){ const x=cx+(d-s)*scale; ctx.fillRect(x,groundY,2,12); ctx.fillText(d+' m', x, groundY+28); }
+
+  // trolley
+  const bw=110,bh=64, bx=cx-bw/2, by=groundY-bh-10;
+  ctx.fillStyle=css('--panel'); ctx.strokeStyle=fg; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.roundRect(bx,by,bw,bh,6); ctx.fill(); ctx.stroke();
+  for (const wx of [bx+24,bx+bw-24]){ ctx.beginPath(); ctx.arc(wx,groundY-6,8,0,7); ctx.fillStyle=fg; ctx.fill(); }
+  ctx.fillStyle=fg; ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(c.m+' kg', cx, by+bh/2+5);
+
+  // force arrows (horizontal: from the centre of the trolley)
+  const fs=4.2, midY=by+bh/2;
+  arrow(cx, midY-14, L.F*fs, ap, `F = ${Math.abs(L.F)} N`);
+  arrow(cx, midY+14, L.fr*fs, frc, `friction ${Math.abs(L.fr).toFixed(0)} N`);
+  if (c.air && Math.abs(L.dr)>0.5) arrow(cx, midY+30, L.dr*fs, drg, `air ${Math.abs(L.dr).toFixed(0)} N`);
+  if ($('vert').checked){ varrow(cx+bw/2+40, midY, c.m*10*1.2, vert, `W = ${c.m*10} N`); varrow(cx-bw/2-40, midY, -c.m*10*1.2, vert, `N = ${c.m*10} N`); }
+
+  // resultant, drawn above
+  ctx.textAlign='center'; ctx.font='600 15px IBM Plex Sans, sans-serif';
+  if (Math.abs(L.Fr)<0.5){
+    ctx.fillStyle=res; ctx.fillText('Resultant force = 0 N  →  forces balanced', cx, by-62);
+    ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif';
+    ctx.fillText(Math.abs(v)<0.01 ? 'Stays at rest' : `Keeps moving at constant velocity ${v.toFixed(1)} m/s`, cx, by-42);
+  } else {
+    arrow(cx, by-50, L.Fr*fs, res, `Fr = ${Math.abs(L.Fr).toFixed(0)} N`, 6);
+    ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif';
+    ctx.fillText(Math.sign(L.Fr)===Math.sign(v)||Math.abs(v)<0.01 ? 'Unbalanced: speeding up' : 'Unbalanced: slowing down', cx, by-72);
+  }
+  // velocity arrow under the trolley
+  if (Math.abs(v)>0.05){ arrow(cx, groundY+52, Math.sign(v)*Math.min(140, 10+Math.abs(v)*6), fg, `v = ${v.toFixed(1)} m/s`, 3); }
+
+  // speed-time graph
+  const gX=70,gY=330,gW=W-100,gH=200, vmax=Math.max(10, Math.ceil(Math.max(...hist.map(h=>Math.abs(h[1])),1)/10)*10);
+  ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gX,gY); ctx.lineTo(gX,gY+gH); ctx.moveTo(gX,gY+gH/2); ctx.lineTo(gX+gW,gY+gH/2); ctx.stroke();
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Mono, monospace'; ctx.textAlign='right';
+  for (const k of [-1,-0.5,0,0.5,1]){ const y=gY+gH/2-k*gH/2; ctx.fillText((k*vmax).toFixed(0), gX-8, y+4); if(k){ctx.globalAlpha=.4;ctx.beginPath();ctx.moveTo(gX,y);ctx.lineTo(gX+gW,y);ctx.stroke();ctx.globalAlpha=1;} }
+  const t0=Math.max(0,t-20);
+  ctx.textAlign='center'; for (let k=0;k<=4;k++){ const tt=t0+k*5, x=gX+(tt-t0)/20*gW; ctx.fillText(tt.toFixed(0)+' s', x, gY+gH+16); }
+  ctx.save(); ctx.translate(20,gY+gH/2); ctx.rotate(-Math.PI/2); ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('velocity / m/s',0,0); ctx.restore();
+  ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('velocity–time graph (last 20 s)', gX, gY-8);
+  ctx.strokeStyle=css('--accent'); ctx.lineWidth=2.5; ctx.beginPath();
+  hist.forEach(([tt,vv],i)=>{ const x=gX+(tt-t0)/20*gW, y=gY+gH/2-vv/vmax*gH/2; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke(); ctx.lineWidth=1;
+  if (Math.abs(L.Fr)<0.5 && Math.abs(v)>0.05){ ctx.fillStyle=res; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('flat line = constant velocity, not zero velocity', gX+gW, gY+gH/2-v/vmax*gH/2-8); }
+
+  $('rFr').textContent=(L.Fr>0?'+':'')+L.Fr.toFixed(0)+' N';
+  $('rA').textContent=(L.a>0?'+':'')+L.a.toFixed(2)+' m/s²';
+  $('rV').textContent=(v>0?'+':'')+v.toFixed(1)+' m/s';
+}
+
+let last=performance.now();
+function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if(running){ for(let i=0;i<4;i++) step(dt*S().speed/4);} draw(); requestAnimationFrame(frame); }
+
+function notice(){
+  const c=S(), L=lastForces;
+  let msg;
+  if (Math.abs(L.Fr)<0.5 && Math.abs(v)>0.05) msg='Forces balanced while moving: the resultant force is zero, so the acceleration is zero and the velocity stays the same. A moving object does not need a resultant force to keep moving.';
+  else if (Math.abs(L.Fr)<0.5) msg='Forces balanced at rest: the push is not bigger than friction, so friction simply matches it and the trolley stays still.';
+  else if (c.air) msg='With air resistance the drag grows as the trolley speeds up. When drag + friction equal the applied force the resultant becomes zero and the speed levels off.';
+  else msg=`Unbalanced forces: Fr = ${c.F} ${L.fr<0?'−':'+'} ${Math.abs(L.fr).toFixed(0)} = ${L.Fr.toFixed(0)} N, so a = Fr ÷ m = ${L.a.toFixed(2)} m/s². Now press "Balance the forces" while it is moving.`;
+  $('notice').innerHTML='<b>What to notice.</b> '+msg;
+}
+const upd=()=>{ const c=S(); $('FV').textContent=Math.abs(c.F)+' N '+(c.F>0?'→':c.F<0?'←':''); $('fV').textContent=c.f+' N'; $('mV').textContent=c.m+' kg'; $('speedV').textContent=c.speed.toFixed(1)+'×'; };
+['F','f','m','speed','air'].forEach(id=>$(id).addEventListener('input',upd));
+$('balance').addEventListener('click',()=>{ $('f').value=Math.abs(+$('F').value); $('air').checked=false; upd(); });
+$('letgo').addEventListener('click',()=>{ $('F').value=0; upd(); });
+$('space').addEventListener('click',()=>{ $('f').value=0; $('air').checked=false; upd(); });
+$('play').addEventListener('click',()=>{ running=!running; $('play').textContent=running?'Pause':'Play'; });
+$('reset').addEventListener('click',reset);
+setInterval(notice, 400);
+upd(); reset(); requestAnimationFrame(frame);
+})();
+</script>

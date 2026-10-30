@@ -1,0 +1,175 @@
+<title>Moments See-saw</title>
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap" media="print" onload="this.media='all'">
+<style>
+/* Layout: lab bench. Wide canvas stage on the left, instrument panel on the right; stacks on phones. */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --fg:#1d2430; --muted:#5b6675; --line:#cfd6de;
+  --accent:#1f6feb; --cw:#e4572e; --acw:#2a7de1; --ok:#2e9e5b; --mass:#8a6a3a; --mystery:#7b3fe4;
+  --display:"Bricolage Grotesque",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#141920;--panel:#1d242e;--fg:#e8edf3;--muted:#98a4b3;--line:#303a47;--accent:#5a9cff;--cw:#ff7a50;--acw:#5aa6ff;--ok:#4cc078;--mass:#c9a26b;--mystery:#b08cff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141920;--panel:#1d242e;--fg:#e8edf3;--muted:#98a4b3;--line:#303a47;--accent:#5a9cff;--cw:#ff7a50;--acw:#5aa6ff;--ok:#4cc078;--mass:#c9a26b;--mystery:#b08cff;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px;line-height:1.45}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-bottom:12px}
+h1{font-family:var(--display);font-weight:700;font-size:1.5rem;margin:0;text-wrap:balance}
+.lo{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+@media (max-width:820px){.wrap{grid-template-columns:1fr}}
+.stage{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+canvas{display:block;width:100%;height:auto;touch-action:none;cursor:grab}
+.notice{font-size:.9rem;color:var(--muted);margin:8px 2px 0}
+.notice b{color:var(--fg)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:14px;align-self:start}
+.ctl{display:flex;flex-direction:column;gap:6px}
+label,.lbl{font-size:.82rem;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
+.check{display:flex;align-items:center;gap:8px;font-size:.9rem;text-transform:none;letter-spacing:0;font-weight:400;color:var(--fg)}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+.buttons{display:flex;gap:8px}
+.btn{flex:1;font:inherit;font-weight:600;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mom{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center}
+.mom div{background:var(--bg);border-radius:8px;padding:8px 4px;border-top:3px solid var(--acw)}
+.mom div.cw{border-top-color:var(--cw)}
+.mom span{display:block;font-family:var(--mono);font-size:1.05rem;font-variant-numeric:tabular-nums}
+.mom small{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+.status{text-align:center;font-weight:600;padding:8px;border-radius:8px;background:var(--bg)}
+.status.ok{color:var(--ok)}
+.work{font-family:var(--mono);font-size:.78rem;line-height:1.6;color:var(--muted);white-space:pre-wrap}
+</style>
+
+<header>
+  <h1>Moments See-saw</h1>
+  <span class="lo">5086 · 5a–5e · principle of moments</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="520" aria-label="Beam on a pivot with draggable weights"></canvas>
+    <p class="notice"><b>What to notice.</b> Drag weights from the tray onto the beam. Each weight gives a moment = weight × distance from the pivot. The beam is balanced only when the total clockwise moment equals the total anticlockwise moment. Drag a weight off the beam to remove it.</p>
+  </div>
+
+  <div class="panel">
+    <div class="mom">
+      <div><small>Anticlockwise</small><span id="acw">0 N cm</span></div>
+      <div class="cw"><small>Clockwise</small><span id="cw">0 N cm</span></div>
+    </div>
+    <div class="status" id="status">Beam is balanced</div>
+    <div class="ctl">
+      <label class="check"><input type="checkbox" id="showMoments" checked> Show each moment on the beam</label>
+      <label class="check"><input type="checkbox" id="offCentre"> Pivot off-centre (beam's own weight counts)</label>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Mystery challenge</span>
+      <div class="buttons">
+        <button class="btn" id="mystery">New mystery weight</button>
+        <button class="btn" id="reveal" disabled>Reveal</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Working</span>
+      <div class="work" id="work"></div>
+    </div>
+    <div class="buttons">
+      <button class="btn primary" id="clear">Clear beam</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// Beam: 100 cm long, marks every 10 cm. Positions in cm from the beam's centre (negative = left).
+const BEAM_W=4;                       // weight of the beam itself (N), acts at its centre (0 cm)
+const PX=6.4, CX=450, BEAM_Y=250;     // px per cm, beam centre on screen
+const pivotX=()=>$('offCentre').checked?-20:0;
+const TRAY=[{w:1,label:'1 N'},{w:2,label:'2 N'},{w:5,label:'5 N'},{w:10,label:'10 N'}];
+let items=[];                          // {w, pos (cm) | null, mystery, x,y (while dragging)}
+let angle=0, drag=null, mysteryOn=false, revealed=false;
+
+const trayXY=i=>[120+i*110, 440];
+function moments(){
+  let cw=0, acw=0, lines=[];
+  const p=pivotX();
+  for (const it of items){ if (it.pos===null) continue; const d=it.pos-p; const m=it.w*Math.abs(d); if (Math.abs(d)<0.01) continue;
+    if (d>0) cw+=m; else acw+=m;
+    const name = it.mystery&&!revealed ? '?' : it.w+' N';
+    lines.push(`${name} × ${Math.abs(d)} cm = ${it.mystery&&!revealed?'?':m+' N cm'}  (${d>0?'clockwise':'anticlockwise'})`); }
+  if ($('offCentre').checked && p!==0){ const d=0-p; const m=BEAM_W*Math.abs(d); if (d>0) cw+=m; else acw+=m; lines.push(`beam ${BEAM_W} N × ${Math.abs(d)} cm = ${m} N cm  (${d>0?'clockwise':'anticlockwise'}, its weight acts at its centre of gravity)`); }
+  return {cw,acw,lines};
+}
+
+function draw(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),cwC=css('--cw'),acwC=css('--acw'),ok=css('--ok'),massC=css('--mass'),myst=css('--mystery');
+  ctx.clearRect(0,0,W,H);
+  const {cw,acw,lines}=moments(); const p=pivotX();
+  const hidden = items.some(it=>it.mystery&&it.pos!==null) && !revealed;
+  const target = Math.max(-10,Math.min(10,(cw-acw)*0.012)); angle += (target-angle)*0.08;
+  const bal = Math.abs(cw-acw)<0.5;
+
+  // pivot
+  const px=CX+p*PX;
+  ctx.fillStyle=line; ctx.beginPath(); ctx.moveTo(px,BEAM_Y+8); ctx.lineTo(px-28,BEAM_Y+70); ctx.lineTo(px+28,BEAM_Y+70); ctx.closePath(); ctx.fill();
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('pivot', px, BEAM_Y+86);
+
+  // beam, rotated about the pivot
+  ctx.save(); ctx.translate(px,BEAM_Y); ctx.rotate(angle*Math.PI/180); ctx.translate(-px,-BEAM_Y);
+  ctx.fillStyle=massC; ctx.globalAlpha=.25; ctx.fillRect(CX-50*PX,BEAM_Y-6,100*PX,12); ctx.globalAlpha=1; ctx.strokeStyle=fg; ctx.lineWidth=1.5; ctx.strokeRect(CX-50*PX,BEAM_Y-6,100*PX,12);
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center';
+  for (let c=-50;c<=50;c+=10){ const x=CX+c*PX; ctx.fillRect(x-0.5,BEAM_Y-6,1,12); ctx.fillText(Math.abs(c-p)+'', x, BEAM_Y+26); }
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('distance from pivot / cm', CX, BEAM_Y+42);
+  if ($('offCentre').checked){ ctx.fillStyle=massC; ctx.beginPath(); ctx.arc(CX,BEAM_Y,4,0,7); ctx.fill(); ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('centre of gravity, beam weight '+BEAM_W+' N', CX, BEAM_Y-48); ctx.strokeStyle=massC; ctx.beginPath(); ctx.moveTo(CX,BEAM_Y+6); ctx.lineTo(CX,BEAM_Y+6+BEAM_W*4); ctx.stroke(); }
+  // weights on beam
+  for (const it of items){ if (it.pos===null || it===drag) continue; const x=CX+it.pos*PX, h=14+it.w*3, w=22+it.w*2;
+    ctx.fillStyle=it.mystery?myst:massC; ctx.beginPath(); ctx.roundRect(x-w/2,BEAM_Y-6-h,w,h,3); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.fillText(it.mystery&&!revealed?'?':it.w+' N', x, BEAM_Y-6-h/2+4);
+    if ($('showMoments').checked){ const d=it.pos-p; if (Math.abs(d)>0.01){ ctx.fillStyle=d>0?cwC:acwC; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText(it.mystery&&!revealed?'? × '+Math.abs(d):`${it.w}×${Math.abs(d)} = ${it.w*Math.abs(d)}`, x, BEAM_Y-10-h-6); } } }
+  ctx.restore();
+
+  // turning-direction arrows
+  ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
+  ctx.fillStyle=acwC; ctx.fillText('anticlockwise  ↶', px-150, 150); ctx.fillStyle=cwC; ctx.fillText('↷  clockwise', px+150, 150);
+  if (bal && !hidden){ ctx.fillStyle=ok; ctx.font='600 15px IBM Plex Sans, sans-serif'; ctx.fillText('Balanced: clockwise moments = anticlockwise moments', CX, 120); }
+
+  // tray
+  ctx.fillStyle=css('--bg'); ctx.beginPath(); ctx.roundRect(60,400,480,90,8); ctx.fill(); ctx.strokeStyle=line; ctx.stroke();
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Weights: drag onto the beam', 72, 418);
+  TRAY.forEach((tw,i)=>{ const [x,y]=trayXY(i), h=14+tw.w*3, w=22+tw.w*2; ctx.fillStyle=massC; ctx.beginPath(); ctx.roundRect(x-w/2,y-h/2,w,h,3); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.fillText(tw.label,x,y+4); });
+  // dragging item follows the pointer
+  if (drag){ const h=14+drag.w*3, w=22+drag.w*2; ctx.fillStyle=drag.mystery?myst:massC; ctx.globalAlpha=.85; ctx.beginPath(); ctx.roundRect(drag.x-w/2,drag.y-h/2,w,h,3); ctx.fill(); ctx.globalAlpha=1; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.fillText(drag.mystery&&!revealed?'?':drag.w+' N', drag.x, drag.y+4); }
+
+  $('acw').textContent=(hidden?'?':acw)+' N cm'; $('cw').textContent=(hidden?'?':cw)+' N cm';
+  const st=$('status'); st.classList.toggle('ok', bal);
+  st.textContent = hidden ? (bal?'Balanced! Now work out the mystery weight, then Reveal.':'Not balanced yet') : bal?'Beam is balanced':(cw>acw?'Tips clockwise (right side down)':'Tips anticlockwise (left side down)');
+  $('work').textContent = lines.length ? lines.join('\n') + (hidden?'':`\n\nclockwise total = ${cw} N cm\nanticlockwise total = ${acw} N cm`) : 'Place a weight on the beam to see the working.';
+}
+
+const pos=e=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]; };
+cv.addEventListener('pointerdown',e=>{ const [x,y]=pos(e);
+  // pick up a weight already on the beam
+  for (const it of [...items].reverse()){ if (it.pos===null) continue; if (it.mystery && !revealed) continue; const bx=CX+it.pos*PX, h=14+it.w*3, w=22+it.w*2; if (x>bx-w/2-4&&x<bx+w/2+4&&y>BEAM_Y-6-h-20&&y<BEAM_Y+10){ drag=it; it.x=x; it.y=y; cv.setPointerCapture(e.pointerId); return; } }
+  // pick up a new weight from the tray
+  TRAY.forEach((tw,i)=>{ const [tx,ty]=trayXY(i); if (Math.abs(x-tx)<30&&Math.abs(y-ty)<26){ drag={w:tw.w,pos:null,mystery:false,x,y}; items.push(drag); cv.setPointerCapture(e.pointerId); } });
+});
+cv.addEventListener('pointermove',e=>{ if(!drag) return; [drag.x,drag.y]=pos(e); });
+const drop=()=>{ if(!drag) return; const onBeam = drag.y>BEAM_Y-90 && drag.y<BEAM_Y+40 && Math.abs(drag.x-CX)<=52*PX;
+  if (onBeam){ let c=Math.round((drag.x-CX)/PX/5)*5; c=Math.max(-50,Math.min(50,c)); if (c===pivotX()) c+=5; drag.pos=c; }
+  else items=items.filter(it=>it!==drag);
+  drag=null; };
+cv.addEventListener('pointerup',drop); cv.addEventListener('pointercancel',drop);
+
+$('clear').addEventListener('click',()=>{ items=[]; mysteryOn=false; revealed=false; $('reveal').disabled=true; });
+$('mystery').addEventListener('click',()=>{ items=items.filter(it=>!it.mystery); revealed=false; mysteryOn=true; $('reveal').disabled=false;
+  const w=[2,3,4,6,8][Math.floor(Math.random()*5)]; const side=Math.random()<0.5?-1:1; const d=[20,25,30,40][Math.floor(Math.random()*4)];
+  items.push({w, pos:pivotX()+side*d, mystery:true}); });
+$('reveal').addEventListener('click',()=>{ revealed=true; });
+$('offCentre').addEventListener('change',()=>{ for (const it of items) if (it.pos===pivotX()) it.pos+=5; });
+(function loop(){ draw(); requestAnimationFrame(loop); })();
+})();
+</script>

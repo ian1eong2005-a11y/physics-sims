@@ -1,0 +1,250 @@
+<title>Convection Tank</title>
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap" media="print" onload="this.media='all'">
+<style>
+/* Layout: lab bench. Wide canvas stage on the left, instrument panel on the right; stacks on phones. */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --fg:#1d2430; --muted:#5b6675; --line:#cfd6de;
+  --accent:#1f6feb; --hot:#e4572e; --cold:#2a7de1; --ok:#2e9e5b; --trace:#7b3fe4;
+  --display:"Bricolage Grotesque",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#141920;--panel:#1d242e;--fg:#e8edf3;--muted:#98a4b3;--line:#303a47;--accent:#5a9cff;--hot:#ff7a50;--cold:#5aa6ff;--ok:#4cc078;--trace:#b08cff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141920;--panel:#1d242e;--fg:#e8edf3;--muted:#98a4b3;--line:#303a47;--accent:#5a9cff;--hot:#ff7a50;--cold:#5aa6ff;--ok:#4cc078;--trace:#b08cff;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px;line-height:1.45}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-bottom:12px}
+h1{font-family:var(--display);font-weight:700;font-size:1.5rem;margin:0;text-wrap:balance}
+.lo{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+@media (max-width:820px){.wrap{grid-template-columns:1fr}}
+.stage{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+canvas{display:block;width:100%;height:auto}
+.notice{font-size:.9rem;color:var(--muted);margin:8px 2px 0}
+.notice b{color:var(--fg)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:14px;align-self:start}
+.ctl{display:flex;flex-direction:column;gap:6px}
+label,.lbl{font-size:.82rem;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;align-items:center;gap:8px}
+.val{font-family:var(--mono);font-size:.85rem;margin-left:auto;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.seg{display:grid;grid-template-columns:repeat(2,1fr);gap:4px}
+.seg button{font:inherit;font-size:.85rem;padding:6px 4px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:6px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+.check{display:flex;align-items:center;gap:8px;font-size:.9rem;text-transform:none;letter-spacing:0;font-weight:400;color:var(--fg)}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+.buttons{display:flex;gap:8px}
+.btn{flex:1;font:inherit;font-weight:600;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:focus-visible,.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dens{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center}
+.dens div{background:var(--bg);border-radius:8px;padding:8px 4px}
+.dens span{display:block;font-family:var(--mono);font-size:1.05rem;font-variant-numeric:tabular-nums}
+.dens small{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+</style>
+
+<header>
+  <h1>Convection Tank</h1>
+  <span class="lo">5086 · 8a, 8c · heating a fluid</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="560" aria-label="Tank of fluid particles being heated"></canvas>
+    <p class="notice" id="notice"></p>
+  </div>
+
+  <div class="panel">
+    <div class="ctl">
+      <span class="lbl">Heater position</span>
+      <div class="seg" id="heaterSeg">
+        <button data-v="bl" aria-pressed="true">Bottom left</button>
+        <button data-v="bc" aria-pressed="false">Bottom centre</button>
+        <button data-v="br" aria-pressed="false">Bottom right</button>
+        <button data-v="top" aria-pressed="false">Top</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <div class="row"><label for="power">Heater power</label><span class="val" id="powerV">70%</span></div>
+      <input type="range" id="power" min="0" max="100" value="70">
+    </div>
+    <div class="ctl">
+      <label for="fluid">Fluid</label>
+      <select id="fluid">
+        <option value="liquid">Liquid (water)</option>
+        <option value="gas">Gas (air)</option>
+      </select>
+    </div>
+    <div class="ctl">
+      <div class="row"><label for="expand">Expansion when heated</label><span class="val" id="expandV">1.0×</span></div>
+      <input type="range" id="expand" min="0" max="2" step="0.1" value="1">
+    </div>
+    <div class="ctl">
+      <label class="check"><input type="checkbox" id="showT" checked> Colour particles by temperature</label>
+      <label class="check"><input type="checkbox" id="showD"> Show density map</label>
+      <label class="check"><input type="checkbox" id="trace" checked> Trace one particle</label>
+    </div>
+    <div class="ctl">
+      <div class="row"><label for="speed">Simulation speed</label><span class="val" id="speedV">1.0×</span></div>
+      <input type="range" id="speed" min="0.2" max="3" step="0.1" value="1">
+    </div>
+    <div class="dens">
+      <div><small>Above heater</small><span id="dA">–</span></div>
+      <div><small>Far side</small><span id="dB">–</span></div>
+    </div>
+    <div class="buttons">
+      <button class="btn primary" id="play">Pause</button>
+      <button class="btn" id="reset">Reset</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// Model box is 1.0 wide x 0.75 high. Particles carry a temperature T (0 = room, 1 = hottest).
+const BW = 1.0, BH = 0.75;
+const FLUIDS = {
+  liquid:{n:190, r:0.021, jiggle:0.10, label:'In a liquid the particles stay close together. Heated particles move slightly further apart, so the hot region is less dense and floats up. Cooler, denser fluid sinks to take its place and a convection current forms.'},
+  gas:   {n:150, r:0.016, jiggle:0.30, label:'In a gas the particles are far apart and move fast. Heated particles move faster and spread out more, so the gas above the heater expands, becomes less dense and rises.'}
+};
+let P = [], t = 0, running = true, heater = 'bl', trail = [];
+const S = () => ({power:+$('power').value/100, fl:FLUIDS[$('fluid').value], ex:+$('expand').value, speed:+$('speed').value});
+
+function reset(){
+  const f = S().fl; P = []; trail = []; t = 0;
+  for (let i=0;i<f.n;i++) P.push({x:Math.random()*BW, y:Math.random()*BH, vx:0, vy:0, T:0});
+}
+function heaterZone(){ // [x0,x1,y0,y1] in model units
+  if (heater==='top') return [0.3,0.7,0,0.05];
+  const x0 = heater==='bl'?0.05:heater==='bc'?0.35:0.65;
+  return [x0, x0+0.3, BH-0.05, BH];
+}
+
+function step(dt){
+  const s = S(), f = s.fl, [hx0,hx1,hy0,hy1] = heaterZone();
+  let meanT = 0; for (const p of P) meanT += p.T; meanT /= P.length;
+  // temperatures: heater adds, top surface and walls lose, everything drifts back to room slowly
+  for (const p of P){
+    if (p.x>hx0 && p.x<hx1 && p.y>hy0-0.03 && p.y<hy1+0.03) p.T += s.power*1.6*dt*(1-p.T);
+    if (p.y<0.06 && heater!=='top') p.T -= 0.9*dt*p.T;
+    if (p.y>BH-0.04 && heater==='top') p.T -= 0.9*dt*p.T;
+    p.T -= 0.06*dt*p.T;
+  }
+  // forces: gravity minus buoyancy (hot particles are less dense than the fluid around them), drag, random jiggle
+  for (const p of P){
+    const buoy = 2.6*(p.T - meanT);        // positive = rises
+    p.vy += (-buoy)*dt;                     // screen y grows downward
+    p.vx += (Math.random()-0.5)*f.jiggle*(0.4+p.T)*dt*6;
+    p.vy += (Math.random()-0.5)*f.jiggle*(0.4+p.T)*dt*6;
+    p.vx *= 1-1.3*dt; p.vy *= 1-1.3*dt;
+  }
+  // repulsion keeps particles apart; hot particles claim more room (expansion)
+  const cell = f.r*2.6*(1+s.ex), cols = Math.ceil(BW/cell), rows = Math.ceil(BH/cell), grid = new Map();
+  const key = (cx,cy)=>cy*cols+cx;
+  P.forEach((p,i)=>{ const k = key(Math.min(cols-1,(p.x/cell)|0), Math.min(rows-1,(p.y/cell)|0)); (grid.get(k)||grid.set(k,[]).get(k)).push(i); });
+  for (let i=0;i<P.length;i++){
+    const p = P[i], cx = Math.min(cols-1,(p.x/cell)|0), cy = Math.min(rows-1,(p.y/cell)|0);
+    const ri = f.r*(1+0.55*s.ex*p.T);
+    for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++){
+      const b = grid.get(key(cx+dx,cy+dy)); if(!b) continue;
+      for (const j of b){ if (j<=i) continue; const q = P[j];
+        const rj = f.r*(1+0.55*s.ex*q.T), d0 = ri+rj;
+        let ddx = q.x-p.x, ddy = q.y-p.y, d = Math.hypot(ddx,ddy);
+        if (d<d0 && d>1e-6){ const push = (d0-d)/d0*2.5*dt; ddx/=d; ddy/=d; p.vx-=ddx*push; p.vy-=ddy*push; q.vx+=ddx*push; q.vy+=ddy*push; }
+      }
+    }
+  }
+  for (const p of P){
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    const r=f.r;
+    if (p.x<r){p.x=r;p.vx=Math.abs(p.vx)*0.5} if (p.x>BW-r){p.x=BW-r;p.vx=-Math.abs(p.vx)*0.5}
+    if (p.y<r){p.y=r;p.vy=Math.abs(p.vy)*0.5} if (p.y>BH-r){p.y=BH-r;p.vy=-Math.abs(p.vy)*0.5}
+  }
+  if ($('trace').checked){ trail.push([P[0].x,P[0].y]); if (trail.length>400) trail.shift(); } else trail.length = 0;
+  t += dt;
+}
+
+function colour(v, on){
+  if (!on) return css('--muted');
+  const a=[42,125,225], b=[228,87,46], w=Math.min(1,Math.max(0,v))**0.6;
+  return `rgb(${a.map((x,i)=>Math.round(x+(b[i]-x)*w)).join(',')})`;
+}
+
+function draw(){
+  const W=cv.width, H=cv.height, s=S();
+  ctx.clearRect(0,0,W,H);
+  const fg=css('--fg'), muted=css('--muted'), line=css('--line'), hot=css('--hot'), trace=css('--trace'), accent=css('--accent');
+  const pad=40, tankX=pad, tankY=50, tankW=W-2*pad-200, tankH=tankW*BH/BW;
+  const X = x=>tankX+x/BW*tankW, Y = y=>tankY+y/BH*tankH;
+
+  // density map
+  if ($('showD').checked){
+    const gc=16, gr=12, cnt=new Float32Array(gc*gr);
+    for (const p of P){ const cx=Math.min(gc-1,(p.x/BW*gc)|0), cy=Math.min(gr-1,(p.y/BH*gr)|0); cnt[cy*gc+cx]++; }
+    const avg = P.length/(gc*gr);
+    for (let cy=0;cy<gr;cy++) for (let cx=0;cx<gc;cx++){
+      const v = cnt[cy*gc+cx]/avg; // 1 = average density
+      ctx.fillStyle = accent; ctx.globalAlpha = Math.min(0.85, Math.max(0, (v-0.35)*0.42));
+      ctx.fillRect(X(cx*BW/gc), Y(cy*BH/gr), tankW/gc+0.5, tankH/gr+0.5);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // tank
+  ctx.strokeStyle=line; ctx.lineWidth=3; ctx.strokeRect(tankX,tankY,tankW,tankH); ctx.lineWidth=1;
+  // heater
+  const [hx0,hx1,hy0,hy1] = heaterZone();
+  ctx.fillStyle = hot; ctx.globalAlpha = 0.35+0.6*s.power; ctx.fillRect(X(hx0), Y(hy0)-(heater==='top'?6:0), X(hx1)-X(hx0), Y(hy1)-Y(hy0)+6); ctx.globalAlpha=1;
+  ctx.fillStyle = hot; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
+  ctx.fillText('HEATER', (X(hx0)+X(hx1))/2, heater==='top'? tankY-10 : tankY+tankH+18);
+
+  // trail
+  if (trail.length>1){ ctx.strokeStyle=trace; ctx.lineWidth=2; ctx.beginPath(); trail.forEach(([x,y],i)=>i?ctx.lineTo(X(x),Y(y)):ctx.moveTo(X(x),Y(y))); ctx.stroke(); ctx.lineWidth=1; }
+  // particles
+  const showT = $('showT').checked, pr = s.fl.r/BW*tankW;
+  P.forEach((p,i)=>{ ctx.fillStyle = colour(p.T, showT); ctx.beginPath(); ctx.arc(X(p.x),Y(p.y), pr*(1+0.55*s.ex*p.T), 0, 7); ctx.fill(); });
+  if ($('trace').checked){ ctx.strokeStyle=trace; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(X(P[0].x),Y(P[0].y),pr*1.9,0,7); ctx.stroke(); ctx.lineWidth=1; }
+
+  // sample boxes: above the heater vs the far side, at mid-height
+  const bw=0.16, bh=0.16, aX = heater==='top'?0.42:(hx0+hx1)/2-bw/2, aY = heater==='top'?0.08:0.42;
+  const bX = heater==='br'?0.08:heater==='bl'?0.76:0.08, bY = heater==='top'?0.52:0.42;
+  const count = (x0,y0)=>P.filter(p=>p.x>x0&&p.x<x0+bw&&p.y>y0&&p.y<y0+bh).length;
+  for (const [x0,y0,lab,id] of [[aX,aY,'A',$('dA')],[bX,bY,'B',$('dB')]]){
+    ctx.setLineDash([5,4]); ctx.strokeStyle=fg; ctx.strokeRect(X(x0),Y(y0),bw/BW*tankW,bh/BH*tankH); ctx.setLineDash([]);
+    ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillText(lab, X(x0)+4, Y(y0)+14);
+    id.textContent = count(x0,y0)+' particles';
+  }
+  // legend on the right
+  const lx = tankX+tankW+24, ly = tankY;
+  ctx.textAlign='left'; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Key', lx, ly+4);
+  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted;
+  const rows=[[colour(0,true),'cool particle (denser)'],[colour(1,true),'hot particle (less dense)'],[trace,'traced particle'],[fg,'A, B: equal boxes, count the particles']];
+  rows.forEach(([c,txt],i)=>{ ctx.fillStyle=c; ctx.beginPath(); ctx.arc(lx+6, ly+30+i*22, 5, 0, 7); ctx.fill(); ctx.fillStyle=muted; ctx.fillText(txt, lx+18, ly+34+i*22); });
+  if ($('showD').checked){ ctx.fillStyle=accent; ctx.globalAlpha=.5; ctx.fillRect(lx, ly+30+rows.length*22-6, 12, 12); ctx.globalAlpha=1; ctx.fillStyle=muted; ctx.fillText('deeper blue = more dense', lx+18, ly+34+rows.length*22); }
+  ctx.fillStyle=muted; ctx.fillText(`t = ${t.toFixed(0)} s`, lx, tankY+tankH);
+}
+
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(0.05,(now-last)/1000); last = now;
+  if (running){ for (let i=0;i<3;i++) step(dt*S().speed/3); }
+  draw(); requestAnimationFrame(frame);
+}
+function notice(){
+  const topMsg = heater==='top' ? ' <b>Heater at the top:</b> the hot, less dense fluid is already at the top, so nothing rises past it and no current forms. This is why heaters sit low and air-conditioners sit high.' : '';
+  $('notice').innerHTML = `<b>What to notice.</b> ${S().fl.label} Compare boxes A and B: A (above the heater) holds fewer particles, so that region is less dense.${topMsg}`;
+}
+$('heaterSeg').addEventListener('click', e => { const b=e.target.closest('button'); if(!b) return; heater=b.dataset.v; [...$('heaterSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); notice(); });
+$('power').addEventListener('input', ()=>$('powerV').textContent=$('power').value+'%');
+$('expand').addEventListener('input', ()=>$('expandV').textContent=(+$('expand').value).toFixed(1)+'×');
+$('speed').addEventListener('input', ()=>$('speedV').textContent=(+$('speed').value).toFixed(1)+'×');
+$('fluid').addEventListener('change', ()=>{ reset(); notice(); });
+$('play').addEventListener('click', ()=>{ running=!running; $('play').textContent=running?'Pause':'Play'; });
+$('reset').addEventListener('click', reset);
+reset(); notice(); requestAnimationFrame(frame);
+})();
+</script>

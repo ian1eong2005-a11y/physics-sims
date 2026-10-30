@@ -1,0 +1,224 @@
+<title>Kinematics Graph Matcher</title>
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap" media="print" onload="this.media='all'">
+<style>
+/* Layout: lab bench. Wide canvas stage on the left, instrument panel on the right; stacks on phones. */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --fg:#1d2430; --muted:#5b6675; --line:#cfd6de;
+  --accent:#1f6feb; --speed:#2a7de1; --dist:#2e9e5b; --area:#7b3fe4; --car:#e4572e;
+  --display:"Bricolage Grotesque",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#141920;--panel:#1d242e;--fg:#e8edf3;--muted:#98a4b3;--line:#303a47;--accent:#5a9cff;--speed:#5aa6ff;--dist:#4cc078;--area:#b08cff;--car:#ff7a50;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141920;--panel:#1d242e;--fg:#e8edf3;--muted:#98a4b3;--line:#303a47;--accent:#5a9cff;--speed:#5aa6ff;--dist:#4cc078;--area:#b08cff;--car:#ff7a50;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px;line-height:1.45}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-bottom:12px}
+h1{font-family:var(--display);font-weight:700;font-size:1.5rem;margin:0;text-wrap:balance}
+.lo{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+@media (max-width:820px){.wrap{grid-template-columns:1fr}}
+.stage{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+canvas{display:block;width:100%;height:auto;touch-action:none}
+.notice{font-size:.9rem;color:var(--muted);margin:8px 2px 0}
+.notice b{color:var(--fg)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:14px;align-self:start}
+.ctl{display:flex;flex-direction:column;gap:6px}
+label,.lbl{font-size:.82rem;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;align-items:center;gap:8px}
+.val{font-family:var(--mono);font-size:.85rem;margin-left:auto;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.check{display:flex;align-items:center;gap:8px;font-size:.9rem;text-transform:none;letter-spacing:0;font-weight:400;color:var(--fg)}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+.buttons{display:flex;gap:8px}
+.btn{flex:1;font:inherit;font-weight:600;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.read{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;text-align:center}
+.read div{background:var(--bg);border-radius:8px;padding:8px 4px}
+.read span{display:block;font-family:var(--mono);font-size:1rem;font-variant-numeric:tabular-nums}
+.read small{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+.segs{font-size:.85rem;display:flex;flex-direction:column;gap:4px}
+.segs div{display:flex;gap:8px;align-items:baseline;border-left:3px solid var(--speed);padding-left:8px}
+.segs b{font-family:var(--mono);font-weight:500;white-space:nowrap}
+</style>
+
+<header>
+  <h1>Kinematics Graph Matcher</h1>
+  <span class="lo">5086 · 2c, 2d, 2e–2h · distance–time and speed–time graphs</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="420" aria-label="Car on a road with speed-time and distance-time graphs"></canvas>
+    <p class="notice" id="notice"></p>
+  </div>
+
+  <div class="panel">
+    <div class="ctl">
+      <label for="motion">Type of motion</label>
+      <select id="motion">
+        <optgroup label="Set the acceleration">
+          <option value="rest">At rest</option>
+          <option value="uniform">Uniform speed (a = 0)</option>
+          <option value="accel" selected>Uniform acceleration</option>
+          <option value="increasing">Increasing acceleration</option>
+          <option value="decreasing">Decreasing acceleration</option>
+          <option value="decel">Uniform deceleration</option>
+        </optgroup>
+        <optgroup label="Journeys">
+          <option value="trip">Speed up, cruise, slow down</option>
+          <option value="custom">Custom (drag the points)</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="ctl">
+      <label class="check"><input type="checkbox" id="showDT" checked> Show the distance–time graph</label>
+      <label class="check"><input type="checkbox" id="area" checked> Shade area under speed–time graph</label>
+      <label class="check"><input type="checkbox" id="labels" checked> Describe the shape</label>
+    </div>
+    <div class="ctl">
+      <div class="row"><label for="speed">Simulation speed</label><span class="val" id="speedV">1×</span></div>
+      <input type="range" id="speed" min="0.25" max="3" step="0.25" value="1">
+    </div>
+    <div class="read">
+      <div><small>Time</small><span id="rT">0.0 s</span></div>
+      <div><small>Speed</small><span id="rV">0.0 m/s</span></div>
+      <div><small>Acceleration now</small><span id="rA">0.0 m/s²</span></div>
+      <div><small>Distance</small><span id="rD">0 m</span></div>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Reading the graphs</span>
+      <div class="segs" id="segs"></div>
+    </div>
+    <div class="buttons">
+      <button class="btn primary" id="play">Play</button>
+      <button class="btn" id="reset">Restart</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const TMAX=20, VMAX=20, TS=[0,5,10,15,20], DMAX=400;
+let V=[0,12,12,12,0], t=0, running=false, drag=-1, motion='accel';
+
+// Speed as a function of time for each type of motion
+const CURVES={
+  rest: tt=>0,
+  uniform: tt=>12,
+  accel: tt=>VMAX*tt/TMAX,                                            // a = 1 m/s²
+  increasing: tt=>VMAX*(tt/TMAX)**2,                                  // gradient grows
+  decreasing: tt=>VMAX*(1-Math.exp(-3*tt/TMAX))/(1-Math.exp(-3)),     // gradient shrinks, levels off
+  decel: tt=>VMAX*(1-tt/TMAX),
+};
+const piecewise=tt=>{ const i=Math.min(3,Math.floor(tt/5)); return V[i]+(V[i+1]-V[i])*(tt-TS[i])/5; };
+const speedAt=tt=>{ tt=Math.min(TMAX,Math.max(0,tt)); return CURVES[motion]?CURVES[motion](tt):piecewise(tt); };
+const accelAt=tt=>(speedAt(Math.min(TMAX,tt+0.05))-speedAt(Math.max(0,tt-0.05)))/(Math.min(TMAX,tt+0.05)-Math.max(0,tt-0.05));
+// distance = area under the speed-time graph (fine trapezium rule)
+const distAt=tt=>{ tt=Math.min(TMAX,Math.max(0,tt)); const n=200; let d=0; for (let k=0;k<n;k++){ const a=tt*k/n, b=tt*(k+1)/n; d+=(speedAt(a)+speedAt(b))/2*(b-a); } return d; };
+
+const G1={x:70,y:150,w:400,h:200}, G2={x:520,y:150,w:340,h:200};
+const tx=(g,tt)=>g.x+tt/TMAX*g.w, vy=tt=>G1.y+G1.h-tt/VMAX*G1.h, dy=d=>G2.y+G2.h-Math.min(d,DMAX)/DMAX*G2.h;
+
+const TEXT={
+  rest:['speed–time: flat line along the axis at 0','distance–time: flat line (no distance covered)'],
+  uniform:['speed–time: horizontal straight line, gradient 0 so a = 0','distance–time: straight sloping line, constant gradient = speed'],
+  accel:['speed–time: straight line sloping up, constant gradient = 1 m/s²','distance–time: curve getting steeper (speed is rising)'],
+  increasing:['speed–time: curve getting steeper, so the acceleration itself is increasing','distance–time: curve bending upwards ever more sharply'],
+  decreasing:['speed–time: curve flattening out, acceleration decreasing towards 0 (like a falling object reaching terminal velocity)','distance–time: curve that becomes almost a straight line as the speed settles'],
+  decel:['speed–time: straight line sloping down, constant gradient = −1 m/s²','distance–time: curve levelling off as the car slows to a stop'],
+};
+function describe(){
+  const box=$('segs'); box.innerHTML='';
+  if (TEXT[motion]){ TEXT[motion].forEach(s=>{ const el=document.createElement('div'); el.innerHTML=`<span>${s}</span>`; box.appendChild(el); }); return; }
+  for (let i=0;i<4;i++){ const a=(V[i+1]-V[i])/5, d=(V[i]+V[i+1])/2*5;
+    const txt = Math.abs(a)<0.01 ? (V[i]<0.01?'at rest':'uniform speed '+V[i].toFixed(0)+' m/s') : (a>0?'uniform acceleration ':'uniform deceleration ')+Math.abs(a).toFixed(1)+' m/s²';
+    const el=document.createElement('div'); el.innerHTML=`<b>${TS[i]}–${TS[i+1]} s</b><span>${txt}, ${d.toFixed(0)} m</span>`; box.appendChild(el); }
+}
+function notice(){
+  $('notice').innerHTML = motion==='custom'
+    ? '<b>What to notice.</b> Drag the blue points to design a journey, then press Play. Gradient of speed–time = acceleration; area under it = distance, which is what the distance–time graph plots.'
+    : '<b>What to notice.</b> Hide the distance–time graph, sketch what you think it will look like, then show it to check. A straight speed–time line means uniform acceleration; a curve means the acceleration is changing.';
+}
+
+function axes(g,title,ylab,ymax,col){
+  const fg=css('--fg'),muted=css('--muted'),line=css('--line');
+  ctx.strokeStyle=line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(g.x,g.y); ctx.lineTo(g.x,g.y+g.h); ctx.lineTo(g.x+g.w,g.y+g.h); ctx.stroke();
+  ctx.globalAlpha=.35; for (let k=1;k<=4;k++){ const y=g.y+g.h-k*g.h/4; ctx.beginPath(); ctx.moveTo(g.x,y); ctx.lineTo(g.x+g.w,y); ctx.stroke(); } ctx.globalAlpha=1;
+  ctx.fillStyle=col; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(title,g.x,g.y-14);
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center';
+  for (let k=0;k<=4;k++) ctx.fillText(k*5, tx(g,k*5), g.y+g.h+14);
+  ctx.textAlign='right'; for (let k=0;k<=4;k++) ctx.fillText((k*ymax/4).toFixed(0), g.x-6, g.y+g.h-k*g.h/4+4);
+  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillStyle=fg; ctx.fillText('time / s', g.x+g.w/2, g.y+g.h+30);
+  ctx.save(); ctx.translate(g.x-40,g.y+g.h/2); ctx.rotate(-Math.PI/2); ctx.fillText(ylab,0,0); ctx.restore();
+}
+
+function draw(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),sp=css('--speed'),ds=css('--dist'),ar=css('--area'),car=css('--car');
+  ctx.clearRect(0,0,W,H);
+  const v=speedAt(t), d=distAt(t), a=accelAt(t);
+
+  // road and car
+  const roadY=70, rx0=70, rx1=860;
+  ctx.fillStyle=line; ctx.fillRect(rx0,roadY,rx1-rx0,4);
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center';
+  for (let m=0;m<=DMAX;m+=50){ const x=rx0+m/DMAX*(rx1-rx0); ctx.fillRect(x-1,roadY-4,2,12); ctx.fillText(m+' m', x, roadY+26); }
+  const cx=rx0+Math.min(d,DMAX)/DMAX*(rx1-rx0);
+  ctx.fillStyle=car; ctx.beginPath(); ctx.roundRect(cx-22,roadY-26,44,20,5); ctx.fill(); ctx.fillRect(cx-12,roadY-36,24,10);
+  ctx.fillStyle=fg; for (const wx of [cx-12,cx+12]){ ctx.beginPath(); ctx.arc(wx,roadY-4,5,0,7); ctx.fill(); }
+  if (v>0.05){ ctx.strokeStyle=fg; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx+28,roadY-16); ctx.lineTo(cx+28+v*3,roadY-16); ctx.stroke(); ctx.fillStyle=fg; ctx.beginPath(); ctx.moveTo(cx+32+v*3,roadY-16); ctx.lineTo(cx+26+v*3,roadY-21); ctx.lineTo(cx+26+v*3,roadY-11); ctx.fill(); }
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(`t = ${t.toFixed(1)} s   speed = ${v.toFixed(1)} m/s   distance = ${d.toFixed(0)} m`, rx0, roadY-44);
+
+  // speed-time graph
+  axes(G1,'speed–time graph','speed / m/s',VMAX,sp);
+  if ($('area').checked){ ctx.fillStyle=ar; ctx.globalAlpha=.3; ctx.beginPath(); ctx.moveTo(tx(G1,0),vy(0)); for (let k=0;k<=100;k++){ const tt=t*k/100; ctx.lineTo(tx(G1,tt),vy(speedAt(tt))); } ctx.lineTo(tx(G1,t),vy(0)); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+    if (t>0.5){ ctx.fillStyle=ar; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.fillText('area = '+d.toFixed(0)+' m', tx(G1,t/2), Math.min(vy(0)-8, vy(speedAt(t/2)/2)+4)); } }
+  ctx.strokeStyle=sp; ctx.lineWidth=2.5; ctx.beginPath(); for (let k=0;k<=200;k++){ const tt=TMAX*k/200; k?ctx.lineTo(tx(G1,tt),vy(speedAt(tt))):ctx.moveTo(tx(G1,tt),vy(speedAt(tt))); } ctx.stroke(); ctx.lineWidth=1;
+  if ($('labels').checked && motion==='custom'){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
+    for (let i=0;i<4;i++){ const g=(V[i+1]-V[i])/5; ctx.fillText(Math.abs(g)<0.01?(V[i]<0.01?'rest':'constant'):`a = ${g.toFixed(1)}`, tx(G1,TS[i]+2.5), vy((V[i]+V[i+1])/2)-10); } }
+  if ($('labels').checked && motion!=='custom'){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText({rest:'gradient 0',uniform:'gradient 0: a = 0',accel:'constant gradient: uniform a',increasing:'gradient increasing',decreasing:'gradient decreasing',decel:'constant negative gradient'}[motion], G1.x+10, G1.y+14); }
+  if (motion==='custom'){ TS.forEach((tt,i)=>{ ctx.fillStyle=i===drag?css('--accent'):sp; ctx.beginPath(); ctx.arc(tx(G1,tt),vy(V[i]),7,0,7); ctx.fill(); ctx.strokeStyle=css('--panel'); ctx.lineWidth=2; ctx.stroke(); ctx.lineWidth=1; });
+    ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('drag the points ↑↓', G1.x+G1.w-110, G1.y-14); }
+  // tangent showing the gradient (acceleration) at the current time
+  if (t>0 && t<TMAX && Math.abs(a)>0.02){ const dt=2.5, x0=tx(G1,t-dt), x1=tx(G1,t+dt), y0=vy(v-a*dt), y1=vy(v+a*dt); ctx.strokeStyle=css('--car'); ctx.setLineDash([4,3]); ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); ctx.setLineDash([]); }
+  ctx.fillStyle=sp; ctx.beginPath(); ctx.arc(tx(G1,t),vy(v),5,0,7); ctx.fill();
+  ctx.strokeStyle=sp; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(tx(G1,t),vy(v)); ctx.lineTo(tx(G1,t),vy(0)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('gradient = acceleration (dashed tangent);  area = distance', G1.x, G1.y+G1.h+48);
+
+  // distance-time graph (can be hidden so students predict it)
+  if ($('showDT').checked){
+    axes(G2,'distance–time graph','distance / m',DMAX,ds);
+    ctx.strokeStyle=ds; ctx.lineWidth=2.5; ctx.beginPath(); for (let k=0;k<=200;k++){ const tt=t*k/200; k?ctx.lineTo(tx(G2,tt),dy(distAt(tt))):ctx.moveTo(tx(G2,tt),dy(distAt(tt))); } ctx.stroke();
+    ctx.globalAlpha=.25; ctx.beginPath(); for (let k=0;k<=200;k++){ const tt=TMAX*k/200; k?ctx.lineTo(tx(G2,tt),dy(distAt(tt))):ctx.moveTo(tx(G2,tt),dy(distAt(tt))); } ctx.stroke(); ctx.globalAlpha=1; ctx.lineWidth=1;
+    ctx.fillStyle=ds; ctx.beginPath(); ctx.arc(tx(G2,t),dy(d),5,0,7); ctx.fill();
+    if ($('labels').checked && motion==='custom'){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
+      for (let i=0;i<4;i++){ const g=(V[i+1]-V[i])/5; ctx.fillText(Math.abs(g)<0.01?(V[i]<0.01?'flat':'straight'):(g>0?'curving up':'levelling off'), tx(G2,TS[i]+2.5), dy((distAt(TS[i])+distAt(TS[i+1]))/2)-12); } }
+    ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('gradient of distance–time = speed', G2.x, G2.y+G2.h+48);
+  } else {
+    ctx.strokeStyle=line; ctx.setLineDash([6,5]); ctx.strokeRect(G2.x,G2.y,G2.w,G2.h); ctx.setLineDash([]);
+    ctx.fillStyle=muted; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('distance–time graph hidden', G2.x+G2.w/2, G2.y+G2.h/2-8);
+    ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('sketch your prediction, then tick "Show" to check', G2.x+G2.w/2, G2.y+G2.h/2+12);
+  }
+  $('rT').textContent=t.toFixed(1)+' s'; $('rV').textContent=v.toFixed(1)+' m/s'; $('rA').textContent=(a>=0?'+':'')+a.toFixed(2)+' m/s²'; $('rD').textContent=d.toFixed(0)+' m';
+}
+
+let last=performance.now();
+function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (running){ t+=dt*(+$('speed').value); if (t>=TMAX){ t=TMAX; running=false; $('play').textContent='Play'; } } draw(); requestAnimationFrame(frame); }
+
+const pos=e=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]; };
+cv.addEventListener('pointerdown',e=>{ if (motion!=='custom') return; const [x,y]=pos(e); let best=-1,bd=18; TS.forEach((tt,i)=>{ const dd=Math.hypot(x-tx(G1,tt),y-vy(V[i])); if (dd<bd){bd=dd;best=i;} }); if (best>=0){ drag=best; cv.setPointerCapture(e.pointerId); } });
+cv.addEventListener('pointermove',e=>{ if (drag<0) return; const [,y]=pos(e); V[drag]=Math.round(Math.min(VMAX,Math.max(0,(G1.y+G1.h-y)/G1.h*VMAX))); describe(); });
+cv.addEventListener('pointerup',()=>{ drag=-1; }); cv.addEventListener('pointercancel',()=>{ drag=-1; });
+
+$('motion').addEventListener('change',()=>{ motion=$('motion').value; if (motion==='trip'){ V=[0,12,12,12,0]; motion='custom'; $('motion').value='custom'; } t=0; running=false; $('play').textContent='Play'; describe(); notice(); });
+$('speed').addEventListener('input',()=>$('speedV').textContent=(+$('speed').value).toFixed(2).replace(/\.?0+$/,'')+'×');
+$('play').addEventListener('click',()=>{ if (t>=TMAX) t=0; running=!running; $('play').textContent=running?'Pause':'Play'; });
+$('reset').addEventListener('click',()=>{ t=0; running=false; $('play').textContent='Play'; });
+describe(); notice(); requestAnimationFrame(frame);
+})();
+</script>

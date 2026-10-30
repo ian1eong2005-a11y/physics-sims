@@ -1,0 +1,124 @@
+<title>EM Spectrum Explorer</title>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap" media="print" onload="this.media='all'">
+<style>
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --fg:#1d2430; --muted:#5b6675; --line:#cfd6de;
+  --accent:#1f6feb; --warn:#e4572e; --ok:#2e9e5b;
+  --display:"Bricolage Grotesque",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#141920;--panel:#1d242e;--fg:#e8edf3;--muted:#98a4b3;--line:#303a47;--accent:#5a9cff;--warn:#ff7a50;--ok:#4cc078;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141920;--panel:#1d242e;--fg:#e8edf3;--muted:#98a4b3;--line:#303a47;--accent:#5a9cff;--warn:#ff7a50;--ok:#4cc078;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px;line-height:1.45}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-bottom:12px}
+h1{font-family:var(--display);font-weight:700;font-size:1.5rem;margin:0}
+.lo{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
+@media (max-width:820px){.wrap{grid-template-columns:1fr}}
+.stage{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+canvas{display:block;width:100%;height:auto;cursor:pointer}
+.notice{font-size:.9rem;color:var(--muted);margin:8px 2px 0}
+.notice b{color:var(--fg)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px;align-self:start}
+.ctl{display:flex;flex-direction:column;gap:6px}
+label,.lbl{font-size:.82rem;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.check{display:flex;align-items:center;gap:8px;font-size:.9rem;text-transform:none;letter-spacing:0;font-weight:400;color:var(--fg)}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+.card{background:var(--bg);border-radius:8px;padding:10px 12px}
+.card h2{font-family:var(--display);font-size:1.25rem;margin:0 0 4px}
+.card .k{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+.card ul{margin:6px 0 0 18px;padding:0;font-size:.9rem}
+.card .haz{color:var(--warn);font-size:.88rem;margin-top:8px}
+.buttons{display:flex;gap:8px}
+.btn{flex:1;font:inherit;font-weight:600;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+</style>
+
+<header>
+  <h1>EM Spectrum Explorer</h1>
+  <span class="lo">5086 · 10a–10d · order, uses and hazards</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="520" aria-label="The electromagnetic spectrum with an animated wave"></canvas>
+    <p class="notice"><b>What to notice.</b> Every region is the same kind of wave: transverse, and all travelling at the same speed in a vacuum (3 × 10⁸ m/s). Watch the race: the waves differ only in wavelength and frequency. Going from radio to gamma, the wavelength gets shorter and the frequency gets higher, and so does the energy carried, which is why the right-hand end is the dangerous end.</p>
+  </div>
+
+  <div class="panel">
+    <div class="ctl">
+      <label for="pos">Slide along the spectrum (or click a band)</label>
+      <input type="range" id="pos" min="0" max="6" step="0.01" value="3">
+    </div>
+    <div class="ctl">
+      <label class="check"><input type="checkbox" id="names" checked> Show region names</label>
+      <label class="check"><input type="checkbox" id="race" checked> Show the speed race</label>
+      <label class="check"><input type="checkbox" id="quizmode"> Hide names (quiz mode)</label>
+    </div>
+    <div class="card" id="card"></div>
+    <div class="buttons"><button class="btn" id="shuffle">Random region</button></div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+// Order, typical wavelength (for the scale), the 5086 10c uses and 10d hazards.
+const BANDS=[
+  {name:'Radio waves', short:'Radio', lam:'> 10 cm, up to km', uses:['radio and television communication','astronomy (radio telescopes)','RFID tags'], haz:'Low energy: no known harm at everyday levels.', col:'#8a6a3a'},
+  {name:'Microwaves', short:'Micro', lam:'about 1 mm – 10 cm', uses:['mobile (cell) phones','microwave ovens','satellite television'], haz:'Heating effect: absorbed by water in body cells, which can heat and damage tissue.', col:'#c0392b'},
+  {name:'Infrared', short:'IR', lam:'about 1 μm – 1 mm', uses:['infrared remote controllers','intruder alarms','thermal imaging'], haz:'Heating effect: strong infrared can burn the skin.', col:'#d35400'},
+  {name:'Visible light', short:'Visible', lam:'about 400 – 700 nm', uses:['photography','optical fibres in medicine and telecommunications'], haz:'Very bright light (e.g. lasers, the Sun) can damage the retina.', col:'#2e9e5b'},
+  {name:'Ultraviolet', short:'UV', lam:'about 10 – 400 nm', uses:['sunbeds','bank note authentication','disinfecting water'], haz:'Ionising: damages skin cells (sunburn, skin cancer) and can harm the eyes.', col:'#7b3fe4'},
+  {name:'X-rays', short:'X-rays', lam:'about 0.01 – 10 nm', uses:['medical radiology (X-ray images)','security screening (airport scanners)','industrial defect detection'], haz:'Ionising: can damage or kill cells and cause mutations / cancer. Exposure is kept low and shielded with lead.', col:'#1f6feb'},
+  {name:'Gamma rays', short:'Gamma', lam:'< 0.01 nm', uses:['sterilising food (and medical equipment)','detection of cancer','treatment of cancer (radiotherapy)'], haz:'Most ionising and penetrating: kills or mutates cells. Also used deliberately to kill cancer cells and microbes.', col:'#1d2430'},
+];
+let t=0;
+const pos=()=>+$('pos').value;
+const band=()=>BANDS[Math.min(6,Math.max(0,Math.round(pos())))];
+
+function draw(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),accent=css('--accent');
+  ctx.clearRect(0,0,W,H);
+  const quiz=$('quizmode').checked, showNames=$('names').checked && !quiz;
+  // spectrum bar
+  const bx=40, bw=W-80, by=60, bh=70, seg=bw/7;
+  BANDS.forEach((b,i)=>{ ctx.fillStyle=b.col; ctx.globalAlpha=.85; ctx.fillRect(bx+i*seg,by,seg,bh); ctx.globalAlpha=1;
+    if (i===3){ const g=ctx.createLinearGradient(bx+i*seg,0,bx+(i+1)*seg,0); ['#e53935','#fb8c00','#fdd835','#43a047','#1e88e5','#8e24aa'].forEach((c,k)=>g.addColorStop(k/5,c)); ctx.fillStyle=g; ctx.fillRect(bx+i*seg,by,seg,bh); }
+    ctx.fillStyle='#fff'; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(showNames?b.short:'?', bx+i*seg+seg/2, by+bh/2+5); });
+  // highlight current
+  const bi=BANDS.indexOf(band()); ctx.strokeStyle=fg; ctx.lineWidth=3; ctx.strokeRect(bx+bi*seg+1.5,by+1.5,seg-3,bh-3); ctx.lineWidth=1;
+  // arrows for the trends
+  ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('longer wavelength, lower frequency, less energy', bx, by-30); ctx.textAlign='right'; ctx.fillText('shorter wavelength, higher frequency, more energy', bx+bw, by-30);
+  ctx.strokeStyle=muted; ctx.beginPath(); ctx.moveTo(bx+300,by-16); ctx.lineTo(bx,by-16); ctx.moveTo(bx+8,by-21); ctx.lineTo(bx,by-16); ctx.lineTo(bx+8,by-11); ctx.moveTo(bx+bw-300,by-16); ctx.lineTo(bx+bw,by-16); ctx.moveTo(bx+bw-8,by-21); ctx.lineTo(bx+bw,by-16); ctx.lineTo(bx+bw-8,by-11); ctx.stroke();
+  // wavelength scale under the bar
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center';
+  ['1 km','1 m','1 cm','1 mm','1 μm','1 nm','0.01 nm','<'].forEach((l,i)=>{ if(i<7){ ctx.fillText(l, bx+i*seg, by+bh+16); ctx.fillRect(bx+i*seg-0.5,by+bh,1,5); } });
+  ctx.fillText('approximate wavelength', bx+bw/2, by+bh+34);
+  ctx.fillStyle=css('--warn'); ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('ionising (UV, X, gamma) →', bx+bw, by+bh+34);
+  // the wave: wavelength shrinks along the spectrum (visual, not to scale)
+  const p=pos(); const lam = 180*Math.pow(0.55,p)+10; const wy=230, wx0=60, wx1=W-60;
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText((showNames?band().name:'This region')+': a transverse wave, wavelength shown shrinking as you move right (not to scale)', wx0, wy-50);
+  ctx.strokeStyle=band().col; ctx.lineWidth=2.5; ctx.beginPath(); for (let x=wx0;x<=wx1;x+=2){ const y=wy+30*Math.sin(2*Math.PI*((x-wx0)/lam - t*1.2)); x===wx0?ctx.moveTo(x,y):ctx.lineTo(x,y); } ctx.stroke(); ctx.lineWidth=1;
+  ctx.strokeStyle=line; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(wx0,wy); ctx.lineTo(wx1,wy); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle=fg; ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center'; const mx=wx0+((0.25-t*1.2)%1+1)%1*lam; if (mx+lam<wx1){ ctx.beginPath(); ctx.moveTo(mx,wy+40); ctx.lineTo(mx+lam,wy+40); ctx.moveTo(mx,wy+35); ctx.lineTo(mx,wy+45); ctx.moveTo(mx+lam,wy+35); ctx.lineTo(mx+lam,wy+45); ctx.stroke(); ctx.fillText('λ', mx+lam/2, wy+58); }
+  // race: three waves travelling at the same speed
+  if ($('race').checked){ const ry=330; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Speed race in a vacuum: radio, visible and gamma all travel at 3 × 10⁸ m/s. Nobody wins.', wx0, ry-6);
+    const front=((t*120)%(wx1-wx0)); [[0,'Radio'],[3,'Visible'],[6,'Gamma']].forEach(([i,label],k)=>{ const y=ry+28+k*42, lamk=180*Math.pow(0.55,i)+10; ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText(showNames?label:'?', wx0-6, y+4);
+      ctx.strokeStyle=BANDS[i].col; ctx.lineWidth=2; ctx.beginPath(); for (let x=wx0;x<=wx0+front;x+=2){ const yy=y+12*Math.sin(2*Math.PI*((x-wx0)/lamk - t*1.2)); x===wx0?ctx.moveTo(x,yy):ctx.lineTo(x,yy); } ctx.stroke(); ctx.lineWidth=1;
+      ctx.fillStyle=BANDS[i].col; ctx.beginPath(); ctx.arc(wx0+front,y,5,0,7); ctx.fill(); });
+    ctx.strokeStyle=line; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(wx0+front,ry+10); ctx.lineTo(wx0+front,ry+130); ctx.stroke(); ctx.setLineDash([]); }
+  // card
+  const b=band(); $('card').innerHTML = `<h2>${quiz?'Region ?':b.name}</h2><div class="k">wavelength ${b.lam}</div><div class="k">transverse · speed in vacuum 3 × 10⁸ m/s</div><b style="display:block;margin-top:8px">Typical uses</b><ul>${b.uses.map(u=>'<li>'+u+'</li>').join('')}</ul><div class="haz"><b>Hazard:</b> ${b.haz}</div>`;
+}
+let last=performance.now();
+function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; t+=dt; draw(); requestAnimationFrame(frame); }
+cv.addEventListener('click',e=>{ const r=cv.getBoundingClientRect(); const x=(e.clientX-r.left)*cv.width/r.width, y=(e.clientY-r.top)*cv.height/r.height; if (y>60&&y<130&&x>40&&x<cv.width-40){ $('pos').value=Math.min(6,Math.floor((x-40)/((cv.width-80)/7))); } });
+$('shuffle').addEventListener('click',()=>{ $('pos').value=Math.floor(Math.random()*7); });
+requestAnimationFrame(frame);
+})();
+</script>
