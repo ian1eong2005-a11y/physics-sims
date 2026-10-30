@@ -46,10 +46,10 @@ def _render_question(q, prefix):
     else:
         choice = st.text_area("Your answer (one or two sentences)", key=k, height=90)
 
-    cols = st.columns([1, 1, 4])
-    if cols[0].button("Check", key=k + "_btn"):
+    cols = st.columns(2)
+    if cols[0].button("Check", key=k + "_btn", use_container_width=True):
         st.session_state[res_key] = _grade(q, choice)
-    if typ == "explain" and cols[1].button("Model answer", key=k + "_model"):
+    if typ == "explain" and cols[1].button("Model answer", key=k + "_model", use_container_width=True):
         st.session_state[res_key + "_model"] = True
 
     res = st.session_state.get(res_key)
@@ -95,14 +95,16 @@ def quiz(questions, prefix: str):
     level = st.radio("Show", ["All levels", LEVELS[1], LEVELS[2], LEVELS[3]], horizontal=True, key=prefix + "_lvl")
     shown = [q for q in questions if level == "All levels" or LEVELS[q["level"]] == level]
 
-    attempted = sum(1 for q in shown if st.session_state.get(f"{prefix}_{q['id']}_res", (None,))[0] is not None)
-    correct = sum(1 for q in shown if st.session_state.get(f"{prefix}_{q['id']}_res", (None,))[0] is True)
-    st.progress(correct / len(shown) if shown else 0, text=f"Score: {correct} / {len(shown)} correct · {attempted} attempted")
+    score_box = st.empty()   # filled after the questions so a click counts straight away
 
     for i, q in enumerate(shown, 1):
         with st.container(border=True):
             st.caption(f"Q{i} · {LEVELS[q['level']]}")
             _render_question(q, prefix)
+
+    attempted = sum(1 for q in shown if st.session_state.get(f"{prefix}_{q['id']}_res", (None,))[0] is not None)
+    correct = sum(1 for q in shown if st.session_state.get(f"{prefix}_{q['id']}_res", (None,))[0] is True)
+    score_box.progress(correct / len(shown) if shown else 0, text=f"Score: {correct} / {len(shown)} correct · {attempted} attempted")
 
     if st.button("Reset this quiz", key=prefix + "_reset"):
         for key in list(st.session_state.keys()):
