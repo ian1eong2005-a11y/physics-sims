@@ -1,0 +1,217 @@
+<title>Magnet and Motor Lab</title>
+<meta charset="utf-8">
+
+<header>
+  <h1>Magnet and Motor Lab</h1>
+  <span class="lo">5086 · 15a–15i · field patterns, compasses, fields of currents, force on a wire, induced magnetism</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="500" aria-label="Magnetic field patterns and the force on a current-carrying wire"></canvas>
+    <p class="notice" id="notice"></p>
+  </div>
+  <div class="panel">
+    <div class="ctl">
+      <span class="lbl">Mode</span>
+      <div class="seg" id="modeSeg">
+        <button data-v="bar" aria-pressed="true">Bar magnets</button>
+        <button data-v="cur" aria-pressed="false">Field of a current</button>
+        <button data-v="force" aria-pressed="false">Force on a wire</button>
+        <button data-v="induce" aria-pressed="false">Iron or steel?</button>
+      </div>
+    </div>
+
+    <div id="barCtl" style="display:flex;flex-direction:column;gap:14px">
+      <div class="ctl">
+        <span class="lbl">Arrangement</span>
+        <div class="seg three" id="arr">
+          <button data-v="one" aria-pressed="true">one magnet</button><button data-v="ns" aria-pressed="false">N facing S</button><button data-v="nn" aria-pressed="false">N facing N</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="lines" checked> Draw field lines</label>
+        <label class="check"><input type="checkbox" id="compasses"> Show a grid of small compasses</label>
+      </div>
+      <div class="fb">Drag the big compass anywhere. Its needle points along the field: the N end points the way a free north pole would move.</div>
+    </div>
+
+    <div id="curCtl" class="hide" style="flex-direction:column;gap:14px">
+      <div class="ctl">
+        <span class="lbl">Conductor</span>
+        <div class="seg" id="cond"><button data-v="wire" aria-pressed="true">straight wire</button><button data-v="sol" aria-pressed="false">solenoid</button></div>
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="cur">Current</label><span class="val" id="curV">3 A</span></div>
+        <input type="range" id="cur" min="0" max="6" step="1" value="3">
+      </div>
+      <div class="ctl">
+        <span class="lbl">Direction</span>
+        <div class="seg" id="cdir"><button data-v="1" aria-pressed="true">forward</button><button data-v="-1" aria-pressed="false">reversed</button></div>
+      </div>
+    </div>
+
+    <div id="forceCtl" class="hide" style="flex-direction:column;gap:14px">
+      <div class="ctl">
+        <span class="lbl">Current in the wire</span>
+        <div class="seg" id="fI"><button data-v="1" aria-pressed="true">out of screen ⦿</button><button data-v="-1" aria-pressed="false">into screen ⊗</button></div>
+      </div>
+      <div class="ctl">
+        <span class="lbl">Magnetic field</span>
+        <div class="seg" id="fB"><button data-v="1" aria-pressed="true">N on left → S on right</button><button data-v="-1" aria-pressed="false">S on left ← N on right</button></div>
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="hand" checked> Show Fleming's left-hand rule</label>
+        <label class="check"><input type="checkbox" id="hideF"> Hide the force arrow (predict first)</label>
+      </div>
+      <div class="read"><div><small>Force on wire</small><span id="rF">–</span></div><div><small>Rule</small><span style="font-size:.8rem">thuMb Motion · First Field · seCond Current</span></div></div>
+    </div>
+
+    <div id="indCtl" class="hide" style="flex-direction:column;gap:14px">
+      <div class="ctl">
+        <div class="row"><label for="dist">Distance of the magnet</label><span class="val" id="distV">far</span></div>
+        <input type="range" id="dist" min="0" max="100" step="1" value="100">
+      </div>
+      <div class="fb" id="indFb"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let mode='bar', arr='one', cond='wire', cdir=1, fI=1, fB=1, t=0, last=performance.now();
+let comp={x:620,y:140}, drag=false, steelMax=0, wireOff=0;
+const RED='#e4572e', BLUE='#2a7de1';
+
+// ---- bar magnets: poles as monopoles
+function poles(){ const y=250; if (arr==='one') return [{x:250,y,q:1},{x:450,y,q:-1}]; // N right end? define magnet from 250 (S) to 450 (N)
+  if (arr==='ns') return [{x:120,y,q:-1},{x:320,y,q:1},{x:580,y,q:-1},{x:780,y,q:1}];
+  return [{x:120,y,q:-1},{x:320,y,q:1},{x:580,y,q:1},{x:780,y,q:-1}]; }
+function field(x,y){ let bx=0,by=0; for (const p of poles()){ const dx=x-p.x, dy=y-p.y, r2=dx*dx+dy*dy+400, r=Math.sqrt(r2); bx+=p.q*dx/(r2*r); by+=p.q*dy/(r2*r);} return [bx,by]; }
+function drawMagnet(x1,x2,y,flip){ // S at x1, N at x2 unless flip
+  const h=44; ctx.fillStyle=flip?RED:BLUE; ctx.fillRect(x1,y-h/2,(x2-x1)/2,h); ctx.fillStyle=flip?BLUE:RED; ctx.fillRect((x1+x2)/2,y-h/2,(x2-x1)/2,h);
+  ctx.fillStyle='#fff'; ctx.font='700 18px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(flip?'N':'S', x1+(x2-x1)/4, y+6); ctx.fillText(flip?'S':'N', x1+3*(x2-x1)/4, y+6); }
+function traceLine(x,y,sign,col){ ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(x,y); let px=x,py=y; for (let i=0;i<600;i++){ const [bx,by]=field(px,py); const m=Math.hypot(bx,by); if (m<1e-9) break; px+=sign*bx/m*4; py+=sign*by/m*4; if (px<0||px>900||py<0||py>500) break; ctx.lineTo(px,py); if (i%60===30){ ctx.stroke(); arrowAt(px,py,sign*bx/m,sign*by/m,col); ctx.beginPath(); ctx.moveTo(px,py);} if (poles().some(p=>p.q<0&&Math.hypot(px-p.x,py-p.y)<10)) break; } ctx.stroke(); }
+function arrowAt(x,y,ux,uy,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(x+ux*6,y+uy*6); ctx.lineTo(x-uy*4-ux*4,y+ux*4-uy*4); ctx.lineTo(x+uy*4-ux*4,y-ux*4-uy*4); ctx.fill(); }
+function compassAt(x,y,r){ const [bx,by]=field(x,y); const a=Math.atan2(by,bx); ctx.fillStyle=css('--panel'); ctx.strokeStyle=css('--line'); ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); ctx.stroke(); ctx.save(); ctx.translate(x,y); ctx.rotate(a); ctx.fillStyle=RED; ctx.beginPath(); ctx.moveTo(r*0.85,0); ctx.lineTo(0,-r*0.22); ctx.lineTo(0,r*0.22); ctx.fill(); ctx.fillStyle=css('--muted'); ctx.beginPath(); ctx.moveTo(-r*0.85,0); ctx.lineTo(0,-r*0.22); ctx.lineTo(0,r*0.22); ctx.fill(); ctx.restore(); }
+function drawBar(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line');
+  ctx.clearRect(0,0,W,H);
+  if ($('lines').checked){ for (const p of poles()) if (p.q>0) for (let k=0;k<12;k++){ const a=k/12*Math.PI*2; traceLine(p.x+12*Math.cos(a),p.y+12*Math.sin(a),1,muted); } }
+  if (arr==='one') drawMagnet(250,450,250,false); else { drawMagnet(120,320,250,false); drawMagnet(580,780,250, arr==='nn'); }
+  if ($('compasses').checked){ for (let x=60;x<900;x+=70) for (let y=60;y<500;y+=70){ if (poles().some(p=>Math.abs(y-p.y)<40 && x>Math.min(...poles().map(q=>q.x))-20 && x<Math.max(...poles().map(q=>q.x))+20)) continue; compassAt(x,y,11);} }
+  compassAt(comp.x,comp.y,26);
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  ctx.fillText(arr==='one'?'Field lines leave the N pole and enter the S pole. They never cross. Closer lines = stronger field.': arr==='ns'?'Unlike poles facing: the lines run straight across the gap. The magnets attract.':'Like poles facing: the lines push apart and there is a point between them with no field. The magnets repel.', 20, 30);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('The red end of a compass needle is its N pole. It points in the direction of the field, so towards the magnet\'s S pole.', 20, H-16);
+}
+
+// ---- field of a current
+function drawCur(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),acc=css('--accent');
+  ctx.clearRect(0,0,W,H); const I=+$('cur').value;
+  if (cond==='wire'){
+    const cx=300, cy=250; // wire seen end-on
+    for (let k=1;k<=I;k++){ const r=28+k*26; ctx.strokeStyle=muted; ctx.globalAlpha=1-k/(I+2); ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.stroke(); ctx.globalAlpha=1; for (const a of [0,Math.PI]){ const x=cx+r*Math.cos(a), y=cy+r*Math.sin(a); const ux=-Math.sin(a)*cdir, uy=Math.cos(a)*cdir; arrowAt(x,y,ux,uy,muted);} }
+    ctx.fillStyle=css('--warn'); ctx.beginPath(); ctx.arc(cx,cy,18,0,7); ctx.fill(); ctx.strokeStyle=fg; ctx.stroke();
+    ctx.fillStyle=fg; ctx.font='700 20px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(cdir>0?'⦿':'⊗', cx, cy+7);
+    ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+    ctx.fillText(`Straight wire seen end-on, current ${cdir>0?'OUT of the screen (dot)':'INTO the screen (cross)'}.`, 560, 80);
+    ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif';
+    ['Field lines are circles centred on the wire.', `${I===0?'No current: no field.':'Circles are closer near the wire: field is stronger there.'}`, 'More current → stronger field (more circles).', `Direction: ${cdir>0?'anticlockwise':'clockwise'} (right-hand grip rule).`, 'Reverse the current and every arrow reverses.'].forEach((s,i)=>ctx.fillText(s, 560, 110+i*22));
+    for (let k=0;k<3;k++) compassAt(cx+120+k*0, cy-120+k*120, 14);
+  } else {
+    const x1=200,x2=600,y=250; const nTurn=10;
+    // field lines (bar-magnet-like) using two poles at the ends
+    const P=[{x:x1,y,q:-cdir},{x:x2,y,q:cdir}];
+    const fld=(x,yy)=>{ let bx=0,by=0; for (const p of P){ const dx=x-p.x, dy=yy-p.y, r2=dx*dx+dy*dy+900, r=Math.sqrt(r2); bx+=p.q*dx/(r2*r); by+=p.q*dy/(r2*r);} return [bx,by]; };
+    const npole=P.find(p=>p.q>0); const nl=I*2;
+    ctx.strokeStyle=muted;
+    for (let k=0;k<nl;k++){ const a=(k+0.5)/nl*Math.PI*2; let px=npole.x+14*Math.cos(a), py=y+14*Math.sin(a); ctx.beginPath(); ctx.moveTo(px,py); for (let i=0;i<700;i++){ const [bx,by]=fld(px,py); const m=Math.hypot(bx,by); px+=bx/m*4; py+=by/m*4; if (px<0||px>900||py<0||py>500) break; ctx.lineTo(px,py); if (i%70===35){ ctx.stroke(); arrowAt(px,py,bx/m,by/m,muted); ctx.beginPath(); ctx.moveTo(px,py);} if (Math.hypot(px-(npole===P[0]?P[1].x:P[0].x),py-y)<12) break; } ctx.stroke(); }
+    // inside: straight lines
+    for (let k=-2;k<=2;k++){ if (I===0) break; ctx.beginPath(); ctx.moveTo(x1+10,y+k*14); ctx.lineTo(x2-10,y+k*14); ctx.stroke(); arrowAt((x1+x2)/2,y+k*14,cdir,0,muted); }
+    // coil drawn over
+    ctx.strokeStyle=css('--warn'); ctx.lineWidth=3; for (let i=0;i<nTurn;i++){ const x=x1+(i+0.5)*(x2-x1)/nTurn; ctx.beginPath(); ctx.ellipse(x,y,10,40,0,0,7); ctx.stroke(); } ctx.lineWidth=1;
+    ctx.fillStyle=fg; ctx.font='700 22px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(cdir>0?'S':'N', x1-30, y+8); ctx.fillText(cdir>0?'N':'S', x2+30, y+8);
+    ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Solenoid (a coil of wire) carrying a current.', 20, 30);
+    ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif';
+    ['The field looks like a bar magnet\'s: strong and uniform inside, N at one end, S at the other.', 'More current → stronger field. Reversing the current swaps the N and S ends.', 'Put an iron core inside and the field is much stronger: that is an electromagnet.'].forEach((s,i)=>ctx.fillText(s, 20, H-60+i*20));
+  }
+  $('curV').textContent=I+' A';
+}
+
+// ---- force on a wire
+function drawForce(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),good=css('--good'),hot=css('--hot');
+  ctx.clearRect(0,0,W,H);
+  const Fdir = -fI*fB; // screen y: negative = up. B right (+x), I out (+z): F = +y (up) → screen -1
+  wireOff += (Fdir*40-wireOff)*0.1;
+  const cx=330, cy=250;
+  // poles
+  const leftN = fB>0;
+  ctx.fillStyle=leftN?RED:BLUE; ctx.fillRect(100,120,80,260); ctx.fillStyle=leftN?BLUE:RED; ctx.fillRect(480,120,80,260);
+  ctx.fillStyle='#fff'; ctx.font='700 28px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(leftN?'N':'S', 140, 260); ctx.fillText(leftN?'S':'N', 520, 260);
+  // field arrows
+  ctx.strokeStyle=muted; for (let k=0;k<5;k++){ const y=150+k*50; ctx.beginPath(); ctx.moveTo(190,y); ctx.lineTo(470,y); ctx.stroke(); arrowAt(fB>0?430:230,y,fB,0,muted); }
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('field B', 330, 110);
+  // wire end-on
+  const wy=cy+wireOff; ctx.fillStyle=css('--warn'); ctx.beginPath(); ctx.arc(cx,wy,20,0,7); ctx.fill(); ctx.strokeStyle=fg; ctx.stroke(); ctx.fillStyle=fg; ctx.font='700 22px IBM Plex Sans, sans-serif'; ctx.fillText(fI>0?'⦿':'⊗', cx, wy+8);
+  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('wire, current '+(fI>0?'out of screen':'into screen'), cx, wy+40);
+  // force arrow
+  if (!$('hideF').checked){ ctx.strokeStyle=good; ctx.fillStyle=good; ctx.lineWidth=5; ctx.beginPath(); ctx.moveTo(cx+50,wy); ctx.lineTo(cx+50,wy+Fdir*90); ctx.stroke(); ctx.lineWidth=1; arrowAt(cx+50,wy+Fdir*98,0,Fdir,good); ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('force F '+(Fdir<0?'UP':'DOWN'), cx+62, wy+Fdir*50); }
+  $('rF').textContent=$('hideF').checked?'hidden':(Fdir<0?'up':'down');
+  // Fleming hand
+  if ($('hand').checked){ const hx=700, hy=250; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText("Fleming's LEFT-hand rule", hx, 80);
+    const ar=(dx,dy,col,label,lx,ly)=>{ ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(hx,hy); ctx.lineTo(hx+dx,hy+dy); ctx.stroke(); ctx.lineWidth=1; const m=Math.hypot(dx,dy); arrowAt(hx+dx+dx/m*6,hy+dy+dy/m*6,dx/m,dy/m,col); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(label,hx+lx,hy+ly); };
+    ar(fB*90,0,muted,'First finger: Field', 0, 24);
+    ar(0,Fdir*90,good,'thuMb: Motion (force)', 0, Fdir*110);
+    ctx.fillStyle=hot; ctx.beginPath(); ctx.arc(hx,hy,12,0,7); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='700 14px IBM Plex Sans, sans-serif'; ctx.fillText(fI>0?'⦿':'⊗', hx, hy+5); ctx.fillStyle=hot; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('seCond finger: Current ('+(fI>0?'out':'in')+')', hx, hy+ (Fdir<0? 60: -50));
+    ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('all three at right angles to each other', hx, 440); }
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  ctx.fillText('Reverse the current OR the field: the force reverses. Reverse both: it stays the same. In a motor, the two sides of the coil carry current in opposite directions, so they feel opposite forces: a turning effect.', 20, H-14);
+}
+
+// ---- induced magnetism
+function drawInduce(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line');
+  ctx.clearRect(0,0,W,H);
+  const d=+$('dist').value; // 0 = touching, 100 = far
+  const str=Math.max(0,1-d/100); steelMax=Math.max(steelMax,str);
+  const mx=160+d*2.2; // magnet x position
+  drawMagnet(mx-160,mx,170,false); drawMagnet(mx-160,mx,330,false);
+  // bars
+  const bar=(y,label,s,keeps)=>{ ctx.fillStyle=line; ctx.fillRect(560,y-22,220,44); ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(label, 560, y-30);
+    if (s>0.03){ ctx.globalAlpha=Math.min(1,s*1.4); ctx.fillStyle=BLUE; ctx.fillRect(560,y-22,60,44); ctx.fillStyle=RED; ctx.fillRect(720,y-22,60,44); ctx.fillStyle='#fff'; ctx.font='700 18px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('S',590,y+6); ctx.fillText('N',750,y+6); ctx.globalAlpha=1; }
+    ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(keeps, 560, y+40); };
+  bar(170,'IRON bar', str, str>0.03? 'induced magnet: S end faces the magnet\'s N, so it is attracted' : 'no magnetism: iron loses it as soon as the magnet is removed');
+  const sSteel = Math.max(str, steelMax*0.7);
+  bar(330,'STEEL bar', sSteel, sSteel>0.03 ? (str>0.03? 'induced magnet while the magnet is near' : 'KEEPS its magnetism after the magnet is removed: a permanent magnet') : 'not yet magnetised: bring the magnet close');
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Slide the magnet towards the bars, then away again.', 20, 30);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif';
+  ['Both bars become magnets while the N pole is near (induced magnetism). The end nearest the N pole becomes an S pole.', 'Iron is easy to magnetise and easy to demagnetise: a temporary magnet (electromagnet cores, relays).', 'Steel is harder to magnetise but keeps it: a permanent magnet (compass needles, fridge magnets).'].forEach((s,i)=>ctx.fillText(s, 20, H-64+i*20));
+  $('distV').textContent=d<5?'touching':d<40?'near':d<80?'middle':'far';
+  $('indFb').textContent= str>0.03 ? 'Both bars are magnetised by the nearby magnet.' : steelMax>0.3 ? 'Magnet removed: the iron has lost its magnetism, the steel has kept it.' : 'Bring the magnet close to magnetise the bars.';
+}
+
+function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; t+=dt; ({bar:drawBar,cur:drawCur,force:drawForce,induce:drawInduce})[mode](); requestAnimationFrame(frame); }
+function notice(){ $('notice').innerHTML = {
+  bar:'<b>What to notice.</b> A magnetic field is a region where a magnetic material or another magnet feels a force. Field lines run from N to S outside the magnet, never cross, and are closest where the field is strongest. A compass needle lines up with the field.',
+  cur:'<b>What to notice.</b> A current makes a magnetic field. Around a straight wire the field lines are circles; inside a solenoid the field is like a bar magnet\'s. More current, stronger field; reverse the current, reverse the field.',
+  force:'<b>What to notice.</b> A wire carrying a current across a magnetic field feels a force at right angles to both. Fleming\'s left-hand rule gives the direction. Reversing the current or the field reverses the force. This is how a motor turns.',
+  induce:'<b>What to notice.</b> A magnetic material near a magnet becomes a magnet itself (induced magnetism) with the opposite pole facing the magnet, which is why it is attracted. Iron loses the magnetism when the magnet goes; steel keeps it.'}[mode]; }
+const seg=(id,fn)=>$(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; [...$(id).children].forEach(x=>x.setAttribute('aria-pressed',x===b)); fn(b.dataset.v); });
+seg('modeSeg',v=>{ mode=v; for (const [k,id] of [['bar','barCtl'],['cur','curCtl'],['force','forceCtl'],['induce','indCtl']]){ $(id).classList.toggle('hide',mode!==k); $(id).style.display=mode===k?'flex':''; } notice(); });
+seg('arr',v=>arr=v); seg('cond',v=>cond=v); seg('cdir',v=>cdir=+v); seg('fI',v=>fI=+v); seg('fB',v=>fB=+v);
+$('modeSeg').classList.add('four'); $('modeSeg').style.gridTemplateColumns='1fr 1fr';
+// drag the big compass
+const pt=e=>{ const r=cv.getBoundingClientRect(); const s=cv.width/r.width; const p=e.touches?e.touches[0]:e; return [(p.clientX-r.left)*s,(p.clientY-r.top)*s]; };
+const down=e=>{ if (mode!=='bar') return; const [x,y]=pt(e); if (Math.hypot(x-comp.x,y-comp.y)<40) { drag=true; e.preventDefault(); } else { comp={x,y}; } };
+const move=e=>{ if (!drag) return; const [x,y]=pt(e); comp={x,y}; e.preventDefault(); };
+cv.addEventListener('mousedown',down); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',()=>drag=false);
+cv.addEventListener('touchstart',down,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); window.addEventListener('touchend',()=>drag=false);
+notice(); requestAnimationFrame(frame);
+})();
+</script>

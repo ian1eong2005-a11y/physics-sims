@@ -1,0 +1,148 @@
+<title>Measuring Lab</title>
+<meta charset="utf-8">
+
+<header>
+  <h1>Measuring Lab</h1>
+  <span class="lo">5086 · 1b–1e · prefixes, orders of magnitude, choosing an instrument</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="500" aria-label="Scale ladder or instrument ranges"></canvas>
+    <p class="notice" id="notice"></p>
+  </div>
+  <div class="panel">
+    <div class="ctl">
+      <span class="lbl">Mode</span>
+      <div class="seg" id="modeSeg">
+        <button data-v="scale" aria-pressed="true">Scale of things</button>
+        <button data-v="inst" aria-pressed="false">Which instrument?</button>
+      </div>
+    </div>
+
+    <div id="scaleCtl">
+      <div class="ctl">
+        <div class="row"><label for="exp">Size (powers of ten)</label><span class="val" id="expV">1 m</span></div>
+        <input type="range" id="exp" min="-10" max="7" step="0.05" value="0">
+      </div>
+      <div class="read">
+        <div><small>Standard form</small><span id="rStd">–</span></div>
+        <div><small>With prefix</small><span id="rPre">–</span></div>
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="showPrefix" checked> Show prefix names on the ladder</label>
+      </div>
+    </div>
+
+    <div id="instCtl" class="hide">
+      <div class="ctl">
+        <label for="task">What do you want to measure?</label>
+        <select id="task"></select>
+      </div>
+      <div class="ctl">
+        <span class="lbl">Pick an instrument</span>
+        <div class="list" id="instList"></div>
+      </div>
+      <div class="fb" id="fb">Choose an instrument to check its range and precision.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let mode='scale';
+
+// ---------- Scale of things ----------
+const OBJECTS=[
+  [1e-10,'atom','⚛'],[1e-9,'small molecule','🧬'],[1e-7,'virus','🦠'],[1e-6,'bacterium','🦠'],[8e-6,'red blood cell','🔴'],
+  [1e-4,'width of a hair','〰'],[5e-4,'grain of sand','⏳'],[4e-3,'ant','🐜'],[2.4e-2,'coin','🪙'],[0.18,'pencil','✏'],
+  [1.7,'person','🧍'],[12,'bus','🚌'],[100,'football field','🏟'],[5e4,'Singapore (east–west)','🏝'],[1.3e7,'Earth (diameter)','🌍']];
+const PREFIX=[[-9,'nano','n'],[-6,'micro','μ'],[-3,'milli','m'],[-2,'centi','c'],[-1,'deci','d'],[0,'',''],[3,'kilo','k'],[6,'mega','M'],[9,'giga','G'],[12,'tera','T']];
+function fmtStd(x){ const e=Math.floor(Math.log10(x)+1e-9); const m=x/10**e; return `${m.toFixed(m<9.95?1:0)} × 10^${e} m`; }
+function fmtPre(x){ const e=Math.log10(x)+1e-9; let best=PREFIX[0]; for (const p of PREFIX){ if (p[0]<=e) best=p; }
+  const v=x/10**best[0]; return `${+v.toPrecision(3)} ${best[2]}m`; }
+function drawScale(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),acc=css('--accent');
+  ctx.clearRect(0,0,W,H);
+  const e=+$('exp').value, x=10**e;
+  const lx=60, lw=W-120, ly=H-90;
+  const X=ee=>lx+(ee+10)/17*lw;
+  ctx.strokeStyle=line; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(lx+lw,ly); ctx.stroke(); ctx.lineWidth=1;
+  ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center';
+  for (let ee=-10; ee<=7; ee++){ const xx=X(ee); ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(xx,ly-6); ctx.lineTo(xx,ly+6); ctx.stroke();
+    ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText('10^'+ee, xx, ly+22);
+    const p=PREFIX.find(q=>q[0]===ee); if (p && $('showPrefix').checked){ ctx.fillStyle=acc; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.fillText(p[1]?`${p[1]} (${p[2]}m)`:'metre (m)', xx, ly+40); } }
+  ctx.font='22px system-ui, sans-serif';
+  OBJECTS.forEach(([s,name,ic],i)=>{ const xx=X(Math.log10(s)); const up= i%2? 40:70; ctx.globalAlpha=.55; ctx.fillText(ic, xx, ly-up); ctx.globalAlpha=1; ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(xx,ly-up+6); ctx.lineTo(xx,ly-8); ctx.stroke(); });
+  const cx=X(e); ctx.strokeStyle=acc; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx,ly-110); ctx.lineTo(cx,ly); ctx.stroke(); ctx.lineWidth=1;
+  let best=OBJECTS[0]; OBJECTS.forEach(o=>{ if (Math.abs(Math.log10(o[0])-e)<Math.abs(Math.log10(best[0])-e)) best=o; });
+  const near=Math.abs(Math.log10(best[0])-e)<0.5;
+  ctx.textAlign='center'; ctx.font='120px system-ui, sans-serif'; ctx.fillStyle=fg; ctx.globalAlpha=near?1:.35; ctx.fillText(best[2], W/2, 190); ctx.globalAlpha=1;
+  ctx.font='600 20px Bricolage Grotesque, sans-serif'; ctx.fillText(near? best[1] : 'nearest object: '+best[1], W/2, 240);
+  ctx.font='14px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText(`about ${fmtStd(best[0])}  ·  ${fmtPre(best[0])}`, W/2, 264);
+  ctx.textAlign='left'; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Each step to the right is 10 times bigger. The ladder covers 17 powers of ten, from an atom to the Earth.', 40, 30);
+  $('expV').textContent=fmtPre(x); $('rStd').textContent=fmtStd(x); $('rPre').textContent=fmtPre(x);
+}
+
+// ---------- Which instrument ----------
+const TASKS=[
+  {name:'thickness of a coin', kind:'length', v:0.002, tip:'Tip: measure a stack of 10 coins with a less precise instrument, then divide by 10.'},
+  {name:'diameter of a thin wire', kind:'length', v:0.0005, tip:'A micrometer screw gauge reads to 0.01 mm.'},
+  {name:'internal diameter of a cup', kind:'length', v:0.07, tip:'Vernier calipers have inside jaws for internal diameters.'},
+  {name:'length of a textbook', kind:'length', v:0.30, tip:'A metre rule is fine here: 1 mm on 300 mm is 0.3%.'},
+  {name:'width of the classroom', kind:'length', v:8, tip:'Only the tape has the range.'},
+  {name:'time for ONE swing of a pendulum', kind:'time', v:1.5, tip:'Your reaction time (about 0.2 s) is a big fraction of 1.5 s. Time 20 swings instead and divide by 20.'},
+  {name:'time for 20 swings of a pendulum', kind:'time', v:30, tip:'Now the 0.2 s reaction time is under 1% of the reading.'},
+];
+const INST=[
+  {name:'metre rule', kind:'length', lo:0.001, hi:1, prec:0.001, note:'range 0–1 m, reads to 1 mm'},
+  {name:'measuring tape', kind:'length', lo:0.01, hi:5, prec:0.001, note:'range 0–5 m, reads to 1 mm'},
+  {name:'vernier calipers', kind:'length', lo:0.0001, hi:0.15, prec:0.0001, note:'range 0–15 cm, reads to 0.1 mm, has inside jaws'},
+  {name:'micrometer screw gauge', kind:'length', lo:0.00001, hi:0.025, prec:0.00001, note:'range 0–2.5 cm, reads to 0.01 mm'},
+  {name:'stopwatch (by hand)', kind:'time', lo:0.3, hi:3600, prec:0.2, note:'reads to 0.01 s, but your reaction time is about 0.2 s'},
+  {name:'digital timer with light gate', kind:'time', lo:0.001, hi:3600, prec:0.001, note:'reads to 1 ms, no reaction time'},
+];
+let pick=null;
+const fmt=(v,k)=> k==='time'? `${v} s` : v>=1? `${v} m` : v>=0.01? `${+(v*100).toPrecision(3)} cm` : `${+(v*1000).toPrecision(3)} mm`;
+function fillInst(){ $('instList').innerHTML=''; INST.forEach((it,i)=>{ const b=document.createElement('button'); b.textContent=it.name; b.setAttribute('aria-pressed', pick===i); b.onclick=()=>{ pick=i; fillInst(); feedback(); drawInst(); }; $('instList').appendChild(b); }); }
+function feedback(){ const t=TASKS[$('task').value], it=INST[pick]; const el=$('fb');
+  if (it.kind!==t.kind){ el.className='fb bad'; el.textContent=`${it.name} measures ${it.kind}, not ${t.kind}.`; return; }
+  const inRange=t.v>=it.lo && t.v<=it.hi; const pct=it.prec/t.v*100;
+  const good=inRange && pct<=1;
+  el.className='fb '+(good?'ok':'bad');
+  el.innerHTML=`<b>${it.name}</b> · ${it.note}.<br>Range: ${inRange?'✓ fits':'✗ reading is outside its range'}.<br>Precision: ${fmt(it.prec,t.kind)} on ${fmt(t.v,t.kind)} = <b>${pct<0.1?pct.toFixed(2):pct.toFixed(1)}%</b> of the reading ${pct<=1?'(fine)':pct<=5?'(rough)':'(far too coarse)'}.<br>${good?'Good choice.':'Try another instrument.'} <i>${t.tip}</i>`; }
+function drawInst(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),acc=css('--accent'),good=css('--good'),hot=css('--hot');
+  ctx.clearRect(0,0,W,H);
+  const t=TASKS[$('task').value]; const kind=t.kind;
+  const lx=200, lw=W-260, minE= kind==='length'?-5:-3, maxE= kind==='length'?1:4;
+  const X=v=>lx+(Math.log10(v)-minE)/(maxE-minE)*lw;
+  ctx.fillStyle=fg; ctx.font='600 15px Bricolage Grotesque, sans-serif'; ctx.textAlign='left'; ctx.fillText(`Measuring: ${t.name}  (about ${fmt(t.v,kind)})`, 30, 30);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('Each bar is the range of one instrument. The dark block shows its smallest division as a fraction of the reading.', 30, 50);
+  const rows=INST.filter(i=>i.kind===kind); const y0=90, dy=(H-150)/rows.length;
+  ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(lx,H-40); ctx.lineTo(lx+lw,H-40); ctx.stroke(); ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.fillStyle=muted;
+  for (let e=minE;e<=maxE;e++){ const xx=X(10**e); ctx.beginPath(); ctx.moveTo(xx,H-45); ctx.lineTo(xx,H-35); ctx.stroke(); ctx.fillText(fmt(10**e,kind), xx, H-20); }
+  const tx=X(t.v); ctx.strokeStyle=acc; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(tx,70); ctx.lineTo(tx,H-40); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=acc; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('reading', tx, 66);
+  rows.forEach((it,i)=>{ const y=y0+i*dy+dy/2; const idx=INST.indexOf(it); const sel=idx===pick;
+    const inRange=t.v>=it.lo&&t.v<=it.hi, pct=it.prec/t.v*100;
+    ctx.fillStyle=sel?(inRange&&pct<=1?good:hot):line; ctx.globalAlpha=sel?.9:.6; ctx.fillRect(X(Math.max(it.lo,10**minE)), y-12, X(Math.min(it.hi,10**maxE))-X(Math.max(it.lo,10**minE)), 24); ctx.globalAlpha=1;
+    ctx.fillStyle=fg; ctx.textAlign='right'; ctx.font=(sel?'600 ':'')+'13px IBM Plex Sans, sans-serif'; ctx.fillText(it.name, lx-10, y+4);
+    if (inRange){ const w=Math.max(2, Math.min(220, pct/100*220)); ctx.fillStyle=fg; ctx.fillRect(tx-w/2, y-4, w, 8); ctx.textAlign='left'; ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText(`${pct<0.1?pct.toFixed(2):pct.toFixed(1)}% of reading`, Math.min(W-130,tx+w/2+6), y+4); }
+    else { ctx.textAlign='left'; ctx.fillStyle=hot; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('out of range', Math.min(W-90, X(Math.min(it.hi,10**maxE))+6), y+4); }
+  });
+}
+
+function draw(){ if (mode==='scale') drawScale(); else drawInst(); }
+function notice(){ $('notice').innerHTML = mode==='scale'
+  ? '<b>What to notice.</b> A prefix is a power of ten with a name: 1 km = 10<sup>3</sup> m, 1 mm = 10<sup>-3</sup> m, 1 μm = 10<sup>-6</sup> m, 1 nm = 10<sup>-9</sup> m. Moving the slider by one step multiplies the size by 10.'
+  : '<b>What to notice.</b> Two things decide the instrument: the reading must be inside its <b>range</b>, and its smallest division should be small compared with the reading (its <b>precision</b>). A metre rule can reach a coin, but 1 mm on a 2 mm coin is half the reading.'; }
+$('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; mode=b.dataset.v; [...$('modeSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); $('scaleCtl').classList.toggle('hide',mode!=='scale'); $('instCtl').classList.toggle('hide',mode!=='inst'); notice(); draw(); });
+$('exp').addEventListener('input',draw); $('showPrefix').addEventListener('change',draw);
+TASKS.forEach((t,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=t.name; $('task').appendChild(o); });
+$('task').addEventListener('change',()=>{ pick=null; fillInst(); $('fb').className='fb'; $('fb').textContent='Choose an instrument to check its range and precision.'; draw(); });
+fillInst(); notice(); draw();
+})();
+</script>

@@ -1,0 +1,208 @@
+<title>Decay Lab</title>
+<meta charset="utf-8">
+
+<header>
+  <h1>Decay Lab</h1>
+  <span class="lo">5086 · 16a–16h · nuclide notation, random decay and half-life, α β γ penetration, background radiation</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="500" aria-label="Nucleus builder, decay grid with decay curve, or penetration test"></canvas>
+    <p class="notice" id="notice"></p>
+  </div>
+  <div class="panel">
+    <div class="ctl">
+      <span class="lbl">Mode</span>
+      <div class="seg three" id="modeSeg">
+        <button data-v="nuc" aria-pressed="true">Nuclide</button>
+        <button data-v="decay" aria-pressed="false">Half-life</button>
+        <button data-v="pen" aria-pressed="false">α β γ</button>
+      </div>
+    </div>
+
+    <div id="nucCtl" style="display:flex;flex-direction:column;gap:14px">
+      <div class="ctl">
+        <div class="row"><label for="Z">Protons Z</label><span class="val" id="ZV">6</span></div>
+        <input type="range" id="Z" min="1" max="92" step="1" value="6">
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="N">Neutrons</label><span class="val" id="NV">6</span></div>
+        <input type="range" id="N" min="0" max="146" step="1" value="6">
+      </div>
+      <div class="ctl">
+        <label for="preset">Jump to</label>
+        <select id="preset">
+          <option value="">choose…</option>
+          <option value="1,0">hydrogen-1</option><option value="1,1">hydrogen-2 (deuterium)</option><option value="1,2">hydrogen-3 (tritium)</option>
+          <option value="6,6">carbon-12</option><option value="6,8">carbon-14</option><option value="27,33">cobalt-60</option><option value="53,78">iodine-131</option>
+          <option value="88,138">radium-226</option><option value="92,143">uranium-235</option><option value="92,146">uranium-238</option>
+        </select>
+      </div>
+      <div class="read">
+        <div><small>Nucleon number A</small><span id="rA">–</span></div>
+        <div><small>Electrons (neutral atom)</small><span id="rE">–</span></div>
+      </div>
+    </div>
+
+    <div id="decCtl" class="hide" style="flex-direction:column;gap:14px">
+      <div class="ctl">
+        <div class="row"><label for="half">Half-life</label><span class="val" id="halfV">4 s</span></div>
+        <input type="range" id="half" min="1" max="10" step="1" value="4">
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="theory"> Show the smooth halving curve</label>
+        <label class="check"><input type="checkbox" id="marks" checked> Mark each half-life on the graph</label>
+      </div>
+      <div class="read">
+        <div><small>Undecayed</small><span id="rN">400</span></div>
+        <div><small>Time</small><span id="rT">0 s</span></div>
+      </div>
+      <div class="buttons">
+        <button class="btn primary" id="play">Start</button>
+        <button class="btn" id="reset">Reset</button>
+      </div>
+    </div>
+
+    <div id="penCtl" class="hide" style="flex-direction:column;gap:14px">
+      <div class="ctl">
+        <span class="lbl">Source</span>
+        <div class="seg four" id="src">
+          <button data-v="none" aria-pressed="false">none</button><button data-v="a" aria-pressed="true">α</button><button data-v="b" aria-pressed="false">β</button><button data-v="g" aria-pressed="false">γ</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <span class="lbl">Barrier</span>
+        <div class="seg four" id="bar">
+          <button data-v="none" aria-pressed="true">none</button><button data-v="paper" aria-pressed="false">paper</button><button data-v="al" aria-pressed="false">5 mm Al</button><button data-v="pb" aria-pressed="false">5 cm Pb</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="ions" checked> Show ionisation along the track</label>
+        <label class="check"><input type="checkbox" id="table"> Show the summary table</label>
+      </div>
+      <div class="read">
+        <div><small>Detector count</small><span id="rC">0 /s</span></div>
+        <div><small>Of which background</small><span id="rB">0 /s</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SYM='H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U'.split(' ');
+const NAME={1:'hydrogen',2:'helium',3:'lithium',6:'carbon',7:'nitrogen',8:'oxygen',11:'sodium',13:'aluminium',26:'iron',27:'cobalt',29:'copper',53:'iodine',82:'lead',86:'radon',88:'radium',92:'uranium'};
+let mode='nuc', t=0, last=performance.now(), running=false, src='a', bar='none', particles=[], bgTimer=0, counts=[], bgCounts=[];
+const RED='#e4572e', GREY='#7a8595';
+let cells=[]; function resetDecay(){ cells=Array(400).fill(true); t=0; hist=[[0,400]]; running=false; $('play').textContent='Start'; } let hist=[[0,400]];
+
+// ---- nuclide
+function drawNuc(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line');
+  ctx.clearRect(0,0,W,H);
+  const Z=+$('Z').value, N=+$('N').value, A=Z+N;
+  // nucleus: pack nucleons in a disc
+  const cx=260, cy=250; const n=Math.min(A,120); const rr=Math.min(9, 60/Math.sqrt(n)); const R=rr*Math.sqrt(n)*1.1;
+  for (let i=0;i<n;i++){ const a=i*2.3999, r=R*Math.sqrt(i/n); const isP = i % Math.max(1,Math.round(A/Math.max(1,Z))) === 0 ? true : false; // approximate mix
+    ctx.fillStyle = (i*Z/A % 1 < Z/A) ? RED : GREY; if (Z===0) ctx.fillStyle=GREY; ctx.beginPath(); ctx.arc(cx+r*Math.cos(a), cy+r*Math.sin(a), rr, 0, 7); ctx.fill(); }
+  // electrons on shells
+  ctx.strokeStyle=line; const shells=Math.min(4, Math.ceil(Math.log2(Z+1))); let left=Z; const cap=[2,8,18,32,50];
+  for (let s=0;s<cap.length && left>0;s++){ const r=R+40+s*28; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.stroke(); const k=Math.min(left,cap[s]); for (let i=0;i<k;i++){ const a=i/k*Math.PI*2+t*0.3*(s%2?-1:1); ctx.fillStyle=css('--cold'); ctx.beginPath(); ctx.arc(cx+r*Math.cos(a), cy+r*Math.sin(a), 3.5, 0, 7); ctx.fill(); } left-=k; }
+  // notation big
+  const sym=SYM[Z-1]||'?'; ctx.fillStyle=fg; ctx.textAlign='left';
+  ctx.font='700 72px Bricolage Grotesque, sans-serif'; ctx.fillText(sym, 640, 200);
+  ctx.font='600 28px IBM Plex Mono, monospace'; ctx.textAlign='right'; ctx.fillText(A, 632, 150); ctx.fillText(Z, 632, 210);
+  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.textAlign='left'; ctx.fillText('nucleon number A (top)', 560, 120); ctx.fillText('proton number Z (bottom)', 560, 240);
+  ctx.fillStyle=fg; ctx.font='600 16px IBM Plex Sans, sans-serif'; ctx.fillText(`${NAME[Z]||sym}-${A}`, 560, 290);
+  ctx.font='13px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted;
+  [`${Z} protons (red) + ${N} neutrons (grey) = ${A} nucleons`, `${Z} electrons in a neutral atom`, 'Change only the NEUTRONS: same element, different isotope.', 'Change the PROTONS: a different element.'].forEach((s,i)=>ctx.fillText(s, 560, 320+i*22));
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('nucleus (not to scale)', 20, 30); ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('positively charged nucleus, negative electrons around it', 20, 50);
+  $('ZV').textContent=Z; $('NV').textContent=N; $('rA').textContent=A; $('rE').textContent=Z;
+}
+
+// ---- decay
+function stepDecay(dt){ if (!running) return; const T=+$('half').value; const p=1-Math.pow(0.5, dt/T); let n=0; for (let i=0;i<400;i++){ if (cells[i] && Math.random()<p) cells[i]=false; if (cells[i]) n++; } t+=dt; hist.push([t,n]); if (n===0) running=false; }
+function drawDecay(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),acc=css('--accent'),hot=css('--hot');
+  ctx.clearRect(0,0,W,H);
+  const T=+$('half').value; const n=cells.filter(Boolean).length;
+  // grid
+  const gx=30, gy=50, s=19; for (let i=0;i<400;i++){ const x=gx+(i%20)*s, y=gy+((i/20)|0)*s; ctx.fillStyle=cells[i]?hot:line; ctx.beginPath(); ctx.arc(x+s/2,y+s/2,cells[i]?7:4,0,7); ctx.fill(); }
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(`${n} undecayed nuclei (red) of 400`, gx, 36);
+  // graph
+  const px=460, py=60, pw=400, ph=340; const tmax=Math.max(4*T, t+1);
+  ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px,py+ph); ctx.lineTo(px+pw,py+ph); ctx.stroke();
+  const X=tt=>px+tt/tmax*pw, Y=nn=>py+ph-nn/400*ph;
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='right'; for (const nn of [0,100,200,300,400]) ctx.fillText(nn, px-6, Y(nn)+4); ctx.textAlign='center'; ctx.fillText('time / s', px+pw/2, py+ph+34);
+  for (let k=0;k<=4;k++){ const tt=k*T; if (tt>tmax) break; ctx.fillText(tt, X(tt), py+ph+16); }
+  if ($('marks').checked){ ctx.setLineDash([4,4]); ctx.strokeStyle=acc; for (let k=1;k<=4;k++){ const tt=k*T, nn=400/2**k; if (tt>tmax) break; ctx.beginPath(); ctx.moveTo(X(tt),py+ph); ctx.lineTo(X(tt),Y(nn)); ctx.lineTo(px,Y(nn)); ctx.stroke(); ctx.fillStyle=acc; ctx.textAlign='left'; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(`${k} half-life${k>1?'s':''}: ${nn}`, X(tt)+4, Y(nn)-4); } ctx.setLineDash([]); }
+  if ($('theory').checked){ ctx.strokeStyle=muted; ctx.beginPath(); for (let i=0;i<=200;i++){ const tt=i/200*tmax; const nn=400*Math.pow(0.5,tt/T); i?ctx.lineTo(X(tt),Y(nn)):ctx.moveTo(X(tt),Y(nn)); } ctx.stroke(); }
+  ctx.strokeStyle=hot; ctx.lineWidth=2.5; ctx.beginPath(); hist.forEach(([tt,nn],i)=>{ i?ctx.lineTo(X(tt),Y(nn)):ctx.moveTo(X(tt),Y(nn)); }); ctx.stroke(); ctx.lineWidth=1;
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('number of undecayed nuclei against time', px, 40);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif';
+  ctx.fillText(`Half-life ${T} s: every ${T} s about HALF of what is left decays. You cannot tell WHICH nucleus goes next.`, 30, H-36);
+  ctx.fillText('Run it again: the red curve is a little different each time (random), but the halving pattern is the same.', 30, H-16);
+  $('rN').textContent=n; $('rT').textContent=t.toFixed(1)+' s';
+}
+
+// ---- penetration
+const STOP={none:0, paper:1, al:2, pb:3}; const PEN={a:1,b:2,g:4}; // radiation gets through if PEN > STOP
+function spawn(dt){ const rate = src==='none'?0:14; if (Math.random()<rate*dt) particles.push({x:120,y:250+(Math.random()-0.5)*60,kind:src,alive:true,ion:[]}); bgTimer+=dt; if (bgTimer>0.5){ bgTimer=0; if (Math.random()<0.45) bgCounts.push(t); } }
+function drawPen(dt){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),acc=css('--accent'),hot=css('--hot'),good=css('--good');
+  ctx.clearRect(0,0,W,H);
+  spawn(dt);
+  const bx=430; // barrier x
+  // source
+  ctx.fillStyle=css('--warn'); ctx.fillRect(60,210,60,80); ctx.fillStyle=fg; ctx.font='26px system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText('☢', 90, 260); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText(src==='none'?'no source':'source: '+{a:'alpha',b:'beta',g:'gamma'}[src], 90, 310);
+  // barrier
+  if (bar!=='none'){ const w={paper:4,al:14,pb:50}[bar]; ctx.fillStyle={paper:'#d8c9a3',al:'#9aa5b1',pb:'#4b5563'}[bar]; ctx.fillRect(bx,120,w,260); ctx.fillStyle=muted; ctx.textAlign='center'; ctx.fillText({paper:'sheet of paper',al:'5 mm aluminium',pb:'5 cm lead'}[bar], bx+w/2, 110); }
+  // detector
+  ctx.fillStyle=css('--panel'); ctx.strokeStyle=fg; ctx.fillRect(760,200,60,100); ctx.strokeRect(760,200,60,100); ctx.fillStyle=fg; ctx.textAlign='center'; ctx.fillText('detector', 790, 320);
+  // particles
+  const speed={a:90,b:260,g:400};
+  for (const p of particles){ if (!p.alive) continue; const v=speed[p.kind]; p.x+=v*dt;
+    if ($('ions').checked){ const rate={a:60,b:12,g:1.5}[p.kind]; if (Math.random()<rate*dt) p.ion.push([p.x,p.y+(Math.random()-0.5)*14]); }
+    if (bar!=='none' && p.x>=bx && !p.passed){ p.passed=true; const through = PEN[p.kind]>STOP[bar] || (p.kind==='g' && bar==='pb' && Math.random()<0.3); if (!through){ p.alive=false; p.stopX=bx; } }
+    if (p.x>760){ p.alive=false; counts.push(t); } }
+  particles=particles.filter(p=>p.alive||p.ion.length||p.stopX); if (particles.length>160) particles.splice(0,particles.length-160);
+  for (const p of particles){ ctx.fillStyle=acc; ctx.globalAlpha=.5; for (const [ix,iy] of p.ion){ ctx.fillRect(ix,iy,2,2);} ctx.globalAlpha=1;
+    if (!p.alive){ if (p.stopX){ ctx.fillStyle=hot; ctx.beginPath(); ctx.arc(p.stopX-3,p.y,3,0,7); ctx.fill(); } continue; }
+    if (p.kind==='a'){ ctx.fillStyle=hot; ctx.beginPath(); ctx.arc(p.x,p.y,7,0,7); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='700 9px IBM Plex Sans, sans-serif'; ctx.fillText('++', p.x, p.y+3); }
+    else if (p.kind==='b'){ ctx.fillStyle=css('--cold'); ctx.beginPath(); ctx.arc(p.x,p.y,4,0,7); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='700 8px IBM Plex Sans, sans-serif'; ctx.fillText('−', p.x, p.y+3); }
+    else { ctx.strokeStyle=good; ctx.lineWidth=2; ctx.beginPath(); for (let i=0;i<24;i++){ const x=p.x-24+i*2, y=p.y+Math.sin(i*0.9+t*20)*4; i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.stroke(); ctx.lineWidth=1; } }
+  // counts in last 1 s
+  counts=counts.filter(c=>t-c<1); bgCounts=bgCounts.filter(c=>t-c<3);
+  const bg=Math.round(bgCounts.length/3*10)/10; const total=counts.length+bg;
+  $('rC').textContent=total.toFixed(1)+' /s'; $('rB').textContent=bg.toFixed(1)+' /s';
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  const msg = src==='none' ? 'No source, yet the detector still clicks now and then: BACKGROUND radiation (rocks, radon in the air, cosmic rays, food, medical sources).'
+    : {a:'Alpha: a helium nucleus (2 protons + 2 neutrons), charge +2. Heavy and slow, strongly ionising, stopped by paper or a few cm of air.',
+       b:'Beta: a fast electron from the nucleus, charge −1. Less ionising than alpha, stopped by a few mm of aluminium.',
+       g:'Gamma: an electromagnetic wave, no charge or mass. Weakly ionising, very penetrating: even thick lead only reduces it.'}[src];
+  wrap(msg, 20, 410, 860, 20);
+  if ($('table').checked){ ctx.fillStyle=css('--panel'); ctx.globalAlpha=.95; ctx.fillRect(140,20,620,160); ctx.globalAlpha=1; ctx.strokeStyle=line; ctx.strokeRect(140,20,620,160);
+    const rows=[['','alpha α','beta β','gamma γ'],['what it is','He nucleus (2p 2n)','fast electron','EM wave'],['charge','+2','−1','0'],['ionising','strong','medium','weak'],['stopped by','paper / skin','few mm aluminium','cm of lead (reduced)'],['speed','slow (~5% c)','fast (up to ~99% c)','speed of light']];
+    ctx.font='12px IBM Plex Sans, sans-serif'; rows.forEach((r,i)=>r.forEach((c,j)=>{ ctx.fillStyle=i===0||j===0?fg:muted; ctx.font=(i===0||j===0?'600 ':'')+'12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(c, 150+j*150, 44+i*22); })); }
+}
+function wrap(text,x,y,w,lh){ const words=text.split(' '); let line='', yy=y; for (const wd of words){ const test=line+wd+' '; if (ctx.measureText(test).width>w){ ctx.fillText(line,x,yy); line=wd+' '; yy+=lh; } else line=test; } ctx.fillText(line,x,yy); }
+
+function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (mode==='nuc'){ t+=dt; drawNuc(); } else if (mode==='decay'){ stepDecay(dt); drawDecay(); } else { t+=dt; drawPen(dt); } requestAnimationFrame(frame); }
+function notice(){ $('notice').innerHTML = {
+  nuc:'<b>What to notice.</b> An atom has a tiny positive nucleus of protons and neutrons, with electrons around it. Z counts the protons and fixes the element; A counts protons + neutrons. Nuclides with the same Z but different A are isotopes.',
+  decay:'<b>What to notice.</b> Decay is random (you cannot say which nucleus will decay next) and spontaneous (nothing you do to it changes the rate). The half-life is the time for half of the undecayed nuclei to decay: 400 → 200 → 100 → 50.',
+  pen:'<b>What to notice.</b> Alpha is the most ionising but least penetrating; gamma is the least ionising but most penetrating. Even with no source the detector counts background radiation, which must be subtracted in real measurements.'}[mode]; }
+const seg=(id,fn)=>$(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; [...$(id).children].forEach(x=>x.setAttribute('aria-pressed',x===b)); fn(b.dataset.v); });
+seg('modeSeg',v=>{ mode=v; for (const [k,id] of [['nuc','nucCtl'],['decay','decCtl'],['pen','penCtl']]){ $(id).classList.toggle('hide',mode!==k); $(id).style.display=mode===k?'flex':''; } if (mode==='decay') resetDecay(); if (mode==='pen'){ particles=[]; counts=[]; bgCounts=[]; } notice(); });
+seg('src',v=>{ src=v; particles=[]; counts=[]; }); seg('bar',v=>{ bar=v; particles=[]; counts=[]; });
+$('preset').addEventListener('change',()=>{ const v=$('preset').value; if(!v) return; const [z,n]=v.split(',').map(Number); $('Z').value=z; $('N').value=n; });
+$('half').addEventListener('input',()=>{ $('halfV').textContent=$('half').value+' s'; resetDecay(); });
+$('play').addEventListener('click',()=>{ if (cells.every(c=>!c)) resetDecay(); running=!running; $('play').textContent=running?'Pause':'Start'; });
+$('reset').addEventListener('click',resetDecay);
+resetDecay(); notice(); requestAnimationFrame(frame);
+})();
+</script>

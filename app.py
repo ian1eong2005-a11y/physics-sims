@@ -4,7 +4,8 @@ st.set_page_config(page_title="5086 Physics Applets", page_icon="⚛", layout="w
 st.title("5086 Physics Applets")
 st.markdown(
     "Interactive models for G3 Science (Physics). Each chapter has an **Explore** tab "
-    "(play, predict, test) and a **Quiz** tab (self-checking questions you answer with the applet open)."
+    "(play, predict, test), a **Guided** tab (step-by-step: do this, look for this, quick check) "
+    "and a **Quiz** tab (self-checking questions you answer with the applet open)."
 )
 
 CHAPTERS = [
@@ -16,6 +17,13 @@ CHAPTERS = [
     ("pages/6_Thermal_Processes.py", "Ch 8 · Thermal Processes", "Conduction and convection"),
     ("pages/7_Forces.py", "Ch 4–5 · Dynamics and Moments", "Resultant force, principle of moments"),
     ("pages/8_Circuits.py", "Ch 13 · D.C. Circuits", "Series, parallel and mixed"),
+    ("pages/9_Measurements.py", "Ch 1 · Measurements", "Prefixes, orders of magnitude, choosing an instrument"),
+    ("pages/10_Force_and_Pressure.py", "Ch 3 · Force and Pressure", "Weight, density, pressure"),
+    ("pages/11_Energy.py", "Ch 6 · Energy", "Energy stores, conservation, work and power"),
+    ("pages/12_Charge_and_Current.py", "Ch 12 · Charge and Current", "Charges, Q = It, V = IR, resistance of a wire"),
+    ("pages/13_Practical_Electricity.py", "Ch 14 · Practical Electricity", "Power, kWh cost, fuses, earthing, the plug"),
+    ("pages/14_Magnetism.py", "Ch 15 · Magnetism and Electromagnetism", "Field patterns, solenoids, force on a wire"),
+    ("pages/15_Radioactivity.py", "Ch 16 · Radioactivity", "Nuclides, half-life, α β γ, background"),
 ]
 
 from pathlib import Path

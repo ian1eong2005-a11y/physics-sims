@@ -1,0 +1,201 @@
+<title>Weight, Density and Pressure Bench</title>
+<meta charset="utf-8">
+
+<header>
+  <h1>Weight, Density and Pressure Bench</h1>
+  <span class="lo">5086 · 3c–3i · W = mg, ρ = m/V, p = F/A</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="500" aria-label="Weight, density or pressure model"></canvas>
+    <p class="notice" id="notice"></p>
+  </div>
+  <div class="panel">
+    <div class="ctl">
+      <span class="lbl">Mode</span>
+      <div class="seg three" id="modeSeg">
+        <button data-v="weight" aria-pressed="true">Weight</button>
+        <button data-v="density" aria-pressed="false">Density</button>
+        <button data-v="pressure" aria-pressed="false">Pressure</button>
+      </div>
+    </div>
+
+    <div id="wCtl">
+      <div class="ctl">
+        <div class="row"><label for="mass">Mass of object</label><span class="val" id="massV">5 kg</span></div>
+        <input type="range" id="mass" min="0.5" max="20" step="0.5" value="5">
+      </div>
+      <div class="ctl">
+        <label for="place">Where is it?</label>
+        <select id="place">
+          <option value="10">Earth · g = 10 N/kg</option>
+          <option value="1.6">Moon · g = 1.6 N/kg</option>
+          <option value="3.7">Mars · g = 3.7 N/kg</option>
+          <option value="25">Jupiter · g = 25 N/kg</option>
+          <option value="0">Deep space · g = 0 N/kg</option>
+        </select>
+      </div>
+      <div class="read">
+        <div><small>Mass</small><span id="rM">–</span></div>
+        <div><small>Weight = m × g</small><span id="rW">–</span></div>
+      </div>
+    </div>
+
+    <div id="dCtl" class="hide">
+      <div class="ctl">
+        <label for="mat">Material</label>
+        <select id="mat">
+          <option value="240">Cork · 240 kg/m³</option>
+          <option value="600">Wood · 600 kg/m³</option>
+          <option value="920">Ice · 920 kg/m³</option>
+          <option value="1000">Water (as a block) · 1000 kg/m³</option>
+          <option value="1200">Plastic · 1200 kg/m³</option>
+          <option value="2700" selected>Aluminium · 2700 kg/m³</option>
+          <option value="7900">Iron · 7900 kg/m³</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="vol">Volume</label><span class="val" id="volV">500 cm³</span></div>
+        <input type="range" id="vol" min="100" max="2000" step="50" value="500">
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="showMass" checked> Show mass readout</label>
+      </div>
+      <div class="read">
+        <div><small>Mass = ρ × V</small><span id="rDM">–</span></div>
+        <div><small>In water?</small><span id="rFloat">–</span></div>
+      </div>
+    </div>
+
+    <div id="pCtl" class="hide">
+      <div class="ctl">
+        <div class="row"><label for="force">Force pressing down</label><span class="val" id="forceV">100 N</span></div>
+        <input type="range" id="force" min="10" max="500" step="10" value="100">
+      </div>
+      <div class="ctl">
+        <span class="lbl">Contact area</span>
+        <div class="seg three" id="areaSeg">
+          <button data-v="0.001" aria-pressed="false">10 cm²</button>
+          <button data-v="0.01" aria-pressed="true">100 cm²</button>
+          <button data-v="0.05" aria-pressed="false">500 cm²</button>
+        </div>
+      </div>
+      <div class="read">
+        <div><small>Pressure = F ÷ A</small><span id="rP">–</span></div>
+        <div><small>Dent in the foam</small><span id="rDent">–</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let mode='weight', area=0.01, t=0;
+
+function drawWeight(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),acc=css('--accent'),hot=css('--hot');
+  const m=+$('mass').value, g=+$('place').value, w=m*g;
+  ctx.clearRect(0,0,W,H);
+  // spring balance (newton meter) on the left
+  const sx=220, top=50; const ext=Math.min(300, w/500*300);
+  ctx.strokeStyle=line; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(sx-60,top); ctx.lineTo(sx+60,top); ctx.stroke(); ctx.lineWidth=1;
+  ctx.fillStyle=css('--panel'); ctx.strokeStyle=fg; ctx.fillRect(sx-28,top,56,340); ctx.strokeRect(sx-28,top,56,340);
+  // scale 0..500 N
+  ctx.font='10px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillStyle=muted;
+  for (let n=0;n<=500;n+=50){ const y=top+10+n/500*300; ctx.beginPath(); ctx.moveTo(sx-10,y); ctx.lineTo(sx+10,y); ctx.strokeStyle=line; ctx.stroke(); if(n%100===0) ctx.fillText(n+' N', sx+32, y+3); }
+  // spring
+  ctx.strokeStyle=acc; ctx.lineWidth=2; ctx.beginPath(); const n=14; for(let i=0;i<=n;i++){ const y=top+10+i/n*(ext+20); const x=sx+(i%2?8:-8); i?ctx.lineTo(x,y):ctx.moveTo(sx,y); } ctx.lineTo(sx,top+10+ext+40); ctx.stroke(); ctx.lineWidth=1;
+  // pointer
+  const py=top+10+ext; ctx.fillStyle=hot; ctx.beginPath(); ctx.moveTo(sx-28,py); ctx.lineTo(sx-40,py-5); ctx.lineTo(sx-40,py+5); ctx.fill();
+  // mass
+  const size=30+m*2.5; ctx.fillStyle=fg; ctx.fillRect(sx-size/2, top+10+ext+40, size, size*0.8); ctx.fillStyle=css('--panel'); ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(m+' kg', sx, top+10+ext+40+size*0.5);
+  ctx.fillStyle=fg; ctx.textAlign='center'; ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.fillText('newton meter', sx, H-16);
+  // field arrows on the right
+  const fx=520, fw=320, fy=70, fh=300; ctx.fillStyle=fg; ctx.textAlign='left'; ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.fillText('gravitational field here', fx, fy-20);
+  ctx.strokeStyle=muted; ctx.fillStyle=muted; const L=Math.min(70, g*2.6+(g>0?8:0));
+  for (let i=0;i<5;i++) for (let j=0;j<4;j++){ const x=fx+20+i*70, y=fy+20+j*75; if (L<=0) { ctx.beginPath(); ctx.arc(x,y,2,0,7); ctx.fill(); continue; }
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+L); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x,y+L); ctx.lineTo(x-5,y+L-8); ctx.lineTo(x+5,y+L-8); ctx.fill(); }
+  ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif';
+  ctx.fillText(`g = ${g} N/kg  →  each kilogram is pulled with ${g} N`, fx, fy+fh+20);
+  ctx.fillText(`W = m × g = ${m} × ${g} = ${+(w.toFixed(1))} N`, fx, fy+fh+44);
+  $('massV').textContent=m+' kg'; $('rM').textContent=m+' kg (same everywhere)'; $('rW').textContent=(+w.toFixed(1))+' N';
+}
+
+function drawDensity(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),acc=css('--accent'),cold=css('--cold');
+  const rho=+$('mat').value, Vcm=+$('vol').value, V=Vcm/1e6, m=rho*V;
+  ctx.clearRect(0,0,W,H);
+  // tank
+  const tx=80, ty=60, tw=380, th=380, water=ty+70;
+  ctx.fillStyle=cold; ctx.globalAlpha=.18; ctx.fillRect(tx,water,tw,ty+th-water); ctx.globalAlpha=1;
+  ctx.strokeStyle=line; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(tx,ty+th); ctx.lineTo(tx+tw,ty+th); ctx.lineTo(tx+tw,ty); ctx.stroke(); ctx.lineWidth=1;
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('water, 1000 kg/m³', tx+8, water-6);
+  // block: side ∝ cube root of volume
+  const side=60+ (Math.cbrt(Vcm)-Math.cbrt(100))/(Math.cbrt(2000)-Math.cbrt(100))*90;
+  const frac=Math.min(1,rho/1000); // fraction submerged if floating
+  let by; if (rho<1000){ by=water-side*(1-frac); } else { by=ty+th-side-2; }
+  const bob=rho<1000? Math.sin(t*1.5)*3 : 0;
+  ctx.fillStyle=rho<1000?css('--good'):css('--hot'); ctx.globalAlpha=.85; ctx.fillRect(tx+tw/2-side/2, by+bob, side, side); ctx.globalAlpha=1;
+  ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText($('mat').selectedOptions[0].text.split(' ·')[0], tx+tw/2, by+bob+side/2+4);
+  // bars on the right: mass and volume cubes
+  const rx=540; ctx.fillStyle=fg; ctx.textAlign='left'; ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.fillText('density = mass ÷ volume', rx, 70);
+  ctx.font='13px IBM Plex Sans, sans-serif';
+  ctx.fillText(`volume V = ${Vcm} cm³ = ${V.toExponential(1)} m³`, rx, 100);
+  if ($('showMass').checked) ctx.fillText(`mass m = ρ × V = ${rho} × ${V.toExponential(1)} = ${+(m.toFixed(2))} kg`, rx, 124); else ctx.fillText('mass m = ?  (work it out from ρ and V)', rx, 124);
+  ctx.fillText(`density ρ = ${rho} kg/m³ = ${rho/1000} g/cm³`, rx, 148);
+  // density bar vs water
+  const bx=rx, byy=200, bw=300, bh=26; ctx.fillStyle=line; ctx.fillRect(bx,byy,bw,bh); const wx=bx+1000/8000*bw; ctx.fillStyle=rho<1000?css('--good'):css('--hot'); ctx.fillRect(bx,byy,Math.min(bw,rho/8000*bw),bh);
+  ctx.strokeStyle=cold; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(wx,byy-8); ctx.lineTo(wx,byy+bh+8); ctx.stroke(); ctx.lineWidth=1;
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText('0', bx, byy+bh+16); ctx.fillText('water 1000', wx-20, byy-12); ctx.textAlign='right'; ctx.fillText('8000 kg/m³', bx+bw, byy+bh+16); ctx.textAlign='left';
+  ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif';
+  ctx.fillText(rho<1000? `Less dense than water → floats, ${Math.round(frac*100)}% under the surface.` : rho===1000? 'Same density as water → hangs anywhere in the water.' : 'More dense than water → sinks.', rx, 270);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif';
+  ctx.fillText('Change the volume: a bigger block of the same material has more mass,', rx, 300); ctx.fillText('but the SAME density. Floating or sinking does not change.', rx, 318);
+  $('volV').textContent=Vcm+' cm³'; $('rDM').textContent=$('showMass').checked? (+m.toFixed(2))+' kg' : '?'; $('rFloat').textContent=rho<1000?'floats':rho===1000?'neutral':'sinks';
+}
+
+function drawPressure(){
+  const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),acc=css('--accent'),hot=css('--hot');
+  const F=+$('force').value, P=F/area;
+  ctx.clearRect(0,0,W,H);
+  // foam slab
+  const fx=80, fy=300, fw=440, fh=120;
+  const dent=Math.min(100, P/500000*100); // 500 kPa → 100 px
+  const bw=Math.sqrt(area)*1200; // 10 cm² → 38px, 100 → 120, 500 → 268
+  const cx=fx+fw/2;
+  ctx.fillStyle=css('--warn'); ctx.globalAlpha=.35; ctx.beginPath(); ctx.moveTo(fx,fy); ctx.lineTo(cx-bw/2-20,fy); ctx.quadraticCurveTo(cx-bw/2,fy,cx-bw/2,fy+dent); ctx.lineTo(cx+bw/2,fy+dent); ctx.quadraticCurveTo(cx+bw/2,fy,cx+bw/2+20,fy); ctx.lineTo(fx+fw,fy); ctx.lineTo(fx+fw,fy+fh); ctx.lineTo(fx,fy+fh); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1; ctx.strokeStyle=line; ctx.stroke();
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('soft foam', fx+6, fy+fh-8);
+  // block
+  const bh=70; ctx.fillStyle=fg; ctx.fillRect(cx-bw/2, fy+dent-bh, bw, bh);
+  ctx.fillStyle=css('--panel'); ctx.textAlign='center'; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText((area*1e4)+' cm²', cx, fy+dent-bh/2+4);
+  // force arrow
+  const al=Math.min(150, 30+F/500*120); ctx.strokeStyle=hot; ctx.fillStyle=hot; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(cx, fy+dent-bh-al-10); ctx.lineTo(cx, fy+dent-bh-12); ctx.stroke(); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(cx,fy+dent-bh-2); ctx.lineTo(cx-9,fy+dent-bh-16); ctx.lineTo(cx+9,fy+dent-bh-16); ctx.fill();
+  ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText(F+' N', cx+40, fy+dent-bh-al/2);
+  // readouts
+  const rx=580; ctx.fillStyle=fg; ctx.textAlign='left'; ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.fillText('pressure = force ÷ area', rx, 70);
+  ctx.font='13px IBM Plex Sans, sans-serif';
+  ctx.fillText(`F = ${F} N`, rx, 100); ctx.fillText(`A = ${area*1e4} cm² = ${area} m²`, rx, 124);
+  ctx.fillText(`p = ${F} ÷ ${area} = ${fmtP(P)}`, rx, 148);
+  // pressure bar
+  const bx=rx, byy=180, bww=280, bhh=22; ctx.fillStyle=line; ctx.fillRect(bx,byy,bww,bhh); ctx.fillStyle=hot; ctx.fillRect(bx,byy,Math.min(bww,P/500000*bww),bhh);
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText('0', bx, byy+bhh+14); ctx.textAlign='right'; ctx.fillText('500 kPa', bx+bww, byy+bhh+14); ctx.textAlign='left';
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif';
+  ['Same force, smaller area → bigger pressure → deeper dent.', 'That is why a drawing pin has a sharp point and a camel has wide feet.', 'A person standing: about 700 N on 2 feet (≈ 0.05 m²) ≈ 14 kPa.'].forEach((s,i)=>ctx.fillText(s, rx, 250+i*22));
+  $('forceV').textContent=F+' N'; $('rP').textContent=fmtP(P); $('rDent').textContent=dent<10?'shallow':dent<40?'medium':'deep';
+}
+const fmtP=P=> P>=1000? (+(P/1000).toPrecision(3))+' kPa' : (+P.toPrecision(3))+' Pa';
+
+function draw(){ t+=0.016; if (mode==='weight') drawWeight(); else if (mode==='density') drawDensity(); else drawPressure(); requestAnimationFrame(draw); }
+function notice(){ $('notice').innerHTML = mode==='weight'
+  ? '<b>What to notice.</b> Mass is the amount of matter: it does not change when you move the object. Weight is the gravitational force on it, W = m × g, so it changes with the field strength g. The newton meter reads weight; a beam balance compares masses.'
+  : mode==='density' ? '<b>What to notice.</b> Density is mass per unit volume. Doubling the volume doubles the mass but leaves the density the same. An object floats in water if its density is less than 1000 kg/m³.'
+  : '<b>What to notice.</b> Pressure is force per unit area. Keep the force the same and shrink the area: the pressure goes up and the foam dents more. 1 Pa = 1 N/m².'; }
+$('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; mode=b.dataset.v; [...$('modeSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); $('wCtl').classList.toggle('hide',mode!=='weight'); $('dCtl').classList.toggle('hide',mode!=='density'); $('pCtl').classList.toggle('hide',mode!=='pressure'); notice(); });
+$('areaSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; area=+b.dataset.v; [...$('areaSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); });
+notice(); requestAnimationFrame(draw);
+})();
+</script>
