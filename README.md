@@ -11,7 +11,7 @@ Each chapter page has three tabs: **Explore** (the applet plus predict-then-test
 | Light | Ch 11 | Ray Box, Lens Bench |
 | Internal Energy | Ch 7 Kinetic Particle Model | Heating Curve Lab |
 | Kinematics | Ch 2 | Kinematics Graph Matcher |
-| Thermal Processes | Ch 8 | Conduction Lab, Convection Tank |
+| Thermal Processes | Ch 8 | Conduction Lab, Convection Tank, Radiation Lab |
 | Forces | Ch 4–5 | Resultant Force Trolley, Moments See-saw |
 | Circuits | Ch 13 | Series and Parallel Bench |
 | Measurements | Ch 1 | Measuring Lab |

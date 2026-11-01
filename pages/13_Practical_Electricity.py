@@ -5,12 +5,14 @@ from quizzes.practical_electricity import QUESTIONS
 
 APPLETS = [
     dict(name="Home Electricity", file="home-electricity", height=820,
-         blurb="**Appliances & cost**: pick an appliance, see the current it draws, choose a fuse, and work out the energy in kWh and the cost. **Plug & safety**: wire a 3-pin plug, see what happens when a live wire touches a metal case with and without earthing, and compare a switch in the live wire with one in the neutral.",
+         blurb="**Toaster fault**: a real toaster (or its circuit diagram) with the current drawn as moving dots. Make the live wire touch the metal case and follow where the current goes, with and without the earth wire and the fuse, and with someone touching the case. Also: **wiring a plug**, a **switch in the live or neutral** wire, and **appliances & cost**.",
          tasks=[
+             "Toaster fault: follow the dots in normal use. Then make the fault happen. Where does the current go? What happens to the fuse?",
+             "Untick the earth and repeat. What is the case at now? Tick Someone touches the case: where does the current go?",
+             "Tick earth, untick the fuse. Is the person safe? Is the toaster safe?",
+             "Switch on the neutral wire, OFF. Is the lamp safe to touch? Why not?",
              "**Predict:** which appliances need a 13 A fuse? Check each one.",
              "Find the appliance that costs most per day at 2 hours, and the one that costs least. What decides it?",
-             "Plug & safety: untick the earth. What is the case at? Tick earth, untick fuse. Is that safe?",
-             "Switch on the neutral wire, OFF. Is the lamp safe to touch? Why not?",
              "Explain to a partner why heating appliances draw such large currents (use I = P/V).",
          ]),
 ]

@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 .streamlit/secrets.toml
+.harness/
+.harness_server.py
+.harness_test.js

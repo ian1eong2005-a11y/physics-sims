@@ -1,0 +1,152 @@
+<title>Radiation Lab</title>
+<meta charset="utf-8">
+
+<header>
+  <h1>Radiation Lab</h1>
+  <span class="lo">5086 · 8a, 8d, 8e · infrared radiation: colour and texture, temperature, surface area, no medium needed</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="560" aria-label="Two cans absorbing or emitting infrared radiation, with a temperature-time graph"></canvas>
+    <p class="notice" id="notice"></p>
+  </div>
+  <div class="panel">
+    <div class="ctl">
+      <span class="lbl">Experiment</span>
+      <div class="seg" id="modeSeg">
+        <button data-v="abs" aria-pressed="true">Absorbing (heater on)</button>
+        <button data-v="emit" aria-pressed="false">Emitting (cooling down)</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Left can</span>
+      <select id="surfL">
+        <option value="dullblack" selected>dull black</option>
+        <option value="shinyblack">shiny black</option>
+        <option value="dullwhite">dull white</option>
+        <option value="silver">shiny silver</option>
+      </select>
+      <div class="seg" id="sizeL"><button data-v="1" aria-pressed="true">plain</button><button data-v="2" aria-pressed="false">with fins (2× area)</button></div>
+      <div class="emitOnly hide"><div class="row"><label for="t0L">Start temperature</label><span class="val" id="t0LV">80 °C</span></div><input type="range" id="t0L" min="40" max="95" step="5" value="80"></div>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Right can</span>
+      <select id="surfR">
+        <option value="dullblack">dull black</option>
+        <option value="shinyblack">shiny black</option>
+        <option value="dullwhite">dull white</option>
+        <option value="silver" selected>shiny silver</option>
+      </select>
+      <div class="seg" id="sizeR"><button data-v="1" aria-pressed="true">plain</button><button data-v="2" aria-pressed="false">with fins (2× area)</button></div>
+      <div class="emitOnly hide"><div class="row"><label for="t0R">Start temperature</label><span class="val" id="t0RV">80 °C</span></div><input type="range" id="t0R" min="40" max="95" step="5" value="80"></div>
+    </div>
+    <div class="ctl">
+      <label class="check"><input type="checkbox" id="vac"> Remove the air (vacuum)</label>
+      <label class="check"><input type="checkbox" id="waves" checked> Show infrared waves</label>
+      <div class="row"><label for="speed">Simulation speed</label><span class="val" id="speedV">2×</span></div>
+      <input type="range" id="speed" min="1" max="6" step="1" value="2">
+    </div>
+    <div class="read">
+      <div><small>Left can</small><span id="rL">–</span></div>
+      <div><small>Right can</small><span id="rR">–</span></div>
+    </div>
+    <div class="buttons">
+      <button class="btn primary" id="play">❚❚ Pause</button>
+      <button class="btn" id="reset">Reset</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+// absorptivity = emissivity: good absorbers are good emitters
+const SURF={ dullblack:{e:0.95, name:'dull black'}, shinyblack:{e:0.75, name:'shiny black'}, dullwhite:{e:0.35, name:'dull white'}, silver:{e:0.08, name:'shiny silver'} };
+const ROOM=25, S_IN=0.55, K=0.55/((348**4)-(298**4)), H_AIR=0.004;
+let mode='abs', running=true, t=0, last=performance.now(), sizeL=1, sizeR=1, cans=[], hist=[], phase=0, air=[];
+
+function cfg(side){ return { surf:SURF[$('surf'+side).value], key:$('surf'+side).value, area: side==='L'?sizeL:sizeR, t0:+$('t0'+side).value }; }
+function reset(){ t=0; hist=[]; cans=['L','R'].map(sd=>({T: mode==='abs'?ROOM:cfg(sd).t0, side:sd})); air=Array.from({length:70},()=>({x:Math.random()*900,y:60+Math.random()*290,vx:(Math.random()-.5)*40,vy:(Math.random()-.5)*40})); }
+function rates(c){ const k=cfg(c.side), e=k.surf.e, A=k.area, Tk=c.T+273, Tr=ROOM+273;
+  const absorb = mode==='abs' ? e*A*S_IN : 0;
+  const emit = e*A*K*(Tk**4-Tr**4);
+  const convect = $('vac').checked ? 0 : H_AIR*A*(c.T-ROOM);
+  return {absorb, emit, convect, net: absorb-emit-convect}; }
+function step(dt){ for (const c of cans){ c.T += rates(c).net*dt; } t+=dt; if (hist.length===0 || t-hist[hist.length-1][0]>0.25) hist.push([t, cans[0].T, cans[1].T]); if (hist.length>2000) hist.shift(); }
+
+function drawCan(cx, c){
+  const k=cfg(c.side), fg=css('--fg'), muted=css('--muted');
+  const w=80, h=120, x=cx-w/2, y=210;
+  // fins
+  if (k.area>1){ ctx.fillStyle=canFill(k.key,x,w); for (let i=0;i<5;i++){ ctx.fillRect(x-22, y+12+i*22, 22, 8); ctx.fillRect(x+w, y+12+i*22, 22, 8); } }
+  ctx.fillStyle=canFill(k.key,x,w); ctx.strokeStyle=k.key==='dullwhite'?'#9aa3ad':fg; ctx.beginPath(); ctx.roundRect(x,y,w,h,8); ctx.fill(); ctx.stroke();
+  // shine for shiny surfaces
+  if (k.key==='silver'||k.key==='shinyblack'){ ctx.fillStyle='rgba(255,255,255,.55)'; ctx.fillRect(x+12,y+8,8,h-16); ctx.fillStyle='rgba(255,255,255,.3)'; ctx.fillRect(x+26,y+8,4,h-16); }
+  // thermometer
+  const tx=cx+w/2-16; ctx.fillStyle='#fff'; ctx.fillRect(tx-4,y-40,8,h+20); ctx.strokeStyle=muted; ctx.strokeRect(tx-4,y-40,8,h+20);
+  const f=Math.max(0,Math.min(1,(c.T-20)/80)); ctx.fillStyle=css('--hot'); ctx.fillRect(tx-3, y-40+(h+20)*(1-f), 6, (h+20)*f); ctx.beginPath(); ctx.arc(tx,y+h-14,7,0,7); ctx.fill();
+  ctx.fillStyle=fg; ctx.font='600 15px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.fillText(c.T.toFixed(1)+' °C', cx, y+h+24);
+  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText(k.surf.name+(k.area>1?', with fins':''), cx, y+h+42);
+}
+function canFill(key,x,w){ if (key==='dullblack') return '#2a2d33'; if (key==='shinyblack') return '#14161a'; if (key==='dullwhite') return '#f2f2ee';
+  const g=ctx.createLinearGradient(x,0,x+w,0); g.addColorStop(0,'#9aa3ad'); g.addColorStop(.3,'#f4f6f8'); g.addColorStop(.6,'#b8c0c8'); g.addColorStop(1,'#e2e6ea'); return g; }
+function wave(x0,y0,x1,y1,alpha,col,amp=6,lw=2){ const L=Math.hypot(x1-x0,y1-y0), ux=(x1-x0)/L, uy=(y1-y0)/L; ctx.strokeStyle=col; ctx.globalAlpha=alpha; ctx.lineWidth=lw; ctx.beginPath();
+  for (let s=0;s<=L;s+=3){ const off=Math.sin(s/9-phase)*amp; const x=x0+ux*s-uy*off, y=y0+uy*s+ux*off; s?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke(); ctx.globalAlpha=1; ctx.lineWidth=1;
+  // arrowhead
+  ctx.fillStyle=col; ctx.globalAlpha=alpha; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x1-ux*10-uy*5,y1-uy*10+ux*5); ctx.lineTo(x1-ux*10+uy*5,y1-uy*10-ux*5); ctx.fill(); ctx.globalAlpha=1; }
+
+function draw(){
+  const W=cv.width, fg=css('--fg'), muted=css('--muted'), line=css('--line'), hot=css('--hot'), cold=css('--cold');
+  ctx.clearRect(0,0,W,cv.height);
+  // air or vacuum
+  const vac=$('vac').checked;
+  ctx.strokeStyle=line; ctx.strokeRect(20,50,860,320);
+  if (!vac){ ctx.fillStyle=muted; ctx.globalAlpha=.35; for (const a of air){ ctx.beginPath(); ctx.arc(a.x,a.y,2,0,7); ctx.fill(); } ctx.globalAlpha=1; }
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(vac?'vacuum: no particles at all':'air', 28, 66);
+  const LX=200, RX=700;
+  if (mode==='abs'){
+    // radiant heater
+    ctx.save(); ctx.shadowColor=hot; ctx.shadowBlur=24; ctx.fillStyle=hot; ctx.fillRect(438,150,24,200); ctx.restore();
+    ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('radiant heater', 450, 140);
+    if ($('waves').checked) for (const [cx,c] of [[LX,cans[0]],[RX,cans[1]]]){ const e=cfg(c.side).surf.e, dir=cx<450?-1:1; const sx=450+dir*18, ex=cx-dir*48;
+      for (let k=0;k<3;k++){ const y=200+k*45; wave(sx,y,ex,y,0.9,hot);
+        // reflected part bounces back off the can
+        if (e<0.9) wave(ex, y+8, ex+dir*-90, y+40, (1-e)*0.9, hot, 4, 1.5);
+      }
+      ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(`absorbs ${Math.round(e*100)}%, reflects ${Math.round((1-e)*100)}%`, cx, 120); }
+  } else if ($('waves').checked){
+    for (const [cx,c] of [[LX,cans[0]],[RX,cans[1]]]){ const r=rates(c), n=Math.max(0, Math.min(1, r.emit/0.8)); for (let k=0;k<4;k++){ const ang=-Math.PI/2 + (k-1.5)*0.6; const sx=cx+Math.cos(ang)*50, sy=270+Math.sin(ang)*70; wave(sx,sy,sx+Math.cos(ang)*90,sy+Math.sin(ang)*90, Math.max(0.08,n), hot, 5, 1+3*n); }
+      ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(r.emit>0.3?'emitting strongly':r.emit>0.1?'emitting moderately':'emitting weakly', cx, 100); }
+  }
+  drawCan(LX,cans[0]); drawCan(RX,cans[1]);
+  // graph
+  const gx=70, gy=392, gw=780, gh=128; const tmax=Math.max(60, t);
+  ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.lineTo(gx+gw,gy+gh); ctx.stroke();
+  const Ty=T=>gy+gh-(T-20)/80*gh; ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='right'; for (const T of [20,40,60,80,100]) ctx.fillText(T, gx-6, Ty(T)+4);
+  ctx.textAlign='center'; ctx.fillText('time →', gx+gw/2, gy+gh+16); ctx.save(); ctx.translate(gx-36,gy+gh/2); ctx.rotate(-Math.PI/2); ctx.fillText('°C',0,0); ctx.restore();
+  for (const [i,col,lab] of [[1,fg,'left'],[2,css('--accent'),'right']]){ ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.beginPath(); hist.forEach((h,j)=>{ const x=gx+h[0]/tmax*gw, y=Ty(h[i]); j?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke(); ctx.lineWidth=1;
+    if (hist.length){ const h=hist[hist.length-1]; ctx.fillStyle=col; ctx.textAlign='left'; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.fillText(lab+' can', Math.min(gx+gw-50, gx+h[0]/tmax*gw+6), Ty(h[i])+(i===1?-6:12)); } }
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  ctx.fillText(mode==='abs' ? 'Which can warms up faster?' : 'Which can cools down faster?', 28, 32);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText(`t = ${t.toFixed(0)} s`, 872, 32);
+  $('rL').textContent=cans[0].T.toFixed(1)+' °C'; $('rR').textContent=cans[1].T.toFixed(1)+' °C';
+}
+function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (running){ const sp=+$('speed').value; for (let i=0;i<4;i++) step(dt*sp/4); phase+=dt*8; for (const a of air){ a.x+=a.vx*dt; a.y+=a.vy*dt; if(a.x<22||a.x>878) a.vx*=-1; if(a.y<52||a.y>368) a.vy*=-1; } } draw(); requestAnimationFrame(frame); }
+function notice(){ $('notice').innerHTML = mode==='abs'
+  ? '<b>What to notice.</b> Infrared radiation from the heater reaches both cans. Dull black surfaces absorb most of it; shiny silver surfaces reflect most of it, so they warm up slowly. A larger surface area (fins) catches more radiation. Remove the air: radiation still gets through, because it needs no medium.'
+  : '<b>What to notice.</b> Hot objects emit infrared radiation. Dull black is the best emitter and cools fastest; shiny silver is the worst emitter. Fins give more surface area, so more radiation leaves. A hotter can cools faster at first: the graph is steepest at the start.'; }
+const seg=(id,fn)=>$(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; [...$(id).children].forEach(x=>x.setAttribute('aria-pressed',x===b)); fn(b.dataset.v); });
+seg('modeSeg',v=>{ mode=v; document.querySelectorAll('.emitOnly').forEach(el=>el.classList.toggle('hide',mode!=='emit')); reset(); notice(); });
+seg('sizeL',v=>{ sizeL=+v; reset(); }); seg('sizeR',v=>{ sizeR=+v; reset(); });
+['surfL','surfR'].forEach(id=>$(id).addEventListener('change',reset));
+['t0L','t0R'].forEach(id=>$(id).addEventListener('input',()=>{ $(id+'V').textContent=$(id).value+' °C'; reset(); }));
+$('vac').addEventListener('change',reset);
+$('speed').addEventListener('input',()=>$('speedV').textContent=$('speed').value+'×');
+$('play').addEventListener('click',()=>{ running=!running; $('play').textContent=running?'❚❚ Pause':'▶ Play'; });
+$('reset').addEventListener('click',reset);
+reset(); notice(); requestAnimationFrame(frame);
+})();
+</script>

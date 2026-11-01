@@ -43,3 +43,4 @@ select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--lin
 .list button[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .fb{font-size:.88rem;background:var(--bg);border-radius:8px;padding:8px 10px}
 .fb.ok{border-left:3px solid var(--good)} .fb.bad{border-left:3px solid var(--hot)}
+[hidden]{display:none !important}

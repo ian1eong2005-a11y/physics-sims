@@ -66,7 +66,7 @@
       </div>
     </div>
     <div class="buttons">
-      <button class="btn primary" id="play">Pause</button>
+      <button class="btn primary" id="play">▶ Release the car</button>
       <button class="btn" id="reset">Reset</button>
     </div>
   </div>
@@ -78,22 +78,31 @@ const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const g=10;
-let mode='coaster', running=true;
+let mode='coaster', running=false, v=0, dir=1;
 // track: height (m) as a function of x (m), 0..100
-const track=x=>{ const s=x/100; return 30*Math.exp(-Math.pow((s-0.02)*6,2)) + 14*Math.exp(-Math.pow((s-0.45)*5,2)) + 20*Math.exp(-Math.pow((s-0.78)*7,2)) + 2; };
-let x=2, dir=1, v=0, lost=0, last=performance.now(), ct=0;
+// track height (m) against x (m), 0..100. A steep wall at the right end stops the car leaving.
+const track=x=>{ const s=x/100; return 30*Math.exp(-Math.pow((s-0.02)*6,2)) + 14*Math.exp(-Math.pow((s-0.45)*5,2)) + 20*Math.exp(-Math.pow((s-0.78)*7,2)) + 2 + 6000*Math.pow(Math.max(0,s-0.9),2); };
+let x=2, u=0, lost=0, last=performance.now(), ct=0;
 function h0(){ return +$('h0').value; }
-function reset(){ x=2; dir=1; v=0; lost=0; ct=0; }
+// the car starts on the left slope at exactly the chosen start height
+function startX(){ const H=h0(); let lo=2, hi=24; for (let i=0;i<40;i++){ const mid=(lo+hi)/2; if (track(mid)>H) lo=mid; else hi=mid; } return (lo+hi)/2; }
+function reset(){ x=startX(); u=0; lost=0; ct=0; running=false; $('play').textContent='▶ Release the car'; }
 function stepCoaster(dt){
-  const m=+$('mass').value, k=+$('fric').value*0.004; // energy lost per metre as fraction of total
-  const H=Math.max(h0(), track(x)); const Etot=m*g*h0();
-  const h=track(x); let Ek=Etot-m*g*h-lost;
-  if (Ek<=0){ Ek=0; dir=-dir; } v=Math.sqrt(2*Ek/m);
-  const slope=(track(x+0.1)-track(x-0.1))/0.2; const dx=v*dt/Math.sqrt(1+slope*slope)*dir;
-  x+=dx; if (x<0.5){ x=0.5; dir=1; } if (x>99.5){ x=99.5; dir=-1; }
-  lost=Math.min(Etot, lost + Math.abs(dx)*k*Etot/ (1));
-  if (Etot-lost<=0.5){ v=0; }
+  const m=+$('mass').value, fa=+$('fric').value*0.06; // friction deceleration in m/s²
+  const Etot=m*g*h0(); const n=10, h=dt/n;
+  for (let k=0;k<n;k++){
+    const slope=(track(x+0.05)-track(x-0.05))/0.1, c=Math.sqrt(1+slope*slope), sinT=slope/c;
+    // acceleration along the track: gravity component minus friction against the motion
+    let a=-g*sinT; if (Math.abs(u)>0.05) a-=Math.sign(u)*fa; else if (Math.abs(g*sinT)<fa) { a=0; u=0; }
+    u+=a*h; const ds=u*h; x+=ds/c; lost+=m*fa*Math.abs(ds);
+    lost=Math.min(lost,Etot);
+    // keep the energy books exact: the speed always matches Etot - Ep - thermal
+    const Ek=Etot-m*g*track(x)-lost; if (Ek>0) u=Math.sign(u||1)*Math.sqrt(2*Ek/m);
+    if (x<0.5){ x=0.5; u=Math.abs(u); }
+  }
+  v=Math.abs(u); dir=u>=0?1:-1;
 }
+
 function drawCoaster(){
   const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),acc=css('--accent'),hot=css('--hot'),good=css('--good');
   const m=+$('mass').value; const Etot=m*g*h0(); const h=track(x); const Ep=m*g*h, Ek=Math.max(0,Etot-Ep-lost);
@@ -101,7 +110,7 @@ function drawCoaster(){
   const px=X=>40+X/100*560, py=Y=>380-Y/32*300;
   // ground and track
   ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(40,380); ctx.lineTo(600,380); ctx.stroke();
-  ctx.strokeStyle=fg; ctx.lineWidth=3; ctx.beginPath(); for(let X=0;X<=100;X+=0.5){ const yy=py(track(X)); X?ctx.lineTo(px(X),yy):ctx.moveTo(px(X),yy);} ctx.stroke(); ctx.lineWidth=1;
+  ctx.strokeStyle=fg; ctx.lineWidth=3; ctx.beginPath(); for(let X=0;X<=100;X+=0.5){ const yy=py(Math.min(33,track(X))); X?ctx.lineTo(px(X),yy):ctx.moveTo(px(X),yy);} ctx.stroke(); ctx.lineWidth=1;
   // start height marker
   ctx.strokeStyle=acc; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(40,py(h0())); ctx.lineTo(600,py(h0())); ctx.stroke(); ctx.setLineDash([]);
   ctx.fillStyle=acc; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillText('start height '+h0()+' m', 44, py(h0())-4);
@@ -113,7 +122,7 @@ function drawCoaster(){
   if (v>0.2){ const L=v*4; ctx.strokeStyle=hot; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx,cy-18); ctx.lineTo(cx+dir*L,cy-18); ctx.stroke(); ctx.lineWidth=1; }
   // labels A B C D at hills/valleys
   ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
-  [['A',2],['B',25],['C',45],['D',62],['E',78],['F',98]].forEach(([L,X])=>ctx.fillText(L, px(X), py(track(X))-24));
+  [['A',startX()],['B',25],['C',45],['D',62],['E',78],['F',95]].forEach(([L,X])=>ctx.fillText(L, px(X), py(Math.min(32,track(X)))-24));
   // bars
   if ($('bars').checked){ const bx=660, by=60, bw=50, bh=280; const bar=(i,val,col,lab)=>{ const xx=bx+i*62; ctx.fillStyle=line; ctx.fillRect(xx,by,bw,bh); ctx.fillStyle=col; const hh=Math.min(1,val/Etot)*bh; ctx.fillRect(xx,by+bh-hh,bw,hh); ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(lab, xx+bw/2, by+bh+16); if ($('nums').checked){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText((val/1000).toFixed(1)+' kJ', xx+bw/2, by+bh+32);} };
     bar(0,Ep,acc,'Ep'); bar(1,Ek,hot,'Ek'); bar(2,lost,muted,'thermal'); bar(3,Etot,good,'total');
@@ -154,12 +163,12 @@ function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (runn
 function notice(){ $('notice').innerHTML = mode==='coaster'
   ? '<b>What to notice.</b> Energy is transferred mechanically between the gravitational potential store (height) and the kinetic store (speed). Without friction the total stays the same, so the car reaches exactly the start height on the far side. With friction the thermal store grows and the car cannot climb as high.'
   : '<b>What to notice.</b> Work done = force × distance moved in the direction of the force. Lifting at steady speed, the force equals the weight, so work done = mgh, the gain in gravitational potential energy. Power is how fast that work is done.'; }
-$('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; mode=b.dataset.v; [...$('modeSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); $('coCtl').classList.toggle('hide',mode!=='coaster'); $('crCtl').classList.toggle('hide',mode!=='crane'); $('crCtl').style.display=mode==='crane'?'flex':''; reset(); notice(); });
+$('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; mode=b.dataset.v; [...$('modeSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); $('coCtl').classList.toggle('hide',mode!=='coaster'); $('crCtl').classList.toggle('hide',mode!=='crane'); $('crCtl').style.display=mode==='crane'?'flex':''; reset(); if (mode==='crane'){ running=true; $('play').textContent='❚❚ Pause'; } notice(); });
 $('h0').addEventListener('input',()=>{ $('h0V').textContent=$('h0').value+' m'; reset(); });
 $('mass').addEventListener('input',()=>{ $('massV').textContent=$('mass').value+' kg'; });
 $('fric').addEventListener('input',()=>{ const f=+$('fric').value; $('fricV').textContent=f===0?'none':f<4?'low':f<8?'medium':'high'; });
-$('play').addEventListener('click',()=>{ running=!running; $('play').textContent=running?'Pause':'Play'; });
+$('play').addEventListener('click',()=>{ running=!running; $('play').textContent=running?'❚❚ Pause':'▶ Play'; });
 $('reset').addEventListener('click',reset);
-notice(); requestAnimationFrame(frame);
+reset(); notice(); requestAnimationFrame(frame);
 })();
 </script>

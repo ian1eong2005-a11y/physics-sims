@@ -144,7 +144,7 @@ function draw(){
 function notice(){ $('notice').innerHTML = mode==='beam'
   ? '<b>What to notice.</b> A converging lens bends parallel rays inwards so they meet at the principal focus. Change the focal length: a shorter f means the rays are bent more.'
   : '<b>What to notice.</b> Move the object. The image is where the rays from the top of the object meet again. Far from the lens the image is real, inverted and small; move the object inside F and the rays spread out, so the image becomes virtual, upright and magnified, like a magnifying glass.'; }
-$('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; mode=b.dataset.v; [...$('modeSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); $('uWrap').hidden=mode==='beam'; notice(); draw(); });
+$('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; mode=b.dataset.v; [...$('modeSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); $('uWrap').hidden=mode==='beam'; $('rays').closest('.ctl').hidden=mode==='beam'; notice(); draw(); });
 $('f').addEventListener('input',()=>{ $('fV').textContent=$('f').value+' cm'; draw(); });
 $('u').addEventListener('input',()=>{ $('uV').textContent=$('u').value+' cm'; draw(); });
 ['rays','chars'].forEach(id=>$(id).addEventListener('change',draw));

@@ -46,23 +46,23 @@ select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--lin
 
 <header>
   <h1>Convection Tank</h1>
-  <span class="lo">5086 · 8a, 8c · heating a fluid</span>
+  <span class="lo">5086 · 8a, 8c · convection in terms of density changes</span>
 </header>
 
 <div class="wrap">
   <div class="stage">
-    <canvas id="c" width="900" height="560" aria-label="Tank of fluid particles being heated"></canvas>
+    <canvas id="c" width="900" height="560" aria-label="Tank of fluid particles heated from below"></canvas>
     <p class="notice" id="notice"></p>
   </div>
 
   <div class="panel">
     <div class="ctl">
-      <span class="lbl">Heater position</span>
+      <span class="lbl">Heater position (outside the tank)</span>
       <div class="seg" id="heaterSeg">
-        <button data-v="bl" aria-pressed="true">Bottom left</button>
-        <button data-v="bc" aria-pressed="false">Bottom centre</button>
-        <button data-v="br" aria-pressed="false">Bottom right</button>
-        <button data-v="top" aria-pressed="false">Top</button>
+        <button data-v="bl" aria-pressed="true">Under left</button>
+        <button data-v="bc" aria-pressed="false">Under centre</button>
+        <button data-v="br" aria-pressed="false">Under right</button>
+        <button data-v="top" aria-pressed="false">Above the top</button>
       </div>
     </div>
     <div class="ctl">
@@ -77,24 +77,21 @@ select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--lin
       </select>
     </div>
     <div class="ctl">
-      <div class="row"><label for="expand">Expansion when heated</label><span class="val" id="expandV">1.0×</span></div>
-      <input type="range" id="expand" min="0" max="2" step="0.1" value="1">
-    </div>
-    <div class="ctl">
       <label class="check"><input type="checkbox" id="showT" checked> Colour particles by temperature</label>
       <label class="check"><input type="checkbox" id="showD"> Show density map</label>
       <label class="check"><input type="checkbox" id="trace" checked> Trace one particle</label>
+      <label class="check"><input type="checkbox" id="arrows" checked> Show flow arrows</label>
     </div>
     <div class="ctl">
       <div class="row"><label for="speed">Simulation speed</label><span class="val" id="speedV">1.0×</span></div>
       <input type="range" id="speed" min="0.2" max="3" step="0.1" value="1">
     </div>
     <div class="dens">
-      <div><small>Above heater</small><span id="dA">–</span></div>
-      <div><small>Far side</small><span id="dB">–</span></div>
+      <div><small>Box A (above heater)</small><span id="dA">–</span></div>
+      <div><small>Box B (far side)</small><span id="dB">–</span></div>
     </div>
     <div class="buttons">
-      <button class="btn primary" id="play">Pause</button>
+      <button class="btn primary" id="play">❚❚ Pause</button>
       <button class="btn" id="reset">Reset</button>
     </div>
   </div>
@@ -106,66 +103,72 @@ const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const $ = id => document.getElementById(id);
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
-// Model box is 1.0 wide x 0.75 high. Particles carry a temperature T (0 = room, 1 = hottest).
-const BW = 1.0, BH = 0.75;
+// Model box: 1.0 wide x 0.75 high. Each particle has a temperature T (0 = room, 1 = hottest).
+// Particles never change size. A hot particle moves faster, so it keeps its neighbours further away:
+// the hot region spreads out and becomes LESS DENSE. The upward push on each particle comes from the
+// density of its neighbourhood, so a whole patch of spread-out fluid rises together.
+const BW = 1.0, BH = 0.75, RN = 0.14;
 const FLUIDS = {
-  liquid:{n:190, r:0.021, jiggle:0.10, label:'In a liquid the particles stay close together. Heated particles move slightly further apart, so the hot region is less dense and floats up. Cooler, denser fluid sinks to take its place and a convection current forms.'},
-  gas:   {n:150, r:0.016, jiggle:0.30, label:'In a gas the particles are far apart and move fast. Heated particles move faster and spread out more, so the gas above the heater expands, becomes less dense and rises.'}
+  liquid:{n:210, r:0.017, jiggle:0.6, label:'In a liquid the particles stay close together. Heated particles move faster and push their neighbours slightly further apart, so the warm region becomes less dense.'},
+  gas:   {n:150, r:0.011, jiggle:1.4, label:'In a gas the particles are far apart and move fast. Heated particles move even faster and spread out more, so the warm gas becomes less dense.'}
 };
-let P = [], t = 0, running = true, heater = 'bl', trail = [];
-const S = () => ({power:+$('power').value/100, fl:FLUIDS[$('fluid').value], ex:+$('expand').value, speed:+$('speed').value});
+let P = [], t = 0, running = true, heater = 'bl', trail = [], A = 0;
+const S = () => ({power:+$('power').value/100, fl:FLUIDS[$('fluid').value], speed:+$('speed').value});
 
 function reset(){
-  const f = S().fl; P = []; trail = []; t = 0;
-  for (let i=0;i<f.n;i++) P.push({x:Math.random()*BW, y:Math.random()*BH, vx:0, vy:0, T:0});
+  const f = S().fl; P = []; trail = []; t = 0; A = 0;
+  const cols = Math.round(Math.sqrt(f.n*BW/BH)), rows = Math.ceil(f.n/cols);
+  for (let i=0;i<f.n;i++){ const c=i%cols, r=(i/cols)|0; P.push({x:(c+0.5+Math.random()*0.3)*BW/cols, y:(r+0.5+Math.random()*0.3)*BH/rows, vx:0, vy:0, T:0, rho:1, n:0}); }
 }
-function heaterZone(){ // [x0,x1,y0,y1] in model units
-  if (heater==='top') return [0.3,0.7,0,0.05];
-  const x0 = heater==='bl'?0.05:heater==='bc'?0.35:0.65;
-  return [x0, x0+0.3, BH-0.05, BH];
-}
+function heaterSpan(){ if (heater==='top') return [0.3,0.7]; const x0 = heater==='bl'?0.05:heater==='bc'?0.35:0.65; return [x0, x0+0.3]; }
 
+// The circulation: warm fluid rises above the heater (the plume) and sinks at the walls.
+// Its strength A grows only when the fluid above the heater is warmer, and so less dense, than the rest.
+function flowAt(x,y){
+  if (heater==='top' || A<=0) return [0,0];
+  const xc=plumeX(), sy=Math.sin(Math.PI*y/BH), cy=Math.cos(Math.PI*y/BH)*Math.PI/BH;
+  if (x>=xc){ const w=BW-xc, k=Math.PI/w, ph=k*(x-xc), a=A*w/Math.PI; return [a*Math.sin(ph)*cy, -a*k*Math.cos(ph)*sy]; }
+  const w=xc, k=Math.PI/w, ph=k*x, a=A*w/Math.PI; return [-a*Math.sin(ph)*cy, a*k*Math.cos(ph)*sy];
+}
+function plumeX(){ const [h0,h1]=heaterSpan(); return (h0+h1)/2; }
 function step(dt){
-  const s = S(), f = s.fl, [hx0,hx1,hy0,hy1] = heaterZone();
-  let meanT = 0; for (const p of P) meanT += p.T; meanT /= P.length;
-  // temperatures: heater adds, top surface and walls lose, everything drifts back to room slowly
+  const s = S(), f = s.fl, [hx0,hx1] = heaterSpan();
+  // heating through the floor (or the lid), cooling at the opposite surface, slow loss everywhere
   for (const p of P){
-    if (p.x>hx0 && p.x<hx1 && p.y>hy0-0.03 && p.y<hy1+0.03) p.T += s.power*1.6*dt*(1-p.T);
-    if (p.y<0.06 && heater!=='top') p.T -= 0.9*dt*p.T;
-    if (p.y>BH-0.04 && heater==='top') p.T -= 0.9*dt*p.T;
-    p.T -= 0.06*dt*p.T;
+    const inSpan = p.x>hx0 && p.x<hx1;
+    if (heater!=='top'){ if (inSpan && p.y>BH-0.08) p.T += s.power*2.0*dt*(1-p.T); if (p.y<0.08) p.T -= 1.4*dt*p.T; }
+    else { if (inSpan && p.y<0.08) p.T += s.power*2.0*dt*(1-p.T); }
+    p.T -= 0.05*dt*p.T;
   }
-  // forces: gravity minus buoyancy (hot particles are less dense than the fluid around them), drag, random jiggle
-  for (const p of P){
-    const buoy = 2.6*(p.T - meanT);        // positive = rises
-    p.vy += (-buoy)*dt;                     // screen y grows downward
-    p.vx += (Math.random()-0.5)*f.jiggle*(0.4+p.T)*dt*6;
-    p.vy += (Math.random()-0.5)*f.jiggle*(0.4+p.T)*dt*6;
-    p.vx *= 1-1.3*dt; p.vy *= 1-1.3*dt;
-  }
-  // repulsion keeps particles apart; hot particles claim more room (expansion)
-  const cell = f.r*2.6*(1+s.ex), cols = Math.ceil(BW/cell), rows = Math.ceil(BH/cell), grid = new Map();
-  const key = (cx,cy)=>cy*cols+cx;
+  // circulation strength follows how much warmer (less dense) the plume is than the average
+  if (heater!=='top'){ const xc=plumeX(); let tp=0,np=0,ta=0; for (const p of P){ ta+=p.T; if (Math.abs(p.x-xc)<0.12){ tp+=p.T; np++; } } ta/=P.length; const contrast=Math.max(0,(np?tp/np:0)-ta);
+    const target=Math.min(0.32, 1.6*contrast); A += (target-A)*Math.min(1,dt/2.5); } else A *= 1-Math.min(1,dt);
+  // neighbour grid for spacing: warm particles move faster and keep their neighbours further away
+  const cell = RN, cols = Math.ceil(BW/cell), rows = Math.ceil(BH/cell), grid = new Map(), key=(cx,cy)=>cy*cols+cx;
   P.forEach((p,i)=>{ const k = key(Math.min(cols-1,(p.x/cell)|0), Math.min(rows-1,(p.y/cell)|0)); (grid.get(k)||grid.set(k,[]).get(k)).push(i); });
+  const base = 0.92*Math.sqrt(BW*BH/f.n);
   for (let i=0;i<P.length;i++){
     const p = P[i], cx = Math.min(cols-1,(p.x/cell)|0), cy = Math.min(rows-1,(p.y/cell)|0);
-    const ri = f.r*(1+0.55*s.ex*p.T);
     for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++){
       const b = grid.get(key(cx+dx,cy+dy)); if(!b) continue;
       for (const j of b){ if (j<=i) continue; const q = P[j];
-        const rj = f.r*(1+0.55*s.ex*q.T), d0 = ri+rj;
-        let ddx = q.x-p.x, ddy = q.y-p.y, d = Math.hypot(ddx,ddy);
-        if (d<d0 && d>1e-6){ const push = (d0-d)/d0*2.5*dt; ddx/=d; ddy/=d; p.vx-=ddx*push; p.vy-=ddy*push; q.vx+=ddx*push; q.vy+=ddy*push; }
+        let ddx = q.x-p.x, ddy = q.y-p.y; const d = Math.hypot(ddx,ddy); if (d<1e-6) continue;
+        const d0 = base*(1+0.95*(p.T+q.T)/2);
+        if (d<d0){ const push=(d0-d)/d0*6*dt; ddx/=d; ddy/=d; p.vx-=ddx*push; p.vy-=ddy*push; q.vx+=ddx*push; q.vy+=ddy*push; }
+        if (d<d0*1.15){ const ex=0.4*dt*(q.T-p.T); p.T+=ex; q.T-=ex; }
       }
     }
   }
   for (const p of P){
-    p.x += p.vx*dt; p.y += p.vy*dt;
-    const r=f.r;
-    if (p.x<r){p.x=r;p.vx=Math.abs(p.vx)*0.5} if (p.x>BW-r){p.x=BW-r;p.vx=-Math.abs(p.vx)*0.5}
-    if (p.y<r){p.y=r;p.vy=Math.abs(p.vy)*0.5} if (p.y>BH-r){p.y=BH-r;p.vy=-Math.abs(p.vy)*0.5}
+    const j = f.jiggle*(0.3+p.T)*dt;
+    p.vx += (Math.random()-0.5)*j; p.vy += (Math.random()-0.5)*j;
+    p.vx *= 1-6*dt; p.vy *= 1-6*dt;
+    const [u,v] = flowAt(p.x,p.y);
+    p.x += (u+p.vx)*dt; p.y += (v+p.vy)*dt; const r=f.r;
+    if (p.x<r){p.x=r;p.vx=Math.abs(p.vx)} if (p.x>BW-r){p.x=BW-r;p.vx=-Math.abs(p.vx)}
+    if (p.y<r){p.y=r;p.vy=Math.abs(p.vy)} if (p.y>BH-r){p.y=BH-r;p.vy=-Math.abs(p.vy)}
   }
-  if ($('trace').checked){ trail.push([P[0].x,P[0].y]); if (trail.length>400) trail.shift(); } else trail.length = 0;
+  if ($('trace').checked){ trail.push([P[0].x,P[0].y]); if (trail.length>600) trail.shift(); } else trail.length = 0;
   t += dt;
 }
 
@@ -179,52 +182,50 @@ function draw(){
   const W=cv.width, H=cv.height, s=S();
   ctx.clearRect(0,0,W,H);
   const fg=css('--fg'), muted=css('--muted'), line=css('--line'), hot=css('--hot'), trace=css('--trace'), accent=css('--accent');
-  const pad=40, tankX=pad, tankY=50, tankW=W-2*pad-200, tankH=tankW*BH/BW;
+  const pad=40, tankX=pad, tankY=60, tankW=W-2*pad-200, tankH=tankW*BH/BW;
   const X = x=>tankX+x/BW*tankW, Y = y=>tankY+y/BH*tankH;
-
-  // density map
   if ($('showD').checked){
     const gc=16, gr=12, cnt=new Float32Array(gc*gr);
     for (const p of P){ const cx=Math.min(gc-1,(p.x/BW*gc)|0), cy=Math.min(gr-1,(p.y/BH*gr)|0); cnt[cy*gc+cx]++; }
     const avg = P.length/(gc*gr);
-    for (let cy=0;cy<gr;cy++) for (let cx=0;cx<gc;cx++){
-      const v = cnt[cy*gc+cx]/avg; // 1 = average density
-      ctx.fillStyle = accent; ctx.globalAlpha = Math.min(0.85, Math.max(0, (v-0.35)*0.42));
-      ctx.fillRect(X(cx*BW/gc), Y(cy*BH/gr), tankW/gc+0.5, tankH/gr+0.5);
-    }
+    for (let cy=0;cy<gr;cy++) for (let cx=0;cx<gc;cx++){ const v = cnt[cy*gc+cx]/avg; ctx.fillStyle = accent; ctx.globalAlpha = Math.min(0.85, Math.max(0, (v-0.35)*0.42)); ctx.fillRect(X(cx*BW/gc), Y(cy*BH/gr), tankW/gc+0.5, tankH/gr+0.5); }
     ctx.globalAlpha = 1;
   }
-  // tank
-  ctx.strokeStyle=line; ctx.lineWidth=3; ctx.strokeRect(tankX,tankY,tankW,tankH); ctx.lineWidth=1;
-  // heater
-  const [hx0,hx1,hy0,hy1] = heaterZone();
-  ctx.fillStyle = hot; ctx.globalAlpha = 0.35+0.6*s.power; ctx.fillRect(X(hx0), Y(hy0)-(heater==='top'?6:0), X(hx1)-X(hx0), Y(hy1)-Y(hy0)+6); ctx.globalAlpha=1;
-  ctx.fillStyle = hot; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
-  ctx.fillText('HEATER', (X(hx0)+X(hx1))/2, heater==='top'? tankY-10 : tankY+tankH+18);
-
-  // trail
+  // tank walls
+  ctx.strokeStyle=fg; ctx.lineWidth=4; ctx.strokeRect(tankX,tankY,tankW,tankH); ctx.lineWidth=1;
+  // heater OUTSIDE the tank: a hot plate with flames under the floor, or a plate above the top
+  const [hx0,hx1] = heaterSpan(), x0=X(hx0), x1=X(hx1);
+  ctx.fillStyle = hot; ctx.globalAlpha = 0.35+0.6*s.power;
+  if (heater==='top'){ ctx.fillRect(x0, tankY-20, x1-x0, 12); }
+  else { ctx.fillRect(x0, tankY+tankH+6, x1-x0, 10); for (let i=0;i<6;i++){ const fx=x0+(i+0.5)*(x1-x0)/6, fl=8+16*s.power*(0.7+0.3*Math.sin(t*18+i)); ctx.beginPath(); ctx.moveTo(fx-6,tankY+tankH+30); ctx.quadraticCurveTo(fx,tankY+tankH+30-fl-6,fx+6,tankY+tankH+30); ctx.fill(); } }
+  ctx.globalAlpha=1; ctx.fillStyle = hot; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
+  ctx.fillText('HEATER', (x0+x1)/2, heater==='top'? tankY-26 : tankY+tankH+48);
+  // flow arrows
+  if ($('arrows').checked && A>0.01){ const gc=8, gr=5; ctx.strokeStyle=fg; ctx.fillStyle=fg; ctx.globalAlpha=Math.min(.6,A*4); ctx.lineWidth=2;
+    for (let gy=0;gy<gr;gy++) for (let gx=0;gx<gc;gx++){ const mx=(gx+0.5)*BW/gc, my=(gy+0.5)*BH/gr; const [vx,vy]=flowAt(mx,my); const m=Math.hypot(vx,vy); if (m<0.01) continue; const cx=X(mx), cy=Y(my), L=Math.min(36, 14+m*120), ux=vx/m, uy=vy/m;
+      ctx.beginPath(); ctx.moveTo(cx-ux*L/2, cy-uy*L/2); ctx.lineTo(cx+ux*L/2, cy+uy*L/2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx+ux*(L/2+6), cy+uy*(L/2+6)); ctx.lineTo(cx+ux*L/2-uy*5, cy+uy*L/2+ux*5); ctx.lineTo(cx+ux*L/2+uy*5, cy+uy*L/2-ux*5); ctx.fill(); }
+    ctx.globalAlpha=1; ctx.lineWidth=1; }
   if (trail.length>1){ ctx.strokeStyle=trace; ctx.lineWidth=2; ctx.beginPath(); trail.forEach(([x,y],i)=>i?ctx.lineTo(X(x),Y(y)):ctx.moveTo(X(x),Y(y))); ctx.stroke(); ctx.lineWidth=1; }
-  // particles
   const showT = $('showT').checked, pr = s.fl.r/BW*tankW;
-  P.forEach((p,i)=>{ ctx.fillStyle = colour(p.T, showT); ctx.beginPath(); ctx.arc(X(p.x),Y(p.y), pr*(1+0.55*s.ex*p.T), 0, 7); ctx.fill(); });
+  P.forEach(p=>{ ctx.fillStyle = colour(p.T, showT); ctx.beginPath(); ctx.arc(X(p.x),Y(p.y), pr, 0, 7); ctx.fill(); });
   if ($('trace').checked){ ctx.strokeStyle=trace; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(X(P[0].x),Y(P[0].y),pr*1.9,0,7); ctx.stroke(); ctx.lineWidth=1; }
-
-  // sample boxes: above the heater vs the far side, at mid-height
-  const bw=0.16, bh=0.16, aX = heater==='top'?0.42:(hx0+hx1)/2-bw/2, aY = heater==='top'?0.08:0.42;
-  const bX = heater==='br'?0.08:heater==='bl'?0.76:0.08, bY = heater==='top'?0.52:0.42;
+  // sample boxes A (above the heater) and B (far side), equal size: count the particles
+  const bw=0.16, bh=0.16, aX = (hx0+hx1)/2-bw/2, aY = heater==='top'?0.06:0.40;
+  const bX = heater==='bl'?0.76:0.08, bY = heater==='top'?0.06:0.40;
   const count = (x0,y0)=>P.filter(p=>p.x>x0&&p.x<x0+bw&&p.y>y0&&p.y<y0+bh).length;
-  for (const [x0,y0,lab,id] of [[aX,aY,'A',$('dA')],[bX,bY,'B',$('dB')]]){
-    ctx.setLineDash([5,4]); ctx.strokeStyle=fg; ctx.strokeRect(X(x0),Y(y0),bw/BW*tankW,bh/BH*tankH); ctx.setLineDash([]);
-    ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillText(lab, X(x0)+4, Y(y0)+14);
-    id.textContent = count(x0,y0)+' particles';
+  for (const [bx0,by0,lab,id] of [[aX,aY,'A',$('dA')],[bX,bY,'B',$('dB')]]){
+    ctx.setLineDash([5,4]); ctx.strokeStyle=fg; ctx.strokeRect(X(bx0),Y(by0),bw/BW*tankW,bh/BH*tankH); ctx.setLineDash([]);
+    ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillText(lab, X(bx0)+4, Y(by0)+14);
+    id.textContent = count(bx0,by0)+' particles';
   }
-  // legend on the right
   const lx = tankX+tankW+24, ly = tankY;
   ctx.textAlign='left'; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Key', lx, ly+4);
-  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted;
-  const rows=[[colour(0,true),'cool particle (denser)'],[colour(1,true),'hot particle (less dense)'],[trace,'traced particle'],[fg,'A, B: equal boxes, count the particles']];
+  ctx.font='12px IBM Plex Sans, sans-serif';
+  const rows=[[colour(0,true),'cool particle'],[colour(1,true),'warm particle'],[trace,'traced particle'],[fg,'A, B: equal boxes']];
   rows.forEach(([c,txt],i)=>{ ctx.fillStyle=c; ctx.beginPath(); ctx.arc(lx+6, ly+30+i*22, 5, 0, 7); ctx.fill(); ctx.fillStyle=muted; ctx.fillText(txt, lx+18, ly+34+i*22); });
-  if ($('showD').checked){ ctx.fillStyle=accent; ctx.globalAlpha=.5; ctx.fillRect(lx, ly+30+rows.length*22-6, 12, 12); ctx.globalAlpha=1; ctx.fillStyle=muted; ctx.fillText('deeper blue = more dense', lx+18, ly+34+rows.length*22); }
+  ctx.fillStyle=muted; const notes=['Particles never get bigger.','Warm ones move faster and','spread apart: fewer particles','in the same space = less dense.','The less dense patch rises','as a group; cooler, denser','fluid sinks to replace it.'];
+  notes.forEach((n,i)=>ctx.fillText(n, lx, ly+140+i*18));
+  if ($('showD').checked){ ctx.fillStyle=accent; ctx.globalAlpha=.5; ctx.fillRect(lx, ly+290, 12, 12); ctx.globalAlpha=1; ctx.fillStyle=muted; ctx.fillText('deeper blue = denser', lx+18, ly+300); }
   ctx.fillStyle=muted; ctx.fillText(`t = ${t.toFixed(0)} s`, lx, tankY+tankH);
 }
 
@@ -235,15 +236,14 @@ function frame(now){
   draw(); requestAnimationFrame(frame);
 }
 function notice(){
-  const topMsg = heater==='top' ? ' <b>Heater at the top:</b> the hot, less dense fluid is already at the top, so nothing rises past it and no current forms. This is why heaters sit low and air-conditioners sit high.' : '';
-  $('notice').innerHTML = `<b>What to notice.</b> ${S().fl.label} Compare boxes A and B: A (above the heater) holds fewer particles, so that region is less dense.${topMsg}`;
+  const topMsg = heater==='top' ? ' <b>Heater above the top:</b> the warm, less dense fluid is already at the top, so it has nowhere to rise to and no current forms. The bottom stays cold.' : '';
+  $('notice').innerHTML = `<b>What to notice.</b> ${S().fl.label} That less dense patch floats upwards as a group, and cooler, denser fluid sinks to take its place: a convection current. Compare boxes A and B: the same space holds fewer particles where the fluid is warm.${topMsg}`;
 }
-$('heaterSeg').addEventListener('click', e => { const b=e.target.closest('button'); if(!b) return; heater=b.dataset.v; [...$('heaterSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); notice(); });
+$('heaterSeg').addEventListener('click', e => { const b=e.target.closest('button'); if(!b) return; heater=b.dataset.v; [...$('heaterSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); A=0; notice(); });
 $('power').addEventListener('input', ()=>$('powerV').textContent=$('power').value+'%');
-$('expand').addEventListener('input', ()=>$('expandV').textContent=(+$('expand').value).toFixed(1)+'×');
 $('speed').addEventListener('input', ()=>$('speedV').textContent=(+$('speed').value).toFixed(1)+'×');
 $('fluid').addEventListener('change', ()=>{ reset(); notice(); });
-$('play').addEventListener('click', ()=>{ running=!running; $('play').textContent=running?'Pause':'Play'; });
+$('play').addEventListener('click', ()=>{ running=!running; $('play').textContent=running?'❚❚ Pause':'▶ Play'; });
 $('reset').addEventListener('click', reset);
 reset(); notice(); requestAnimationFrame(frame);
 })();

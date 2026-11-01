@@ -47,11 +47,12 @@ table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.78r
 th,td{padding:4px 6px;text-align:right;border-bottom:1px solid var(--line)}
 th{color:var(--muted);font-weight:500;text-transform:lowercase}
 td:first-child,th:first-child{text-align:left}
+[hidden]{display:none !important}
 </style>
 
 <header>
   <h1>Ray Box Bench</h1>
-  <span class="lo">5086 · 11a–11e · reflection, refraction and refractive index</span>
+  <span class="lo">5086 · 11a–11e · reflection, refraction, refractive index · plus total internal reflection (beyond 5086)</span>
 </header>
 
 <div class="wrap">
@@ -68,9 +69,16 @@ td:first-child,th:first-child{text-align:left}
         <button data-v="block" aria-pressed="true">Glass block</button>
       </div>
     </div>
+    <div class="ctl" id="dirWrap">
+      <span class="lbl">Light goes from</span>
+      <div class="seg" id="dirSeg">
+        <button data-v="in" aria-pressed="true">air → block</button>
+        <button data-v="out" aria-pressed="false">block → air</button>
+      </div>
+    </div>
     <div class="ctl">
       <div class="row"><label for="inc">Angle of incidence i</label><span class="val" id="incV">40°</span></div>
-      <input type="range" id="inc" min="0" max="80" step="1" value="40">
+      <input type="range" id="inc" min="0" max="85" step="1" value="40">
     </div>
     <div class="ctl" id="matWrap">
       <label for="mat">Block material</label>
@@ -91,14 +99,14 @@ td:first-child,th:first-child{text-align:left}
       <div><small>sin i</small><span id="sinI">–</span></div>
       <div><small>sin r</small><span id="sinR">–</span></div>
       <div><small>sin i ÷ sin r</small><span id="ratio">–</span></div>
-      <div><small>Speed in block</small><span id="vmed">–</span></div>
+      <div><small id="vmedL">Speed in block</small><span id="vmed">–</span></div>
     </div>
     <div class="buttons">
-      <button class="btn primary" id="record">Record reading</button>
+      <button class="btn primary" id="record">Record</button>
+      <button class="btn" id="clearT">Clear table</button>
       <button class="btn" id="reveal" disabled>Reveal n</button>
     </div>
-    <table id="tbl"><thead><tr><th>i</th><th>r</th><th>sin i</th><th>sin r</th><th>ratio</th></tr></thead><tbody></tbody></table>
-    <button class="btn" id="clearT">Clear table</button>
+    <table id="tbl"><thead><tr><th>air ∠</th><th>block ∠</th><th>sin air</th><th>sin block</th><th>ratio</th></tr></thead><tbody></tbody></table>
   </div>
 </div>
 
@@ -108,7 +116,7 @@ const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const rad=d=>d*Math.PI/180, deg=r=>r*180/Math.PI;
-let mode='block', mysteryN=1.62, revealed=false, rows=[];
+let mode='block', dir='in', mysteryN=1.62, revealed=false, rows=[];
 const nVal=()=>$('mat').value==='mystery'?mysteryN:+$('mat').value;
 const isMystery=()=>$('mat').value==='mystery'&&!revealed;
 
@@ -134,10 +142,11 @@ function draw(){
   if (mode==='mirror'){
     ctx.fillStyle=line; ctx.fillRect(PX-260,SY,520,8); ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('plane mirror', PX-260, SY+26);
     for (let x=PX-260;x<PX+260;x+=14){ ctx.strokeStyle=muted; ctx.beginPath(); ctx.moveTo(x,SY+8); ctx.lineTo(x-8,SY+18); ctx.stroke(); }
-  } else {
+  } else if (dir==='in') {
     ctx.fillStyle=isMystery()?myst:glass; ctx.globalAlpha=.18; ctx.fillRect(PX-BLOCK_W/2,SY,BLOCK_W,BLOCK_H); ctx.globalAlpha=1; ctx.strokeStyle=isMystery()?myst:glass; ctx.lineWidth=2; ctx.strokeRect(PX-BLOCK_W/2,SY,BLOCK_W,BLOCK_H); ctx.lineWidth=1;
     ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('air', PX-BLOCK_W/2, SY-10); ctx.fillText(isMystery()?'mystery block, n = ?':`block, n = ${n.toFixed(2)}`, PX-BLOCK_W/2+8, SY+BLOCK_H-10);
   }
+  if (mode==='block' && dir==='out'){ const rr=drawOut(i,n); bottomText(); return rr; }
   // ray box
   ctx.save(); ctx.translate(sx,sy); ctx.rotate(dirIn); ctx.fillStyle=fg; ctx.fillRect(-56,-16,50,32); ctx.fillStyle=css('--panel'); ctx.fillRect(-10,-5,8,10); ctx.restore();
   ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('ray box', sx-40*Math.cos(dirIn)-20, sy-40*Math.sin(dirIn)-14);
@@ -166,25 +175,60 @@ function draw(){
     if (ex < PX+BLOCK_W/2){ ray(ex,ey,dirIn,120,rayC,3); if ($('normal').checked){ ctx.strokeStyle=norm; ctx.setLineDash([6,5]); ctx.beginPath(); ctx.moveTo(ex,ey-60); ctx.lineTo(ex,ey+60); ctx.stroke(); ctx.setLineDash([]); }
       ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('emerges parallel to the incident ray, shifted sideways', ex+14, ey+50); }
     const si=Math.sin(rad(i)), sr=Math.sin(rad(r));
-    $('sinI').textContent=si.toFixed(3); $('sinR').textContent=sr.toFixed(3); $('ratio').textContent=i===0?'(i = 0: ray not bent)':(si/sr).toFixed(2); $('vmed').textContent=isMystery()?'?':(3e8/n/1e8).toFixed(2)+' × 10⁸ m/s';
+    $('sinI').textContent=si.toFixed(3); $('sinR').textContent=sr.toFixed(3); $('ratio').textContent=i===0?'(i = 0: ray not bent)':(si/sr).toFixed(2); $('vmedL').textContent='Speed in block'; $('vmed').textContent=isMystery()?'?':(3e8/n/1e8).toFixed(2)+' × 10⁸ m/s';
   }
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  ctx.fillText(mode==='mirror'?'Angles are measured from the normal, never from the surface.':'The ray bends towards the normal when it slows down on entering the block, and away from the normal when it speeds up on leaving.', 40, H-18);
+  bottomText();
   return r;
+}
+function bottomText(){
+  ctx.fillStyle=css('--muted'); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  ctx.fillText(mode==='mirror'?'Angles are measured from the normal, never from the surface.':dir==='out'?'Inside the block the ray meets the flat face. Increase i past the critical angle: no ray escapes, all of it reflects back inside.':'The ray bends towards the normal when it slows down on entering the block, and away from the normal when it speeds up on leaving.', 40, cv.height-18);
+}
+// Semicircular block, light travelling from the block out into the air. The ray enters the curved side
+// along a radius (so it does not bend there) and meets the flat face at the centre.
+function drawOut(i,n){
+  const fg=css('--fg'),muted=css('--muted'),rayC=css('--ray'),glass=css('--glass'),norm=css('--normal'),ang=css('--angle'),myst=css('--mystery');
+  const R=210, col=isMystery()?myst:glass;
+  ctx.fillStyle=col; ctx.globalAlpha=.18; ctx.beginPath(); ctx.moveTo(PX-R,SY); ctx.arc(PX,SY,R,0,Math.PI); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+  ctx.strokeStyle=col; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(PX+R,SY); ctx.arc(PX,SY,R,0,Math.PI); ctx.closePath(); ctx.stroke(); ctx.lineWidth=1;
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('air', PX-R, SY-10); ctx.fillText(isMystery()?'semicircular block, n = ?':`semicircular block, n = ${n.toFixed(2)}`, PX+30, SY+R+18);
+  if ($('normal').checked){ ctx.strokeStyle=norm; ctx.setLineDash([6,5]); ctx.beginPath(); ctx.moveTo(PX,SY-190); ctx.lineTo(PX,SY+R+10); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('normal', PX+6, SY-180); }
+  const si=Math.sin(rad(i)), x=n*si, tir=x>1, c=deg(Math.asin(Math.min(1,1/n)));
+  // incoming ray from the lower left, travelling up towards the centre of the flat face
+  const dIn=-(Math.PI/2-rad(i)), L=R+36, sx=PX-L*Math.sin(rad(i)), sy=SY+L*Math.cos(rad(i));
+  ctx.save(); ctx.translate(sx,sy); ctx.rotate(dIn); ctx.fillStyle=fg; ctx.fillRect(-56,-16,50,32); ctx.fillStyle=css('--panel'); ctx.fillRect(-10,-5,8,10); ctx.restore();
+  ray(sx,sy,dIn,L,rayC,3);
+  arc(PX,SY,50,Math.PI/2,Math.PI/2+rad(i),'i = '+i+'°',ang);
+  // how much reflects: a little at small angles, rising to all of it at the critical angle
+  const Rf = tir ? 1 : Math.min(1, 0.04 + 0.96*Math.pow(x,10));
+  const dRef=Math.PI/2-rad(i);
+  ray(PX,SY,dRef,R-6,rayC,Math.max(1,3*Rf), Rf<0.3?[4,4]:null);
+  let r=null;
+  if (!tir){ r=deg(Math.asin(x)); const dR=-(Math.PI/2-rad(r)); ray(PX,SY,dR,230,rayC,Math.max(1,3*(1-Rf))); arc(PX,SY,46,-Math.PI/2,dR,isMystery()?'r = '+r.toFixed(0)+'°':'r = '+r.toFixed(1)+'°',ang); }
+  ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
+  if (tir){ ctx.fillStyle=rayC; ctx.fillText('TOTAL INTERNAL REFLECTION: i is bigger than the critical angle, no light escapes', PX, 30); }
+  else if (!isMystery() && Math.abs(i-c)<1.2){ ctx.fillStyle=rayC; ctx.fillText('About the critical angle: the refracted ray runs along the surface (r ≈ 90°)', PX, 30); }
+  const rs=tir?null:Math.sin(rad(r));
+  $('sinI').textContent=si.toFixed(3); $('sinR').textContent=tir?'–':rs.toFixed(3);
+  $('ratio').textContent=tir?'TIR':i===0?'(i = 0: not bent)':(rs/si).toFixed(2);
+  $('vmedL').textContent='Critical angle'; $('vmed').textContent=isMystery()?'?':c.toFixed(1)+'°';
+  return tir?'TIR':r;
 }
 function notice(){
   $('notice').innerHTML = mode==='mirror'
     ? '<b>What to notice.</b> Angle of reflection = angle of incidence, both measured from the normal. Slide i and watch r match it exactly.'
+    : dir==='out' ? '<b>What to notice.</b> Now the light starts inside the block and meets the flat face going into air, the less optically dense medium. It bends AWAY from the normal, and some light also reflects back inside. Increase i: the refracted ray gets closer to the surface and the reflected ray gets brighter. At the critical angle the refracted ray skims along the surface; beyond it ALL the light reflects back. <i>(Total internal reflection goes beyond the 5086 syllabus.)</i>'
     : '<b>What to notice.</b> Change i and record several readings. The angles change but sin i ÷ sin r stays the same: that constant is the refractive index n = c ÷ v. The denser the material, the slower the light and the more the ray bends.';
 }
 function redraw(){ draw(); }
-$('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; mode=b.dataset.v; [...$('modeSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); $('matWrap').hidden=mode==='mirror'; $('record').disabled=mode==='mirror'; notice(); redraw(); });
+$('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; mode=b.dataset.v; [...$('modeSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); $('matWrap').hidden=mode==='mirror'; $('dirWrap').hidden=mode==='mirror'; $('partial').closest('label').hidden=mode==='mirror'||dir==='out'; $('record').disabled=mode==='mirror'; notice(); redraw(); });
+$('dirSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; dir=b.dataset.v; [...$('dirSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); $('partial').closest('label').hidden=dir==='out'; rows=[]; renderT(); notice(); redraw(); });
 $('inc').addEventListener('input',()=>{ $('incV').textContent=$('inc').value+'°'; redraw(); });
 $('mat').addEventListener('change',()=>{ if ($('mat').value==='mystery'){ mysteryN=[1.36,1.42,1.55,1.62,1.75][Math.floor(Math.random()*5)]; revealed=false; $('reveal').disabled=false; } else { $('reveal').disabled=true; } rows=[]; renderT(); redraw(); });
 ['normal','angles','partial'].forEach(id=>$(id).addEventListener('change',redraw));
 $('reveal').addEventListener('click',()=>{ revealed=true; redraw(); });
-function renderT(){ const tb=$('tbl').querySelector('tbody'); tb.innerHTML=rows.map(r=>`<tr><td>${r.i}°</td><td>${r.r.toFixed(1)}°</td><td>${Math.sin(rad(r.i)).toFixed(3)}</td><td>${Math.sin(rad(r.r)).toFixed(3)}</td><td>${r.i===0?'–':(Math.sin(rad(r.i))/Math.sin(rad(r.r))).toFixed(2)}</td></tr>`).join(''); }
-$('record').addEventListener('click',()=>{ const i=+$('inc').value; const r=deg(Math.asin(Math.sin(rad(i))/nVal())); rows.push({i,r}); if (rows.length>7) rows.shift(); renderT(); });
+function renderT(){ const tb=$('tbl').querySelector('tbody'); tb.innerHTML=rows.map(r=> r.tir ? `<tr><td>–</td><td>${r.b}°</td><td>–</td><td>${Math.sin(rad(r.b)).toFixed(3)}</td><td>TIR</td></tr>` : `<tr><td>${r.a.toFixed(1)}°</td><td>${r.b.toFixed(1)}°</td><td>${Math.sin(rad(r.a)).toFixed(3)}</td><td>${Math.sin(rad(r.b)).toFixed(3)}</td><td>${r.b===0?'–':(Math.sin(rad(r.a))/Math.sin(rad(r.b))).toFixed(2)}</td></tr>`).join(''); }
+$('record').addEventListener('click',()=>{ const i=+$('inc').value, n=nVal(); if (dir==='in'){ const r=deg(Math.asin(Math.sin(rad(i))/n)); rows.push({a:i,b:r}); } else { const x=n*Math.sin(rad(i)); rows.push(x>1?{tir:true,b:i}:{a:deg(Math.asin(x)),b:i}); } if (rows.length>7) rows.shift(); renderT(); });
 $('clearT').addEventListener('click',()=>{ rows=[]; renderT(); });
 notice(); redraw();
 })();

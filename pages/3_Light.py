@@ -5,7 +5,7 @@ from quizzes.light import QUESTIONS
 
 APPLETS = [
     dict(name="Ray Box", file="ray-box", height=860,
-         blurb="A ray box shining at a plane mirror or into a glass block. Angles are always measured from the normal. Record readings to see that sin i ÷ sin r stays constant.",
+         blurb="A ray box shining at a plane mirror or into a glass block. Angles are always measured from the normal. Record readings to see that sin i ÷ sin r stays constant. Going further: send light from the block into air to find the critical angle and total internal reflection (beyond 5086).",
          tasks=[
              "**Predict:** with the mirror, if i goes up by 10°, what happens to r? Test it.",
              "Switch to the glass block. Set i = 0°, then 20°, 40°, 60°. Record each reading. What stays the same in the table?",
