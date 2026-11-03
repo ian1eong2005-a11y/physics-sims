@@ -1,0 +1,284 @@
+<title>Reproduction Lab</title>
+<meta charset="utf-8">
+
+<header>
+  <h1>Reproduction Lab</h1>
+  <span class="lo">2021 LSS · Ch 16 · parts and functions, menstrual cycle, fertilisation, birth control</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="540" aria-label="Diagram of the human reproductive systems, the menstrual cycle, or the journey to fertilisation"></canvas>
+    <p class="notice" id="notice"></p>
+  </div>
+  <div class="panel">
+    <div class="ctl">
+      <span class="lbl">Mode</span>
+      <div class="seg three" id="modeSeg">
+        <button data-v="parts" aria-pressed="true">Parts and functions</button>
+        <button data-v="cycle" aria-pressed="false">Menstrual cycle</button>
+        <button data-v="fert" aria-pressed="false">Fertilisation and birth control</button>
+      </div>
+    </div>
+
+    <div id="pCtl" style="display:flex;flex-direction:column;gap:12px">
+      <div class="ctl">
+        <span class="lbl">System</span>
+        <div class="seg" id="sexSeg"><button data-v="F" aria-pressed="true">female</button><button data-v="M" aria-pressed="false">male</button></div>
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="names" checked> Show names of the parts</label>
+        <label class="check"><input type="checkbox" id="path" checked> Show the path of the egg / sperm</label>
+      </div>
+      <div class="fb" id="pFb">Click a part to see what it does.</div>
+    </div>
+
+    <div id="cCtl" class="hide" style="flex-direction:column;gap:12px">
+      <div class="ctl">
+        <div class="row"><label for="day">Day of the cycle</label><span class="val" id="dayV">1</span></div>
+        <input type="range" id="day" min="1" max="28" step="1" value="1">
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="preg"> The egg is fertilised this month</label>
+        <label class="check"><input type="checkbox" id="fertBar" checked> Show the fertile period</label>
+      </div>
+      <div class="read">
+        <div><small>Stage</small><span id="rStage" style="font-size:.85rem">–</span></div>
+        <div><small>Uterus lining</small><span id="rLining">–</span></div>
+      </div>
+    </div>
+
+    <div id="fCtl" class="hide" style="flex-direction:column;gap:12px">
+      <div class="ctl">
+        <div class="row"><label for="sexDay">Day sperm enter the vagina</label><span class="val" id="sexDayV">13</span></div>
+        <input type="range" id="sexDay" min="1" max="26" step="1" value="13">
+      </div>
+      <div class="ctl">
+        <span class="lbl">Birth control (tick one or more)</span>
+        <label class="check"><input type="checkbox" id="bcCondom"> Condom</label>
+        <label class="check"><input type="checkbox" id="bcDiaphragm"> Diaphragm</label>
+        <label class="check"><input type="checkbox" id="bcPill"> Contraceptive pill</label>
+        <label class="check"><input type="checkbox" id="bcIUD"> IUD</label>
+        <label class="check"><input type="checkbox" id="bcLig"> Ligation (oviducts cut and tied)</label>
+        <label class="check"><input type="checkbox" id="bcVas"> Vasectomy (partner's sperm ducts cut and tied)</label>
+      </div>
+      <div class="read">
+        <div><small>Day</small><span id="rDay">–</span></div>
+        <div><small>Pregnant?</small><span id="rPreg">–</span></div>
+      </div>
+      <div class="fb" id="fFb"></div>
+    </div>
+
+    <div class="buttons">
+      <button class="btn primary" id="play">▶ Play</button>
+      <button class="btn" id="reset">Restart</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let mode='parts', sex='F', running=false, last=performance.now(), t=0, selected=null, cday=1, fday=1;
+const PINK='#f1b8c4', PINK_D='#c9677f', LINING='#b8324f', BLUEM='#9cc3e6', BLUE_D='#3f7fbf';
+function wrap(text,x,y,w,lh){ const words=text.split(' '); let line='', yy=y; for (const wd of words){ const test=line+wd+' '; if (ctx.measureText(test).width>w && line){ ctx.fillText(line,x,yy); line=wd+' '; yy+=lh; } else line=test; } ctx.fillText(line,x,yy); return yy; }
+function poly(pts){ ctx.beginPath(); pts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); }
+function tube(pts,w,col){ ctx.strokeStyle=col; ctx.lineWidth=w; ctx.lineCap='round'; ctx.lineJoin='round'; poly(pts); ctx.stroke(); ctx.lineWidth=1; ctx.lineCap='butt'; }
+function along(pts,f){ const L=[0]; for(let i=1;i<pts.length;i++) L.push(L[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1])); const d=Math.max(0,Math.min(1,f))*L[L.length-1]; let i=1; while(i<L.length-1&&L[i]<d) i++; const g=(d-L[i-1])/((L[i]-L[i-1])||1); return [pts[i-1][0]+(pts[i][0]-pts[i-1][0])*g, pts[i-1][1]+(pts[i][1]-pts[i-1][1])*g]; }
+
+// ---------------- female geometry (shared by all modes) ----------------
+const OVL=[300,286], OVR=[600,286];
+const TUBE_L=[[392,206],[340,178],[290,190],[268,230],[282,262]], TUBE_R=TUBE_L.map(([x,y])=>[900-x,y]);
+const EGG_PATH=[OVL,[278,258]].concat(TUBE_L.slice().reverse().slice(1)).concat([[430,236]]);
+const FERT_POINT=[330,180];
+const SPERM_PATH=[[450,476],[450,372],[450,300],[420,232],[392,206],[355,184]];
+function drawFemale(opts={}){
+  const fg=css('--fg'), muted=css('--muted');
+  const L=opts.lining??0.6, hl=k=>selected===k;
+  // oviducts
+  tube(TUBE_L,12,hl('oviduct')?PINK_D:PINK); tube(TUBE_R,12,hl('oviduct')?PINK_D:PINK);
+  if (opts.lig){ for (const p of [[374,196],[526,196]]){ ctx.strokeStyle=fg; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(p[0]-8,p[1]-10); ctx.lineTo(p[0]+8,p[1]+10); ctx.stroke(); ctx.lineWidth=1; ctx.fillStyle=css('--bg'); ctx.fillRect(p[0]-3,p[1]-8,6,16); } }
+  // fimbriae
+  for (const [x,y] of [[282,262],[618,262]]){ ctx.strokeStyle=hl('oviduct')?PINK_D:PINK; ctx.lineWidth=3; for (let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+i*6,y+14); ctx.stroke(); } ctx.lineWidth=1; }
+  // ovaries
+  for (const [x,y] of [OVL,OVR]){ ctx.fillStyle=hl('ovary')?PINK_D:'#e9a1b0'; ctx.beginPath(); ctx.ellipse(x,y,30,19,0,0,7); ctx.fill(); }
+  // uterus wall
+  ctx.fillStyle=hl('uterus')?PINK_D:PINK; ctx.beginPath(); ctx.moveTo(380,200); ctx.quadraticCurveTo(450,170,520,200); ctx.quadraticCurveTo(530,290,470,340); ctx.lineTo(430,340); ctx.quadraticCurveTo(370,290,380,200); ctx.closePath(); ctx.fill();
+  // lining (thickness L) and cavity
+  const th=4+22*L; ctx.fillStyle=LINING; ctx.beginPath(); ctx.moveTo(398,212); ctx.quadraticCurveTo(450,190,502,212); ctx.quadraticCurveTo(505,280,462,326); ctx.lineTo(438,326); ctx.quadraticCurveTo(395,280,398,212); ctx.closePath(); ctx.fill();
+  ctx.fillStyle=css('--panel'); ctx.beginPath(); ctx.moveTo(398+th,214+th*0.4); ctx.quadraticCurveTo(450,196+th,502-th,214+th*0.4); ctx.quadraticCurveTo(495-th*0.6,280,456,322-th*0.2); ctx.lineTo(444,322-th*0.2); ctx.quadraticCurveTo(405+th*0.6,280,398+th,214+th*0.4); ctx.closePath(); ctx.fill();
+  if (opts.bleed){ ctx.fillStyle=LINING; for (let i=0;i<8;i++){ const y=(t*60+i*30)%120; ctx.beginPath(); ctx.arc(450+Math.sin(i)*6,340+y,3,0,7); ctx.fill(); } }
+  // cervix and vagina
+  ctx.fillStyle=hl('cervix')?PINK_D:'#e29aab'; ctx.fillRect(430,336,40,22);
+  ctx.fillStyle=css('--panel'); ctx.fillRect(446,336,8,22);
+  ctx.fillStyle=hl('vagina')?PINK_D:PINK; ctx.beginPath(); ctx.moveTo(432,358); ctx.lineTo(422,480); ctx.lineTo(478,480); ctx.lineTo(468,358); ctx.closePath(); ctx.fill();
+  ctx.fillStyle=css('--panel'); ctx.fillRect(444,360,12,120);
+  if (opts.diaphragm){ ctx.strokeStyle=BLUE_D; ctx.lineWidth=5; ctx.beginPath(); ctx.ellipse(450,362,26,7,0,0,Math.PI); ctx.stroke(); ctx.lineWidth=1; }
+  if (opts.iud){ ctx.strokeStyle=BLUE_D; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(450,300); ctx.lineTo(450,240); ctx.moveTo(425,244); ctx.quadraticCurveTo(450,232,475,244); ctx.stroke(); ctx.lineWidth=1; }
+}
+const F_LABELS={ovary:[[230,330],'ovary'],oviduct:[[200,170],'oviduct'],uterus:[[560,240],'uterus'],cervix:[[500,352],'cervix'],vagina:[[500,440],'vagina']};
+function smallLabels(){ ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=css('--muted'); ctx.textAlign='left'; for (const [[x,y],n] of Object.values(F_LABELS)) ctx.fillText(n, x+10, y); }
+const F_INFO={ ovary:'Ovaries make eggs and release one egg about every 28 days (ovulation). They also make female sex hormones.',
+  oviduct:'The oviduct (Fallopian tube) carries the egg from the ovary to the uterus. Fertilisation happens here.',
+  uterus:'The uterus has a thick lining that builds up every month. A fertilised egg (embryo) implants in the lining and grows into a baby here.',
+  cervix:'The cervix is a ring of muscle at the neck of the uterus. It keeps the baby in the uterus and widens during birth.',
+  vagina:'The vagina receives sperm during sexual intercourse. It is also the birth canal.' };
+const F_HIT={ovary:[[OVL,32],[OVR,32]],oviduct:[[[300,190],40],[[600,190],40],[[350,182],22],[[550,182],22]],uterus:[[[450,260],62]],cervix:[[[450,347],18]],vagina:[[[450,420],40]]};
+
+// ---------------- male geometry ----------------
+const DUCT_L=[[396,420],[360,350],[372,268],[420,250],[446,286]], DUCT_R=DUCT_L.map(([x,y])=>[900-x,y]);
+const URETHRA=[[450,286],[450,330],[450,486]];
+function drawMale(){
+  const fg=css('--fg'), hl=k=>selected===k;
+  // scrotum and testes
+  ctx.fillStyle='#d9c3b0'; ctx.beginPath(); ctx.ellipse(450,440,86,52,0,0,7); ctx.fill();
+  for (const x of [396,504]){ ctx.fillStyle=hl('testis')?BLUE_D:BLUEM; ctx.beginPath(); ctx.ellipse(x,440,30,38,0,0,7); ctx.fill(); }
+  tube(DUCT_L,7,hl('duct')?BLUE_D:'#6fa3d6'); tube(DUCT_R,7,hl('duct')?BLUE_D:'#6fa3d6');
+  // penis with urethra
+  ctx.fillStyle=hl('penis')?'#c99d7d':'#e4c9b2'; ctx.beginPath(); ctx.roundRect(428,318,44,178,20); ctx.fill();
+  tube(URETHRA,6,hl('urethra')?BLUE_D:'#5a8fc4');
+}
+const M_LABELS={testis:[[560,500],'testis (testes)'],duct:[[250,320],'sperm duct'],urethra:[[500,300],'urethra'],penis:[[500,380],'penis']};
+const M_INFO={ testis:'The testes make sperm and the male sex hormone. They hang outside the body in the scrotum, where it is slightly cooler.',
+  duct:'The sperm ducts carry sperm from the testes to the urethra. (In a vasectomy these are cut and tied.)',
+  urethra:'The urethra carries sperm (in semen) out of the body through the penis. It also carries urine, but never at the same time.',
+  penis:'The penis places sperm into the vagina during sexual intercourse.' };
+const M_HIT={testis:[[[396,440],34],[[504,440],34]],duct:[[[365,330],22],[[535,330],22],[[400,256],20],[[500,256],20]],urethra:[[[450,300],14]],penis:[[[450,400],26]]};
+function hitTest(x,y,hits){ for (const [k,list] of Object.entries(hits)) for (const [[cx,cy],r] of list) if (Math.hypot(x-cx,y-cy)<r) return k; return null; }
+
+function drawParts(dt){
+  if (running) t+=dt;
+  const fg=css('--fg'), muted=css('--muted'), acc=css('--accent');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const F=sex==='F';
+  if (F) drawFemale({lining:0.6}); else drawMale();
+  const labels=F?F_LABELS:M_LABELS, info=F?F_INFO:M_INFO;
+  ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  for (const [k,[[x,y],name]] of Object.entries(labels)){ ctx.fillStyle=selected===k?acc:fg; ctx.fillText($('names').checked||selected===k?name:'?', x, y); }
+  // path animation
+  if ($('path').checked){ const f=(t*0.25)%1;
+    if (F){ const [x,y]=along(EGG_PATH,f); ctx.fillStyle='#fff'; ctx.strokeStyle=fg; ctx.beginPath(); ctx.arc(x,y,7,0,7); ctx.fill(); ctx.stroke(); ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('egg', x+10, y-8); }
+    else { const path=DUCT_L.concat(URETHRA.slice(1)); for (let i=0;i<6;i++){ const [x,y]=along(path,(f+i*0.05)%1); sperm(x,y,t*8+i); } } }
+  ctx.fillStyle=fg; ctx.font='600 15px Bricolage Grotesque, sans-serif'; ctx.textAlign='left'; ctx.fillText(F?'Female reproductive system (front view)':'Male reproductive system (front view, simplified)', 20, 30);
+  $('pFb').textContent = selected ? info[selected] : 'Click a part to see what it does.' + ($('names').checked?'':' Names are hidden: say the name before you click.');
+}
+function sperm(x,y,ph){ ctx.strokeStyle=css('--muted'); ctx.beginPath(); ctx.moveTo(x,y); for(let i=1;i<6;i++) ctx.lineTo(x-i*2, y+i*2+Math.sin(ph+i)*2); ctx.stroke(); ctx.fillStyle='#fff'; ctx.strokeStyle=css('--fg'); ctx.beginPath(); ctx.ellipse(x,y,3.5,2.5,0.6,0,7); ctx.fill(); ctx.stroke(); }
+
+// ---------------- menstrual cycle ----------------
+function liningAt(d,preg){ if (preg && d>=21) return 1; if (d<=5) return 0.9*(1-(d-1)/4)+0.05; if (d<=14) return 0.15+0.35*(d-5)/9; return 0.5+0.5*(d-14)/14; }
+function drawCycle(dt){
+  if (running){ cday+=dt*1.6; if (cday>28.99) cday=1; $('day').value=Math.floor(cday); }
+  const d=Math.floor(cday), preg=$('preg').checked;
+  const fg=css('--fg'), muted=css('--muted'), line=css('--line'), good=css('--good'), hot=css('--hot');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.save(); ctx.translate(-150,-120); ctx.scale(1,1);
+  drawFemale({lining:liningAt(cday,preg), bleed: d<=5}); smallLabels();
+  // egg: released on day 14, travels down the oviduct for about 3 days
+  if (d>=14 && d<=17 && !(preg && d>17)){ const [x,y]=along(EGG_PATH,(cday-14)/3*0.75); ctx.fillStyle='#fff'; ctx.strokeStyle=fg; ctx.beginPath(); ctx.arc(x,y,7,0,7); ctx.fill(); ctx.stroke(); }
+  if (preg && d>=15 && d<21){ const [x,y]=along(EGG_PATH,0.6+(cday-15)/6*0.4); ctx.fillStyle='#ffd'; ctx.strokeStyle=fg; ctx.beginPath(); ctx.arc(x,y,8,0,7); ctx.fill(); ctx.stroke(); }
+  if (preg && d>=21){ ctx.fillStyle='#ffd'; ctx.strokeStyle=fg; ctx.beginPath(); ctx.arc(432,242,10,0,7); ctx.fill(); ctx.stroke(); }
+  ctx.restore();
+  // stage text on the right
+  const stage = d<=5 ? (preg?'menstruation (this cycle began before pregnancy)':'menstruation: the lining breaks down and leaves the body as blood') : d<14 ? 'the lining is rebuilt; an egg ripens in an ovary' : d===14 ? 'OVULATION: an ovary releases an egg' : (preg && d>=21) ? 'the embryo has implanted in the thick lining: pregnancy' : (preg && d>=15) ? 'the fertilised egg divides and moves to the uterus' : d<=17 ? 'the egg travels along the oviduct' : 'the lining stays thick, ready for an embryo';
+  const px=530; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('DAY '+d, px, 40);
+  ctx.font='14px IBM Plex Sans, sans-serif'; wrap(stage.charAt(0).toUpperCase()+stage.slice(1)+'.', px, 64, 350, 19);
+  if (!preg && d>=24){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; wrap('No egg was fertilised, so on day 1 of the next cycle the lining will break down again.', px, 130, 350, 16); }
+  if (preg && d>=21){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; wrap('Because she is pregnant, the lining is NOT shed: menstruation stops.', px, 130, 350, 16); }
+  // graph of lining thickness with the cycle bar
+  const gx=60, gy=380, gw=800, gh=100; const X=dd=>gx+(dd-1)/27*gw;
+  ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.lineTo(gx+gw,gy+gh); ctx.stroke();
+  ctx.strokeStyle=LINING; ctx.lineWidth=2.5; ctx.beginPath(); for (let dd=1;dd<=28;dd+=0.25){ const x=X(dd), y=gy+gh-liningAt(dd,preg)*gh*0.9; dd===1?ctx.moveTo(x,y):ctx.lineTo(x,y); } ctx.stroke(); ctx.lineWidth=1;
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.save(); ctx.translate(gx-14,gy+gh/2); ctx.rotate(-Math.PI/2); ctx.textAlign='center'; ctx.fillText('lining thickness',0,0); ctx.restore();
+  // bar
+  const by=gy+gh+10; ctx.fillStyle=line; ctx.fillRect(gx,by,gw,16);
+  if (!preg || d<21){ ctx.fillStyle=LINING; ctx.fillRect(X(1),by,X(5.9)-X(1),16); } else { ctx.fillStyle=LINING; ctx.fillRect(X(1),by,X(5.9)-X(1),16); }
+  if ($('fertBar').checked){ ctx.fillStyle=good; ctx.globalAlpha=.7; ctx.fillRect(X(11),by,X(17)-X(11),16); ctx.globalAlpha=1; }
+  ctx.fillStyle=fg; ctx.beginPath(); ctx.moveTo(X(14),by-2); ctx.lineTo(X(14)-6,by-12); ctx.lineTo(X(14)+6,by-12); ctx.fill();
+  ctx.font='10px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.fillStyle=muted; for (const dd of [1,5,10,14,20,28]) ctx.fillText(dd, X(dd), by+28);
+  ctx.textAlign='left'; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=LINING; ctx.fillText('■ menstruation', gx, by+44); ctx.fillStyle=css('--good'); if ($('fertBar').checked) ctx.fillText('■ fertile period (an egg could be fertilised)', gx+120, by+44); ctx.fillStyle=fg; ctx.fillText('▼ ovulation (day 14)', gx+420, by+44);
+  // cursor
+  ctx.strokeStyle=css('--accent'); ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(X(cday),gy); ctx.lineTo(X(cday),by+16); ctx.stroke(); ctx.lineWidth=1;
+  $('dayV').textContent=d; $('rStage').textContent = d<=5?'menstruation':d<14?'lining rebuilds':d===14?'ovulation':(preg&&d>=21)?'pregnant':'lining thick'; $('rLining').textContent = liningAt(d,preg)>0.7?'thick':liningAt(d,preg)>0.35?'medium':'thin';
+}
+
+// ---------------- fertilisation and birth control ----------------
+let sim=null;
+function bc(){ return {condom:$('bcCondom').checked, diaphragm:$('bcDiaphragm').checked, pill:$('bcPill').checked, iud:$('bcIUD').checked, lig:$('bcLig').checked, vas:$('bcVas').checked}; }
+function resetFert(){ fday=1; sim={fertilised:false, fertDay:null, implanted:false, why:''}; }
+function drawFert(dt){
+  if (running){ fday+=dt*1.6; if (fday>28.99){ fday=28.99; running=false; $('play').textContent='▶ Play'; } }
+  const B=bc(), sd=+$('sexDay').value, d=fday;
+  const fg=css('--fg'), muted=css('--muted'), line=css('--line'), good=css('--good'), hot=css('--hot');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const ovulates=!B.pill, spermMade=!B.vas, spermEnter=!B.condom && spermMade, pastCervix=spermEnter && !B.diaphragm, reachTube=pastCervix && !B.lig;
+  // egg alive in the oviduct from day 14 to day 15
+  const eggAlive = ovulates && d>=14 && d<15.2;
+  const spermAlive = d>=sd && d<sd+3;
+  if (!sim.fertilised && eggAlive && spermAlive && reachTube){ sim.fertilised=true; sim.fertDay=d; }
+  if (sim.fertilised && !sim.implanted && d>=sim.fertDay+6 && !B.iud) sim.implanted=true;
+  ctx.save(); ctx.translate(-150,-120);
+  drawFemale({lining: sim.implanted?1:Math.min(1,0.2+0.03*d), diaphragm:B.diaphragm, iud:B.iud, lig:B.lig}); smallLabels();
+  // egg
+  if (ovulates && d>=14){ let pos, col='#fff';
+    if (sim.fertilised){ const f=Math.min(1,(d-sim.fertDay)/6); pos=along(EGG_PATH,0.62+0.38*f); col='#ffd'; }
+    else if (d<15.2){ pos=along(EGG_PATH,(d-14)/1.2*0.62); }
+    if (pos){ ctx.fillStyle=col; ctx.strokeStyle=fg; ctx.beginPath(); ctx.arc(pos[0],pos[1],sim.fertilised?9:7,0,7); ctx.fill(); ctx.stroke(); } }
+  // sperm
+  if (spermAlive && spermMade){ const age=d-sd; const n=14;
+    for (let i=0;i<n;i++){ let f=Math.min(1,age*2.2+i*0.02); let path=SPERM_PATH; if (i%2) path=SPERM_PATH.map(([x,y])=>[x<450?900-x:x===450?450:x,y]);
+      let stopAt = !spermEnter? 0 : !pastCervix ? 0.2 : !reachTube ? 0.78 : 1; if (!spermEnter){ continue; }
+      f=Math.min(f,stopAt); const [x,y]=along(path,f); sperm(x+Math.sin(t*3+i)*3,y+Math.cos(t*2+i)*3,t*10+i); } }
+  if (B.condom && spermAlive && spermMade){ ctx.fillStyle=BLUE_D; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('sperm trapped in the condom', 450, 510); }
+  ctx.restore();
+  t+=dt;
+  // outcome
+  let preg = sim.implanted, why;
+  if (sim.implanted) why='An egg met a sperm in the oviduct (fertilisation) and the embryo implanted in the uterus lining: pregnant.';
+  else if (sim.fertilised && B.iud) why='Fertilisation happened, but the IUD stops the embryo implanting in the uterus.';
+  else if (sim.fertilised) why='Fertilised! The embryo is moving down to the uterus to implant.';
+  else if (d<Math.max(14,sd)) why='Waiting… press Play to run the month.';
+  else if (!spermMade) why='Vasectomy: the sperm ducts are cut and tied, so no sperm are released.';
+  else if (B.condom) why='Condom: sperm are trapped and never enter the vagina.';
+  else if (B.diaphragm) why='Diaphragm: it covers the cervix, so sperm cannot get into the uterus.';
+  else if (!ovulates) why='Contraceptive pill: its hormones stop the ovaries releasing an egg.';
+  else if (B.lig) why='Ligation: the oviducts are cut and tied, so sperm and egg can never meet.';
+  else if (sd+3<14) why=`The sperm died before the egg was released (sperm live about 3 days; ovulation is on day 14).`;
+  else if (sd>15) why='The egg had already died (an egg lives about 1 day after ovulation).';
+  else why='No egg and sperm met this time.';
+  const px=560; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('DAY '+Math.floor(d)+' OF THE CYCLE', px, 40);
+  ctx.font='13px IBM Plex Sans, sans-serif'; wrap(why, px, 64, 320, 18);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif';
+  ['• An egg is released on about day 14 and lives about 1 day.', '• Sperm can live about 3 days inside the female.', '• Fertilisation happens in the oviduct.', '• The embryo implants in the uterus lining about a week later.'].forEach((s,i)=>ctx.fillText(s, px, 200+i*20));
+  // timeline
+  const gx=60, gy=470, gw=800; const X=dd=>gx+(dd-1)/27*gw; ctx.fillStyle=line; ctx.fillRect(gx,gy,gw,12);
+  ctx.fillStyle=good; ctx.globalAlpha=.7; ctx.fillRect(X(11),gy,X(17)-X(11),12); ctx.globalAlpha=1;
+  ctx.fillStyle=css('--accent'); ctx.globalAlpha=.6; ctx.fillRect(X(sd),gy-8,X(Math.min(28,sd+3))-X(sd),6); ctx.globalAlpha=1;
+  ctx.fillStyle=fg; ctx.beginPath(); ctx.moveTo(X(14),gy-2); ctx.lineTo(X(14)-6,gy-12); ctx.lineTo(X(14)+6,gy-12); ctx.fill();
+  ctx.strokeStyle=hot; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(X(d),gy-14); ctx.lineTo(X(d),gy+14); ctx.stroke(); ctx.lineWidth=1;
+  ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.textAlign='left'; ctx.fillText('blue bar: sperm alive   green: fertile period   ▼ ovulation', gx, gy+30);
+  const used=[['condom',B.condom],['diaphragm',B.diaphragm],['contraceptive pill',B.pill],['IUD',B.iud],['ligation',B.lig],['vasectomy',B.vas]].filter(x=>x[1]).map(x=>x[0]);
+  ctx.fillStyle=css('--accent'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Birth control in use: '+(used.length?used.join(', '):'none'), px, 300);
+  $('rDay').textContent=Math.floor(d); $('rPreg').textContent=preg?'yes':sim.fertilised?'fertilised…':'no';
+  $('fFb').className='fb'+(preg?' bad':''); $('fFb').textContent=why;
+}
+
+function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (mode==='parts') drawParts(dt); else if (mode==='cycle') drawCycle(dt); else drawFert(dt); requestAnimationFrame(frame); }
+function notice(){ $('notice').innerHTML = {
+  parts:'<b>What to notice.</b> Each organ has its own job, and they work together as a system. Follow the egg from the ovary along the oviduct to the uterus, and the sperm from the testes along the sperm duct and urethra.',
+  cycle:'<b>What to notice.</b> The cycle lasts about 28 days. Days 1–5: menstruation, the lining breaks down. The lining then rebuilds. Around day 14 an ovary releases an egg (ovulation). If the egg is not fertilised, the lining breaks down again. Tick "fertilised" to see what changes.',
+  fert:'<b>What to notice.</b> Pregnancy needs an egg and a sperm to meet in the oviduct, and the embryo to implant in the uterus lining. Change the day and see why timing matters. Each birth control method blocks a different step.'}[mode]; }
+const seg=(id,fn)=>$(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; [...$(id).children].forEach(x=>x.setAttribute('aria-pressed',x===b)); fn(b.dataset.v); });
+seg('modeSeg',v=>{ mode=v; selected=null; for (const [k,id] of [['parts','pCtl'],['cycle','cCtl'],['fert','fCtl']]){ $(id).classList.toggle('hide',mode!==k); $(id).style.display=mode===k?'flex':''; } running=mode==='parts'; $('play').textContent=running?'❚❚ Pause':'▶ Play'; if (mode==='fert') resetFert(); notice(); });
+seg('sexSeg',v=>{ sex=v; selected=null; });
+$('day').addEventListener('input',()=>{ cday=+$('day').value; running=false; $('play').textContent='▶ Play'; });
+$('sexDay').addEventListener('input',()=>{ $('sexDayV').textContent=$('sexDay').value; resetFert(); });
+['bcCondom','bcDiaphragm','bcPill','bcIUD','bcLig','bcVas'].forEach(id=>$(id).addEventListener('change',resetFert));
+$('preg').addEventListener('change',()=>{});
+$('play').addEventListener('click',()=>{ running=!running; $('play').textContent=running?'❚❚ Pause':'▶ Play'; });
+$('reset').addEventListener('click',()=>{ if (mode==='cycle'){ cday=1; $('day').value=1; } else if (mode==='fert') resetFert(); else t=0; });
+cv.addEventListener('click',e=>{ if (mode!=='parts') return; const r=cv.getBoundingClientRect(), s=cv.width/r.width; const x=(e.clientX-r.left)*s, y=(e.clientY-r.top)*s; selected=hitTest(x,y,sex==='F'?F_HIT:M_HIT); });
+running=true; $('play').textContent='❚❚ Pause'; resetFert(); notice(); requestAnimationFrame(frame);
+})();
+</script>

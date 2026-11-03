@@ -43,6 +43,21 @@ Repository: https://github.com/ian1eong2005-a11y/physics-sims
 
 Every push to `main` redeploys the app automatically.
 
+## Lower Secondary Science app (2021 LSS)
+
+A second app in the same repo, for Sec 1–2, with the same Explore / Guided / Quiz layout. Main file: `lowersec_app.py` (pages in `lowersec/`, quiz banks `quizzes/lss_*.py`).
+
+| Page | Chapter | Applet |
+|---|---|---|
+| Digestive System | Ch 14 | Digestion Lab: journey of food, enzyme test tube, blood glucose |
+| Transport in Humans | Ch 15 | Human Transport Lab: circulation, diffusion close-up, why a transport system (G3) |
+| Transport in Plants | Ch 15 | Plant Transport Lab: xylem and phloem with dye, root hair and osmosis (G3), leaf gases |
+| Reproductive System | Ch 16 | Reproduction Lab: parts and functions, menstrual cycle, fertilisation and birth control |
+
+Deploy it as its own Streamlit Cloud app: https://share.streamlit.io/deploy?repository=ian1eong2005-a11y/physics-sims&branch=main&mainModule=lowersec_app.py
+
+Run locally: `streamlit run lowersec_app.py`
+
 ## Layout
 
 - `sims/*.html` – one HTML/JS canvas simulation per applet (embedded with `st.components.v1.html`; `_shared.css` is inlined by the embed helper).

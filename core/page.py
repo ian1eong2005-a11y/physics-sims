@@ -77,11 +77,11 @@ def _guided(a, key):
         st.caption("Answer the quick check (or press Show me) to unlock Next.")
 
 
-def chapter_page(title: str, los: str, applets: list, questions: list, key: str):
+def chapter_page(title: str, los: str, applets: list, questions: list, key: str, syllabus: str = "5086"):
     """applets: list of {"name", "file", "height", "blurb", "tasks": [prompts], "guide": [...], "controls": [...]}"""
     st.set_page_config(page_title=title, page_icon="⚛", layout="wide")
     st.title(title)
-    st.caption(f"5086 learning outcomes {los}")
+    st.caption(f"{syllabus} learning outcomes {los}")
 
     explore, guided, quiz_tab = st.tabs(["Explore", "Guided", "Quiz"])
 

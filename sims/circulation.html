@@ -1,0 +1,247 @@
+<title>Human Transport Lab</title>
+<meta charset="utf-8">
+
+<header>
+  <h1>Human Transport Lab</h1>
+  <span class="lo">2021 LSS · Ch 15 · heart and blood vessels, diffusion in humans, need for a transport system (G3)</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="540" aria-label="Blood flowing round the body, diffusion across a capillary wall, or cubes of different sizes"></canvas>
+    <p class="notice" id="notice"></p>
+  </div>
+  <div class="panel">
+    <div class="ctl">
+      <span class="lbl">Mode</span>
+      <div class="seg three" id="modeSeg">
+        <button data-v="circ" aria-pressed="true">Circulation</button>
+        <button data-v="diff" aria-pressed="false">Diffusion close-up</button>
+        <button data-v="size" aria-pressed="false">Why a transport system? (G3)</button>
+      </div>
+    </div>
+
+    <div id="cCtl" style="display:flex;flex-direction:column;gap:12px">
+      <div class="ctl">
+        <div class="row"><label for="bpm">Heart rate</label><span class="val" id="bpmV">70 beats/min</span></div>
+        <input type="range" id="bpm" min="50" max="170" step="5" value="70">
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="exercise"> Exercising (muscles working hard)</label>
+        <label class="check"><input type="checkbox" id="vlabels" checked> Label arteries, veins and capillaries</label>
+        <label class="check"><input type="checkbox" id="showO2" checked> Show oxygen</label>
+        <label class="check"><input type="checkbox" id="showCO2"> Show carbon dioxide</label>
+        <label class="check"><input type="checkbox" id="showFood"> Show digested food</label>
+        <label class="check"><input type="checkbox" id="xsec"> Show vessel cross-sections</label>
+      </div>
+      <div class="read">
+        <div><small>Pulse (count in 15 s)</small><span id="rPulse">–</span></div>
+        <div><small>Beats per minute</small><span id="rBpm">–</span></div>
+      </div>
+    </div>
+
+    <div id="dCtl" class="hide" style="flex-direction:column;gap:12px">
+      <div class="ctl">
+        <span class="lbl">Where?</span>
+        <div class="seg three" id="where"><button data-v="lung" aria-pressed="true">lungs</button><button data-v="muscle" aria-pressed="false">muscle</button><button data-v="gut" aria-pressed="false">small intestine</button></div>
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="hard"> Muscle working hard (uses oxygen and glucose faster)</label>
+        <label class="check"><input type="checkbox" id="flow" checked> Blood keeps flowing</label>
+      </div>
+      <div class="read">
+        <div><small id="cTopL">Top</small><span id="cTop">–</span></div>
+        <div><small id="cBotL">Blood</small><span id="cBot">–</span></div>
+      </div>
+    </div>
+
+    <div id="sCtl" class="hide" style="flex-direction:column;gap:12px">
+      <div class="ctl">
+        <div class="row"><label for="side">Size of the cube (side)</label><span class="val" id="sideV">1 cm</span></div>
+        <input type="range" id="side" min="1" max="6" step="1" value="1">
+      </div>
+      <div class="read">
+        <div><small>Surface area</small><span id="rSA">–</span></div>
+        <div><small>Volume</small><span id="rV">–</span></div>
+        <div><small>SA ÷ volume</small><span id="rRatio">–</span></div>
+        <div><small>Time to reach centre</small><span id="rTc">–</span></div>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button class="btn primary" id="play">❚❚ Pause</button>
+      <button class="btn" id="reset">Restart</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let mode='circ', running=true, last=performance.now(), t=0, where='lung';
+const RED='#d43f3a', BLUE='#3f6fd4', O2C='#e4572e', CO2C='#6b7280', FOODC='#d9a400';
+function wrap(text,x,y,w,lh){ const words=text.split(' '); let line='', yy=y; for (const wd of words){ const test=line+wd+' '; if (ctx.measureText(test).width>w && line){ ctx.fillText(line,x,yy); line=wd+' '; yy+=lh; } else line=test; } ctx.fillText(line,x,yy); return yy; }
+function lens(pts){ const L=[0]; for(let i=1;i<pts.length;i++) L.push(L[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1])); return L; }
+function at(pts,L,d){ d=((d%L[L.length-1])+L[L.length-1])%L[L.length-1]; let i=1; while(i<L.length-1&&L[i]<d) i++; const g=(d-L[i-1])/((L[i]-L[i-1])||1); return [pts[i-1][0]+(pts[i][0]-pts[i-1][0])*g, pts[i-1][1]+(pts[i][1]-pts[i-1][1])*g, i-1]; }
+function tube(pts,w,col){ ctx.strokeStyle=col; ctx.lineWidth=w; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.beginPath(); pts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.stroke(); ctx.lineWidth=1; ctx.lineCap='butt'; }
+function mix(a,b,f){ const A=[parseInt(a.slice(1,3),16),parseInt(a.slice(3,5),16),parseInt(a.slice(5,7),16)], B=[parseInt(b.slice(1,3),16),parseInt(b.slice(3,5),16),parseInt(b.slice(5,7),16)]; return `rgb(${A.map((x,i)=>Math.round(x+(B[i]-x)*f)).join(',')})`; }
+
+// ===================== CIRCULATION =====================
+function zig(x0,x1,y,n,amp){ const o=[]; for(let i=0;i<=n;i++) o.push([x0+(x1-x0)*i/n, y+(i%2?amp:-amp)]); return o; }
+// lung loop: heart → artery up → lung capillaries → vein back to heart
+const LUNG_ART=[[478,226],[560,190],[560,118]], LUNG_CAP=zig(560,340,104,10,10), LUNG_VEIN=[[340,118],[340,190],[422,226]];
+// body loop: heart → artery down the right → capillaries in muscle and small intestine → vein up the left
+const BODY_ART=[[480,300],[700,300],[700,420]], BODY_CAP=zig(700,200,448,22,9), BODY_VEIN=[[200,420],[200,300],[420,300]];
+const LUNG_LOOP=[[450,226]].concat(LUNG_ART,LUNG_CAP,LUNG_VEIN,[[450,226]]), BODY_LOOP=[[450,300]].concat(BODY_ART,BODY_CAP,BODY_VEIN,[[450,300]]);
+const LL=lens(LUNG_LOOP), BL=lens(BODY_LOOP);
+// where along each loop the capillaries start and end (as distances)
+const segLen=(pts,a,b)=>{ let s=0; for(let i=a;i<b;i++) s+=Math.hypot(pts[i+1][0]-pts[i][0],pts[i+1][1]-pts[i][1]); return s; };
+const L_CAP0=LL[1+LUNG_ART.length-1], L_CAP1=LL[1+LUNG_ART.length+LUNG_CAP.length-2];
+const B_CAP0=BL[1+BODY_ART.length-1], B_CAP1=BL[1+BODY_ART.length+BODY_CAP.length-2];
+let beats=[], phase=0, pulseShown='–';
+function oxy(loop,d){ // oxygen level 0..1 of a blood cell at distance d along a loop
+  if (loop==='lung'){ if (d<L_CAP0) return 0; if (d<L_CAP1) return (d-L_CAP0)/(L_CAP1-L_CAP0); return 1; }
+  if (d<B_CAP0) return 1; if (d<B_CAP1) return 1-(d-B_CAP0)/(B_CAP1-B_CAP0)*($('exercise').checked?0.95:0.7); return $('exercise').checked?0.05:0.3; }
+function drawCirc(dt){
+  const fg=css('--fg'), muted=css('--muted'), line=css('--line'), panel=css('--panel');
+  let bpm=+$('bpm').value; if ($('exercise').checked && bpm<140){ bpm=Math.min(140,bpm+dt*25); $('bpm').value=Math.round(bpm/5)*5; $('bpmV').textContent=$('bpm').value+' beats/min'; }
+  bpm=+$('bpm').value;
+  if (running){ t+=dt; const before=Math.floor(phase); phase+=dt*bpm/60; if (Math.floor(phase)>before) beats.push(t); beats=beats.filter(b=>t-b<15); }
+  const flow=dt*bpm*1.6*(running?1:0);
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // organs
+  ctx.fillStyle='#f3d1d6'; ctx.beginPath(); ctx.ellipse(390,96,70,44,0,0,7); ctx.fill(); ctx.beginPath(); ctx.ellipse(510,96,70,44,0,0,7); ctx.fill();
+  ctx.fillStyle=muted; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('LUNGS', 450, 40);
+  ctx.fillStyle='#f0e0c8'; ctx.beginPath(); ctx.roundRect(200,428,230,44,14); ctx.fill(); ctx.fillStyle='#e8c6c6'; ctx.beginPath(); ctx.roundRect(470,428,230,44,14); ctx.fill();
+  ctx.fillStyle=muted; ctx.fillText('SMALL INTESTINE', 315, 492); ctx.fillText('MUSCLES AND OTHER BODY CELLS', 585, 492);
+  // vessels coloured by oxygen
+  const vessel=(pts,loop,L)=>{ for (let i=0;i<pts.length-1;i++){ const dmid=L[i]+(L[i+1]-L[i])/2; ctx.strokeStyle=mix(BLUE,RED,oxy(loop,dmid)); ctx.lineWidth=10; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(pts[i][0],pts[i][1]); ctx.lineTo(pts[i+1][0],pts[i+1][1]); ctx.stroke(); } ctx.lineWidth=1; ctx.lineCap='butt'; };
+  vessel(LUNG_LOOP,'lung',LL); vessel(BODY_LOOP,'body',BL);
+  // thin capillary look
+  tube(LUNG_CAP,3,'rgba(255,255,255,.6)'); tube(BODY_CAP,3,'rgba(255,255,255,.6)');
+  // heart (beats)
+  const pulse=1+0.08*Math.max(0,Math.sin((phase%1)*Math.PI*2)); ctx.save(); ctx.translate(450,262); ctx.scale(pulse,pulse);
+  ctx.fillStyle='#b8323a'; ctx.beginPath(); ctx.moveTo(0,46); ctx.bezierCurveTo(-70,0,-50,-56,0,-26); ctx.bezierCurveTo(50,-56,70,0,0,46); ctx.fill(); ctx.restore();
+  ctx.fillStyle='#fff'; ctx.font='700 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('HEART', 450, 262); ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('the pump', 450, 276);
+  // blood cells flowing
+  for (const [loop,pts,L,n] of [['lung',LUNG_LOOP,LL,22],['body',BODY_LOOP,BL,46]]){ const tot=L[L.length-1];
+    for (let i=0;i<n;i++){ const d=((i/n)*tot + t*bpm*1.6)%tot; const [x,y]=at(pts,L,d); const o=oxy(loop,d);
+      ctx.fillStyle=mix(BLUE,RED,o); ctx.strokeStyle='#fff'; ctx.beginPath(); ctx.ellipse(x,y,5,3.5,0,0,7); ctx.fill(); ctx.stroke();
+      if ($('showO2').checked && o>0.2){ ctx.fillStyle=O2C; ctx.beginPath(); ctx.arc(x+5,y-5,2.2,0,7); ctx.fill(); }
+      if ($('showCO2').checked && o<0.7){ ctx.fillStyle=CO2C; ctx.beginPath(); ctx.arc(x-5,y-5,2.2,0,7); ctx.fill(); }
+      if ($('showFood').checked && loop==='body' && d>B_CAP0+(B_CAP1-B_CAP0)*0.55){ ctx.fillStyle=FOODC; ctx.beginPath(); ctx.arc(x,y+6,2.2,0,7); ctx.fill(); }
+      if ($('showFood').checked && loop==='body' && d<B_CAP0+(B_CAP1-B_CAP0)*0.55 && d>B_CAP0){ /* food is used by muscles */ } } }
+  // exchange arrows at the capillaries
+  const ex=(x,y,dir,col,lab)=>{ const k=(t*1.2)%1; ctx.fillStyle=col; for (let i=0;i<3;i++){ const f=(k+i/3)%1; ctx.beginPath(); ctx.arc(x+i*14-14, y+dir*f*26, 2.6,0,7); ctx.fill(); } ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; if (lab) ctx.fillText(lab, x, y+dir*36+(dir>0?6:0)); };
+  if ($('showO2').checked){ ex(450,92,1,O2C,'oxygen in'); ex(585,440,1,O2C,'oxygen out to cells'); }
+  if ($('showCO2').checked){ ex(400,118,-1,CO2C,'CO₂ out'); ex(640,470,-1,CO2C,''); }
+  if ($('showFood').checked){ ex(315,470,-1,FOODC,''); ctx.fillStyle=muted; ctx.fillText('digested food absorbed', 315, 422); ex(540,440,1,FOODC,''); }
+  // labels
+  if ($('vlabels').checked){ ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillStyle=fg;
+    ctx.fillText('artery', 566, 160); ctx.fillText('vein', 300, 160); ctx.fillText('capillaries', 600, 70);
+    ctx.fillText('artery', 706, 360); ctx.fillText('vein', 160, 360); ctx.fillText('capillaries', 720, 452);
+    ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText('arteries: blood AWAY from the heart', 20, 30); ctx.fillText('veins: blood back TO the heart', 20, 46); ctx.fillText('capillaries: tiny vessels where substances are exchanged', 20, 62); }
+  ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillStyle=RED; ctx.fillText('red = rich in oxygen', 880, 30); ctx.fillStyle=BLUE; ctx.fillText('blue = low in oxygen', 880, 46);
+  if ($('exercise').checked){ ctx.fillStyle=css('--hot'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('Exercising: muscles use oxygen and digested food faster, so the heart beats faster', 450, 526); }
+  // cross-sections
+  if ($('xsec').checked){ const bx=610, by=150; ctx.fillStyle=panel; ctx.strokeStyle=line; ctx.fillRect(bx,by,280,250); ctx.strokeRect(bx,by,280,250);
+    const ring=(cx,cy,R,wall,lab,sub)=>{ ctx.fillStyle='#c9686f'; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.fill(); ctx.fillStyle='#f8e0e0'; ctx.beginPath(); ctx.arc(cx,cy,R-wall,0,7); ctx.fill(); ctx.fillStyle=fg; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(lab, cx+R+10, cy-4); ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; wrap(sub, cx+R+10, cy+10, 190, 12); };
+    ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Cross-sections (not to scale)', bx+10, by+18);
+    ring(bx+40,by+60,26,12,'artery','thick, muscular, elastic wall: blood under high pressure, so you feel a pulse');
+    ring(bx+40,by+140,28,5,'vein','thin wall, wide space inside: blood under low pressure');
+    ring(bx+40,by+212,9,2,'capillary','wall only one cell thick, so substances diffuse through easily'); }
+  // pulse readout: beats in the last 15 s
+  const n15=beats.length; $('rPulse').textContent = t<15? `${n15} (counting…)` : `${n15}`; $('rBpm').textContent = t<15? '–' : `${n15} × 4 = ${n15*4}`;
+}
+
+// ===================== DIFFUSION CLOSE-UP =====================
+let P=[];
+const SITES={
+  lung:{top:'air sac in the lung', types:[['O2',O2C,'oxygen',0.9,0.15],['CO2',CO2C,'carbon dioxide',0.05,0.8]]},
+  muscle:{top:'muscle cells', types:[['O2',O2C,'oxygen',0.1,0.9],['GLU',FOODC,'glucose (digested food)',0.1,0.8],['CO2',CO2C,'carbon dioxide',0.85,0.1]]},
+  gut:{top:'inside the small intestine', types:[['GLU',FOODC,'digested food',0.9,0.1]]},
+};
+// each type: [key, colour, name, concentration on top side, concentration in arriving blood]
+const BX=60, BW=560, TOP0=60, TOP1=250, WALL=262, BOT0=274, BOT1=420;
+function resetDiff(){ P=[]; const S=SITES[where]; for (const [k,col,name,cTop,cBlood] of S.types){ const nT=Math.round(cTop*40), nB=Math.round(cBlood*40); for(let i=0;i<nT;i++) P.push({k,col,x:BX+Math.random()*BW,y:TOP0+Math.random()*(TOP1-TOP0)}); for(let i=0;i<nB;i++) P.push({k,col,x:BX+Math.random()*BW,y:BOT0+Math.random()*(BOT1-BOT0)}); } t=0; }
+function stepDiff(dt){ const S=SITES[where], flow=$('flow').checked, use=$('hard').checked?3:1;
+  for (const p of P){ p.x+=(Math.random()-0.5)*160*dt; p.y+=(Math.random()-0.5)*160*dt; if (p.y>BOT0 && flow) p.x+=60*dt;
+    if (p.x<BX) p.x=BX+2; if (p.x>BX+BW){ if (p.y>BOT0 && flow){ p.dead=true; } else p.x=BX+BW-2; }
+    if (p.y<TOP0) p.y=TOP0+2; if (p.y>BOT1) p.y=BOT1-2; }
+  P=P.filter(p=>!p.dead);
+  // blood arriving from the left with its own concentration
+  if (flow) for (const [k,col,name,cTop,cBlood] of S.types){ if (Math.random()<cBlood*40*60*dt/BW) P.push({k,col,x:BX+1,y:BOT0+Math.random()*(BOT1-BOT0)}); }
+  // the top side: supplies kept up (air breathed in, food in the gut) or used up (muscle cells)
+  for (const [k,col,name,cTop] of S.types){ const top=P.filter(p=>p.k===k&&p.y<WALL), target=cTop*40*(where==='muscle'&&cTop<0.5?1/use:1);
+    if (top.length<target && Math.random()<0.5) P.push({k,col,x:BX+Math.random()*BW,y:TOP0+Math.random()*(TOP1-TOP0)});
+    if (top.length>target+2 && Math.random()<0.15*use){ const i=P.indexOf(top[Math.floor(Math.random()*top.length)]); P.splice(i,1); } }
+  t+=dt; }
+function drawDiff(dt){
+  if (running) stepDiff(dt);
+  const fg=css('--fg'), muted=css('--muted'), line=css('--line'); const S=SITES[where];
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle=where==='lung'?'rgba(150,190,240,.18)':where==='muscle'?'rgba(220,150,150,.18)':'rgba(230,200,140,.2)'; ctx.fillRect(BX,TOP0,BW,TOP1-TOP0);
+  ctx.fillStyle='rgba(212,63,58,.12)'; ctx.fillRect(BX,BOT0,BW,BOT1-BOT0);
+  // capillary wall: one cell thick, drawn as a row of thin cells
+  ctx.fillStyle='#e9b3b3'; for (let x=BX;x<BX+BW;x+=40){ ctx.beginPath(); ctx.roundRect(x+1,TOP1+1,38,BOT0-TOP1-2,6); ctx.fill(); }
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(S.top.toUpperCase(), BX, TOP0-10);
+  ctx.fillText('BLOOD IN A CAPILLARY', BX, BOT1+20); ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText($('flow').checked?'blood flows → (fresh blood keeps arriving)':'blood flow stopped', BX+190, BOT1+20);
+  ctx.fillText('↓ capillary wall: only one cell thick', BX+BW-200, TOP1-6);
+  // red cells drifting
+  for (let i=0;i<8;i++){ const x=BX+((i*72+t*60*($('flow').checked?1:0))%BW), y=BOT0+40+(i%3)*40; ctx.fillStyle='rgba(212,63,58,.35)'; ctx.beginPath(); ctx.ellipse(x,y,16,9,0,0,7); ctx.fill(); }
+  for (const p of P){ ctx.fillStyle=p.col; ctx.beginPath(); ctx.arc(p.x,p.y,4,0,7); ctx.fill(); }
+  // counts and net arrows
+  const px=650; let y=80; ctx.textAlign='left';
+  for (const [k,col,name] of S.types){ const top=P.filter(p=>p.k===k&&p.y<WALL).length, bot=P.filter(p=>p.k===k&&p.y>WALL).length;
+    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(px+6,y-4,5,0,7); ctx.fill(); ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText(name, px+18, y);
+    ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText(`top: ${top}   blood: ${bot}`, px+18, y+16);
+    const down=top>bot; ctx.fillStyle=col; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.fillText(Math.abs(top-bot)<3?'about equal: little net movement':down?'net movement INTO the blood ↓':'net movement OUT of the blood ↑', px+18, y+32); y+=62; }
+  ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; wrap('Particles move randomly in all directions, but more move from where they are concentrated to where they are less concentrated: diffusion.', px, y+10, 230, 16);
+  const t0=S.types[0]; $('cTopL').textContent=t0[2]+' (top)'; $('cTop').textContent=P.filter(p=>p.k===t0[0]&&p.y<WALL).length; $('cBotL').textContent=t0[2]+' (blood)'; $('cBot').textContent=P.filter(p=>p.k===t0[0]&&p.y>WALL).length;
+}
+
+// ===================== WHY A TRANSPORT SYSTEM =====================
+let st=0;
+function drawSize(dt){
+  const s=+$('side').value; if (running) st+=dt; const fg=css('--fg'), muted=css('--muted'), line=css('--line'), acc=css('--accent');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const SA=6*s*s, V=s*s*s, rate=0.25; // cm reached per "minute" by diffusion (model)
+  const reach=Math.min(s/2, rate*st), tc=(s/2)/rate;
+  // cross-section of the cube
+  const scale=Math.min(60, 330/s), w=s*scale, x0=80, y0=80;
+  ctx.fillStyle='#dfe9f7'; ctx.fillRect(x0,y0,w,w);
+  const r=reach*scale; ctx.fillStyle='rgba(228,87,46,.55)'; ctx.fillRect(x0,y0,w,r); ctx.fillRect(x0,y0+w-r,w,r); ctx.fillRect(x0,y0,r,w); ctx.fillRect(x0+w-r,y0,r,w);
+  ctx.strokeStyle=fg; ctx.lineWidth=2; ctx.strokeRect(x0,y0,w,w); ctx.lineWidth=1;
+  ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(x0+w/2,y0+w/2,4,0,7); ctx.fill(); ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('centre', x0+w/2+6, y0+w/2+4);
+  ctx.fillStyle=muted; ctx.fillText(`a slice through a ${s} cm cube`, x0, y0-12);
+  ctx.fillText('orange: oxygen has diffused in from the surface', x0, y0+w+20);
+  // table
+  const tx=520; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Compare cubes', tx, 80);
+  ctx.font='12px IBM Plex Mono, monospace'; ctx.fillText('side   SA    volume  SA÷V', tx, 104);
+  for (let k=1;k<=6;k++){ ctx.fillStyle=k===s?acc:muted; ctx.fillText(`${k} cm  ${String(6*k*k).padStart(4)}  ${String(k**3).padStart(6)}  ${(6/k).toFixed(1).padStart(5)}`, tx, 124+k*20); }
+  ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif';
+  const msg = s<=1 ? 'A tiny organism has a large surface compared with its volume, and no cell is far from the surface: diffusion alone can supply it.' : 'As the cube gets bigger, the volume grows faster than the surface area, and the centre is further from the surface. Diffusion becomes far too slow to supply the inner cells, so large organisms need a transport system (blood vessels, xylem and phloem) to carry substances to every cell.';
+  wrap(msg, tx, 290, 360, 17);
+  ctx.fillStyle=muted; wrap(`In this model diffusion reaches the centre after about ${tc.toFixed(0)} min (${reach>=s/2?'reached':'not yet'}).`, tx, 400, 360, 17);
+  $('sideV').textContent=s+' cm'; $('rSA').textContent=SA+' cm²'; $('rV').textContent=V+' cm³'; $('rRatio').textContent=(SA/V).toFixed(1); $('rTc').textContent=tc.toFixed(0)+' min';
+}
+
+function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (mode==='circ') drawCirc(dt); else if (mode==='diff') drawDiff(dt); else drawSize(dt); requestAnimationFrame(frame); }
+function notice(){ $('notice').innerHTML = {
+  circ:'<b>What to notice.</b> The heart pumps blood round and round. Arteries carry blood away from the heart, veins carry it back, and capillaries link them inside every organ. In the lungs the blood picks up oxygen (turns red); in the body it gives up oxygen and picks up carbon dioxide (turns blue). Digested food enters the blood at the small intestine.',
+  diff:'<b>What to notice.</b> Substances cross the thin capillary wall by diffusion, from where they are more concentrated to where they are less concentrated. Flowing blood and working cells keep the difference going, so diffusion keeps happening.',
+  size:'<b>What to notice.</b> Small things have a large surface area compared with their volume, so diffusion is enough. Large organisms do not, so they need a transport system. (G3)'}[mode]; }
+const seg=(id,fn)=>$(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; [...$(id).children].forEach(x=>x.setAttribute('aria-pressed',x===b)); fn(b.dataset.v); });
+seg('modeSeg',v=>{ mode=v; for (const [k,id] of [['circ','cCtl'],['diff','dCtl'],['size','sCtl']]){ $(id).classList.toggle('hide',mode!==k); $(id).style.display=mode===k?'flex':''; } if (mode==='diff') resetDiff(); if (mode==='size') st=0; notice(); });
+seg('where',v=>{ where=v; $('hard').closest('label').hidden=where!=='muscle'; resetDiff(); });
+$('hard').closest('label').hidden=true;
+$('bpm').addEventListener('input',()=>$('bpmV').textContent=$('bpm').value+' beats/min');
+$('exercise').addEventListener('change',()=>{ if (!$('exercise').checked){ $('bpm').value=70; $('bpmV').textContent='70 beats/min'; } beats=[]; t=0; });
+$('side').addEventListener('input',()=>{ st=0; });
+$('play').addEventListener('click',()=>{ running=!running; $('play').textContent=running?'❚❚ Pause':'▶ Play'; });
+$('reset').addEventListener('click',()=>{ if (mode==='circ'){ t=0; beats=[]; } else if (mode==='diff') resetDiff(); else st=0; });
+notice(); requestAnimationFrame(frame);
+})();
+</script>

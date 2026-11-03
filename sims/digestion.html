@@ -1,0 +1,313 @@
+<title>Digestion Lab</title>
+<meta charset="utf-8">
+
+<header>
+  <h1>Digestion Lab</h1>
+  <span class="lo">2021 LSS · Ch 14 · parts and functions, physical and chemical digestion, enzymes (G3), diet and diabetes</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="560" aria-label="Digestive system with food moving through it, an enzyme test tube, or a blood glucose graph"></canvas>
+    <p class="notice" id="notice"></p>
+  </div>
+  <div class="panel">
+    <div class="ctl">
+      <span class="lbl">Mode</span>
+      <div class="seg three" id="modeSeg">
+        <button data-v="journey" aria-pressed="true">Journey of food</button>
+        <button data-v="enzyme" aria-pressed="false">Enzyme test tube</button>
+        <button data-v="glucose" aria-pressed="false">Blood glucose</button>
+      </div>
+    </div>
+
+    <div id="jCtl" style="display:flex;flex-direction:column;gap:12px">
+      <div class="ctl">
+        <label for="food">Food eaten</label>
+        <select id="food">
+          <option value="bread">Bread (mostly starch)</option>
+          <option value="chicken">Chicken (mostly protein)</option>
+          <option value="butter">Butter (mostly fat)</option>
+          <option value="meal" selected>Mixed meal</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="labels" checked> Show names of the parts</label>
+        <label class="check"><input type="checkbox" id="phys" checked> Show physical digestion (teeth, churning)</label>
+        <label class="check"><input type="checkbox" id="g3"> Show enzyme names and end products (G3)</label>
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="jspeed">Speed</label><span class="val" id="jspeedV">1×</span></div>
+        <input type="range" id="jspeed" min="0.5" max="3" step="0.5" value="1">
+      </div>
+      <div class="fb">Tip: click any part of the system to read what happens there.</div>
+    </div>
+
+    <div id="eCtl" class="hide" style="flex-direction:column;gap:12px">
+      <div class="ctl">
+        <label for="enz">Test tube</label>
+        <select id="enz">
+          <option value="carb">Starch + carbohydrase (from saliva)</option>
+          <option value="prot">Egg white (protein) + protease (from stomach)</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="temp">Temperature</label><span class="val" id="tempV">37 °C</span></div>
+        <input type="range" id="temp" min="0" max="80" step="1" value="37">
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="ph">pH</label><span class="val" id="phV">7 (neutral)</span></div>
+        <input type="range" id="ph" min="1" max="13" step="1" value="7">
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="noEnz"> Control tube: water instead of enzyme</label>
+      </div>
+      <div class="read">
+        <div><small>Time</small><span id="rTime">0 min</span></div>
+        <div><small id="rLeftL">Starch left</small><span id="rLeft">100%</span></div>
+      </div>
+    </div>
+
+    <div id="gCtl" class="hide" style="flex-direction:column;gap:12px">
+      <div class="ctl">
+        <span class="lbl">Person</span>
+        <div class="seg" id="person"><button data-v="healthy" aria-pressed="true">healthy</button><button data-v="diabetes" aria-pressed="false">has diabetes</button></div>
+      </div>
+      <div class="ctl">
+        <span class="lbl">Meal</span>
+        <div class="seg" id="meal"><button data-v="sugary" aria-pressed="true">sugary drink</button><button data-v="whole" aria-pressed="false">wholemeal meal</button></div>
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="band" checked> Show the normal range</label>
+        <label class="check"><input type="checkbox" id="compare"> Compare with the other person</label>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button class="btn primary" id="play">❚❚ Pause</button>
+      <button class="btn" id="reset">Restart</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let mode='journey', running=true, last=performance.now(), t=0, person='healthy', meal='sugary', selected=null;
+const GUT='#e7a3a3', GUT_D='#b85c5c', BLOOD='#d33f3f';
+function wrap(text,x,y,w,lh){ const words=text.split(' '); let line='', yy=y; for (const wd of words){ const test=line+wd+' '; if (ctx.measureText(test).width>w && line){ ctx.fillText(line,x,yy); line=wd+' '; yy+=lh; } else line=test; } ctx.fillText(line,x,yy); return yy; }
+
+// ===================== JOURNEY OF FOOD =====================
+function bez(p0,p1,p2,p3,n=16){ const o=[]; for(let i=0;i<=n;i++){ const s=i/n,a=(1-s)**3,b=3*s*(1-s)**2,c=3*s*s*(1-s),d=s**3; o.push([a*p0[0]+b*p1[0]+c*p2[0]+d*p3[0], a*p0[1]+b*p1[1]+c*p2[1]+d*p3[1]]); } return o; }
+const SI=[]; (function(){ const rows=[345,368,391,414]; let x0=300,x1=168; SI.push([300,300]); rows.forEach((y,i)=>{ const a=i%2?x1:x0, b=i%2?x0:x1; SI.push([a,y]); SI.push([b,y]); }); SI.push([150,432]); })();
+const PATH = { // [x,y] points for each part, in order
+  mouth:[[230,72],[230,96]],
+  gullet:[[230,112],[230,232],[246,246]],
+  stomach:[[262,252],[292,262],[310,280],[300,296]],
+  small:SI,
+  large:[[140,438],[140,322],[320,322],[320,440]],
+  rectum:[[318,448],[280,466],[240,470]],
+  anus:[[232,480],[232,500]],
+};
+const ORDER=['mouth','gullet','stomach','small','large','rectum','anus'];
+const NAME={mouth:'mouth',gullet:'gullet',stomach:'stomach',small:'small intestine',large:'large intestine',rectum:'rectum',anus:'anus'};
+const ROUTE=ORDER.flatMap(k=>PATH[k].map(p=>({p,k})));
+const RL=[0]; for(let i=1;i<ROUTE.length;i++) RL.push(RL[i-1]+Math.hypot(ROUTE[i].p[0]-ROUTE[i-1].p[0],ROUTE[i].p[1]-ROUTE[i-1].p[1]));
+const TOTAL=RL[RL.length-1];
+// time spent in each part (so food lingers in the stomach and small intestine)
+const DWELL={mouth:3,gullet:1.5,stomach:7,small:9,large:6,rectum:3,anus:1};
+const PART_LEN={}; ORDER.forEach(k=>{ const idx=ROUTE.map((r,i)=>r.k===k?i:-1).filter(i=>i>=0); PART_LEN[k]=[RL[idx[0]-(idx[0]?1:0)]??0, RL[idx[idx.length-1]]]; });
+const CYCLE=ORDER.reduce((s,k)=>s+DWELL[k],0);
+function posAt(tt){ // returns {x,y,part,frac within part}
+  let tau=tt%(CYCLE+2); if (tau>CYCLE) tau=CYCLE;
+  let acc=0; for (const k of ORDER){ if (tau<=acc+DWELL[k]){ const f=(tau-acc)/DWELL[k]; const [a,b]=PART_LEN[k]; const d=a+(b-a)*f; let i=1; while(i<RL.length-1&&RL[i]<d) i++; const g=(d-RL[i-1])/((RL[i]-RL[i-1])||1); return {x:ROUTE[i-1].p[0]+(ROUTE[i].p[0]-ROUTE[i-1].p[0])*g, y:ROUTE[i-1].p[1]+(ROUTE[i].p[1]-ROUTE[i-1].p[1])*g, part:k, f}; } acc+=DWELL[k]; }
+  const L=ROUTE[ROUTE.length-1].p; return {x:L[0],y:L[1],part:'anus',f:1}; }
+const FOODS={ bread:{S:8,P:2,F:1,fibre:3}, chicken:{S:0,P:9,F:3,fibre:0}, butter:{S:0,P:0,F:10,fibre:0}, meal:{S:5,P:4,F:3,fibre:3} };
+// how far each nutrient has been digested by the END of each part
+const DIG={ mouth:{S:0.3,P:0,F:0}, gullet:{S:0.3,P:0,F:0}, stomach:{S:0.3,P:0.4,F:0}, small:{S:1,P:1,F:1}, large:{S:1,P:1,F:1}, rectum:{S:1,P:1,F:1}, anus:{S:1,P:1,F:1} };
+function digestedAt(part,f){ const i=ORDER.indexOf(part); const prev=i?DIG[ORDER[i-1]]:{S:0,P:0,F:0}, cur=DIG[part]; return {S:prev.S+(cur.S-prev.S)*f, P:prev.P+(cur.P-prev.P)*f, F:prev.F+(cur.F-prev.F)*f}; }
+function absorbedAt(part,f){ const i=ORDER.indexOf(part), si=ORDER.indexOf('small'); return i<si?0:i===si?Math.max(0,(f-0.25)/0.75):1; }
+const INFO={
+  mouth:{phys:'Teeth cut and grind the food into smaller pieces (larger surface area). The tongue mixes it with saliva.', chem:'Saliva contains a carbohydrase: starch digestion starts here.', g3:'Carbohydrase: starch → simple sugars (begins).'},
+  gullet:{phys:'Muscles in the wall squeeze the food down to the stomach.', chem:'No digestive juices are made here: no digestion.', g3:'No enzymes.'},
+  stomach:{phys:'The muscular wall churns the food and mixes it with gastric juice.', chem:'Gastric juice contains a protease: protein digestion starts. The acid kills most bacteria in the food.', g3:'Protease: protein → amino acids (begins). The acid stops the saliva carbohydrase working.'},
+  small:{phys:'Food is mixed and moved along.', chem:'Digestion is completed by several digestive juices. The small, soluble molecules are then absorbed through the wall into the blood.', g3:'Carbohydrase → simple sugars, protease → amino acids, lipase: fats → fatty acids + glycerol. All absorbed here.'},
+  large:{phys:'Undigested food (fibre) moves along slowly.', chem:'Water is absorbed back into the blood.', g3:'No digestion; water absorption.'},
+  rectum:{phys:'The undigested remains (faeces) are stored here.', chem:'—', g3:'—'},
+  anus:{phys:'Faeces are passed out of the body (egestion).', chem:'—', g3:'—'},
+};
+function drawBody(){
+  const fg=css('--fg'),muted=css('--muted'),line=css('--line'),panel=css('--panel');
+  ctx.strokeStyle=line; ctx.lineWidth=2; ctx.fillStyle=panel;
+  ctx.beginPath(); ctx.arc(230,70,46,0,7); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(206,112); ctx.lineTo(206,150); ctx.quadraticCurveTo(110,152,96,200); ctx.lineTo(96,500); ctx.quadraticCurveTo(230,530,364,500); ctx.lineTo(364,200); ctx.quadraticCurveTo(350,152,254,150); ctx.lineTo(254,112); ctx.stroke(); ctx.lineWidth=1;
+}
+function tube(points,w,col){ ctx.strokeStyle=col; ctx.lineWidth=w; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.beginPath(); points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.stroke(); ctx.lineWidth=1; ctx.lineCap='butt'; }
+function drawGut(active){
+  const hl=k=>k===active||k===selected;
+  // blood vessel beside the small intestine
+  tube([[110,350],[110,440],[370,440]],0,'transparent');
+  tube(PATH.large.concat(PATH.rectum),26,hl('large')||hl('rectum')?GUT_D:GUT);
+  if (hl('rectum')) tube(PATH.rectum,26,GUT_D);
+  tube(PATH.small,12,hl('small')?GUT_D:GUT);
+  tube(PATH.gullet.concat([[230,96]]).reverse(),12,hl('gullet')?GUT_D:GUT);
+  tube(PATH.anus,10,hl('anus')?GUT_D:GUT);
+  // stomach bag
+  ctx.fillStyle=hl('stomach')?GUT_D:GUT; ctx.beginPath(); ctx.moveTo(242,244); ctx.bezierCurveTo(250,226,320,228,330,262); ctx.bezierCurveTo(340,300,312,312,296,302); ctx.bezierCurveTo(278,292,262,288,252,270); ctx.closePath(); ctx.fill();
+  // mouth
+  ctx.fillStyle=hl('mouth')?GUT_D:GUT; ctx.beginPath(); ctx.ellipse(230,84,20,10,0,0,7); ctx.fill();
+  tube([[170,339],[378,339]],4,BLOOD); ctx.fillStyle=BLOOD; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('blood vessel', 382, 343);
+}
+const HIT={ mouth:[205,70,50,30], gullet:[220,100,22,140], stomach:[240,228,95,80], small:[160,330,150,110], large:[120,310,215,140], rectum:[230,440,100,40], anus:[220,474,26,32] };
+function partAt(x,y){ for (const k of ['anus','rectum','small','stomach','gullet','mouth','large']){ const [a,b,w,h]=HIT[k]; if (x>=a&&x<=a+w&&y>=b&&y<=b+h) return k; } return null; }
+function drawJourney(dt){
+  const fg=css('--fg'),muted=css('--muted'),line=css('--line'),acc=css('--accent'),good=css('--good'),hot=css('--hot'),warn=css('--warn');
+  if (running) t+=dt*(+$('jspeed').value);
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const pos=posAt(t), food=FOODS[$('food').value];
+  drawBody(); drawGut(pos.part);
+  // labels
+  if ($('labels').checked){ ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillStyle=fg; ctx.textAlign='left';
+    const L={mouth:[282,78],gullet:[160,190],stomach:[338,250],small:[380,400],large:[24,330],rectum:[340,470],anus:[250,506]};
+    for (const k of ORDER){ const [x,y]=L[k]; ctx.textAlign=x<120?'left':'left'; ctx.fillText(NAME[k], x, y); } }
+  else { ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.textAlign='left'; ctx.fillText('Names hidden: click a part to test yourself', 24, 540); }
+  // physical digestion icons
+  if ($('phys').checked){ if (pos.part==='mouth'){ ctx.fillStyle='#fff'; for (let i=0;i<5;i++){ const o=Math.sin(t*14)*3; ctx.fillRect(214+i*7,76+o,5,6); ctx.fillRect(214+i*7,88-o,5,6); } }
+    if (pos.part==='stomach'){ ctx.strokeStyle=GUT_D; ctx.lineWidth=2; for (let i=0;i<3;i++){ const a=t*5+i*2; ctx.beginPath(); ctx.arc(292+Math.cos(a)*10,272+Math.sin(a)*8,6,a,a+3); ctx.stroke(); } ctx.lineWidth=1; } }
+  // food bolus: shrinks as it is digested and absorbed
+  const d=digestedAt(pos.part,pos.f), ab=absorbedAt(pos.part,pos.f);
+  const bigLeft = food.S*(1-d.S)+food.P*(1-d.P)+food.F*(1-d.F), small=(food.S*d.S+food.P*d.P+food.F*d.F)*(1-ab);
+  const r=6+0.6*(bigLeft+small)+0.5*food.fibre;
+  ctx.fillStyle='#c9a26b'; ctx.strokeStyle='#7a5a30'; ctx.beginPath(); ctx.arc(pos.x,pos.y,Math.max(5,r*0.7),0,7); ctx.fill(); ctx.stroke();
+  // absorbed molecules travelling into the blood vessel
+  if (pos.part==='small'){ ctx.fillStyle=good; for (let i=0;i<10*ab+2;i++){ const ph=(t*1.3+i*0.37)%1; ctx.beginPath(); ctx.arc(pos.x+(176+(i*13)%120-pos.x)*ph, pos.y+(339-pos.y)*ph, 2.5,0,7); ctx.fill(); } }
+  // ---- right-hand panel: where the food is and what is happening
+  const px=470; ctx.fillStyle=fg; ctx.textAlign='left'; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('THE FOOD IS NOW IN THE', px, 36);
+  ctx.font='700 22px Bricolage Grotesque, sans-serif'; ctx.fillStyle=GUT_D; ctx.fillText(($('labels').checked||selected===pos.part)?NAME[pos.part].toUpperCase():'? ? ?', px, 64);
+  const show=selected||pos.part, info=INFO[show];
+  ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillStyle=fg; let y=96;
+  if (selected){ ctx.fillStyle=acc; ctx.fillText('You clicked: '+NAME[selected]+'  (click empty space to go back)', px, y); y+=22; ctx.fillStyle=fg; }
+  ctx.fillText('Physical digestion / movement', px, y); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=css('--muted'); y=wrap(info.phys, px, y+18, 400, 16)+24;
+  ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillStyle=fg; ctx.fillText('Chemical digestion / absorption', px, y); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=css('--muted'); y=wrap(info.chem, px, y+18, 400, 16)+24;
+  if ($('g3').checked){ ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillStyle=warn; ctx.fillText('G3: enzymes and end products', px, y); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=css('--muted'); y=wrap(info.g3, px, y+18, 400, 16)+24; }
+  // bar chart of the food's nutrients
+  const by=Math.max(y+10,330), bw=400; ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('What is in the food right now', px, by);
+  const rows=[['starch',food.S,d.S,$('g3').checked?'simple sugars':'small molecules'],['protein',food.P,d.P,$('g3').checked?'amino acids':'small molecules'],['fat',food.F,d.F,$('g3').checked?'fatty acids + glycerol':'small molecules']];
+  rows.forEach(([nm,amt,dd,end],i)=>{ const yy=by+16+i*38; ctx.fillStyle=css('--muted'); ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(nm, px, yy+12); const x0=px+60, W=bw-80, u=W/10;
+    ctx.fillStyle=line; ctx.fillRect(x0,yy,W,16);
+    ctx.fillStyle='#c9a26b'; ctx.fillRect(x0,yy,amt*(1-dd)*u,16);
+    ctx.fillStyle=good; ctx.globalAlpha=.55; ctx.fillRect(x0+amt*(1-dd)*u,yy,amt*dd*(1-ab)*u,16); ctx.globalAlpha=1;
+    ctx.fillStyle=BLOOD; ctx.globalAlpha=.6; ctx.fillRect(x0+amt*(1-dd*ab)*u,yy,amt*dd*ab*u,16); ctx.globalAlpha=1;
+    if (amt>0) { ctx.fillStyle=css('--muted'); ctx.fillText(dd<0.01?'not digested yet':dd>0.99?(ab>0.99?'all absorbed':'digested into '+end):'being digested', x0, yy+30); } });
+  const ly=by+16+3*38+4; [['#c9a26b','large food molecules'],[good,'small, digested molecules'],[BLOOD,'absorbed into the blood']].forEach(([c,l],i)=>{ ctx.fillStyle=c; ctx.fillRect(px+i*140,ly,12,12); ctx.fillStyle=css('--muted'); ctx.fillText(l, px+i*140+16, ly+10); });
+  if (food.fibre>0 && ORDER.indexOf(pos.part)>=4){ ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('Left over: fibre and other undigested food → faeces', px, ly+34); }
+}
+
+// ===================== ENZYME TEST TUBE =====================
+let et=0, denatured=false, sub=1, history=[];
+function activity(){ if ($('noEnz').checked || denatured) return 0; const T=+$('temp').value, pH=+$('ph').value, prot=$('enz').value==='prot';
+  const fT = T<=37 ? Math.exp(-Math.pow((T-37)/16,2)) : Math.exp(-Math.pow((T-37)/9,2));
+  const opt = prot?2:7, fP=Math.exp(-Math.pow((pH-opt)/1.7,2)); return fT*fP; }
+function resetEnzyme(){ et=0; sub=1; denatured=false; history=[[0,1]]; }
+function stepEnzyme(dt){ if (+$('temp').value>=60 && !$('noEnz').checked) denatured=true; const k=0.55*activity(); const dmin=dt*0.6; // 10 minutes in ~17 s
+  if (et<10){ et=Math.min(10,et+dmin); sub=Math.max(0,sub-k*dmin*(0.2+sub)); if (history.length===0||et-history[history.length-1][0]>0.1) history.push([et,sub]); } }
+function drawEnzyme(dt){
+  if (running) stepEnzyme(dt);
+  const fg=css('--fg'),muted=css('--muted'),line=css('--line'),acc=css('--accent'),good=css('--good'),hot=css('--hot');
+  const prot=$('enz').value==='prot';
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // water bath
+  const T=+$('temp').value; ctx.fillStyle=T>45?'rgba(228,87,46,.15)':T<15?'rgba(42,125,225,.15)':'rgba(46,158,91,.12)'; ctx.fillRect(40,150,260,300); ctx.strokeStyle=line; ctx.strokeRect(40,150,260,300);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(`water bath at ${T} °C`, 50, 168);
+  // test tube
+  ctx.fillStyle=css('--panel'); ctx.strokeStyle=fg; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(130,60); ctx.lineTo(130,380); ctx.arc(170,380,40,Math.PI,0,true); ctx.lineTo(210,60); ctx.stroke(); ctx.lineWidth=1;
+  const liquid = prot ? `rgba(240,240,230,${0.25+0.6*sub})` : 'rgba(210,225,240,.6)';
+  ctx.fillStyle=liquid; ctx.beginPath(); ctx.moveTo(132,180); ctx.lineTo(132,380); ctx.arc(170,380,38,Math.PI,0,true); ctx.lineTo(208,180); ctx.closePath(); ctx.fill();
+  // molecules: chains = large molecules, single beads = small molecules, pac-men = enzymes
+  const rnd=i=>{ const x=Math.sin(i*12.9898)*43758.5453; return x-Math.floor(x); };
+  const nChains=10, beads=6;
+  for (let i=0;i<nChains;i++){ const x=142+rnd(i)*50+Math.sin(et*3+i)*3, y=200+rnd(i+30)*190; const intact=Math.round(beads*sub);
+    for (let b=0;b<beads;b++){ const bx=x+(b<intact? b*6 : (rnd(i*7+b)*60-20)), by=y+(b<intact? Math.sin(b)*3 : rnd(i*3+b)*40-20);
+      ctx.fillStyle=b<intact?(prot?'#c9a26b':'#3a5bd9'):good; ctx.beginPath(); ctx.arc(Math.min(204,Math.max(136,bx)),Math.min(410,Math.max(186,by)),2.6,0,7); ctx.fill();
+      if (b<intact-1){ ctx.strokeStyle=prot?'#c9a26b':'#3a5bd9'; ctx.beginPath(); ctx.moveTo(Math.min(204,Math.max(136,bx)),by); ctx.lineTo(Math.min(204,Math.max(136,bx+6)),y+Math.sin(b+1)*3); ctx.stroke(); } } }
+  if (!$('noEnz').checked){ for (let i=0;i<4;i++){ const x=150+rnd(i+60)*40+Math.sin(et*5+i)*6, y=220+rnd(i+90)*150+Math.cos(et*4+i)*6; ctx.fillStyle=denatured?muted:hot;
+      ctx.beginPath(); if (denatured){ ctx.moveTo(x-6,y-4); ctx.lineTo(x+6,y-6); ctx.lineTo(x+4,y+6); ctx.lineTo(x-5,y+5); } else { const m=0.3+0.3*Math.abs(Math.sin(et*8+i)); ctx.moveTo(x,y); ctx.arc(x,y,7,m,2*Math.PI-m); } ctx.closePath(); ctx.fill(); } }
+  ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(prot?'egg white + protease':'starch + carbohydrase', 170, 50);
+  if ($('noEnz').checked){ ctx.fillStyle=muted; ctx.fillText('control: water, no enzyme', 170, 440); }
+  if (denatured){ ctx.fillStyle=hot; ctx.fillText('enzyme destroyed by heat (denatured)', 170, 440); }
+  // key
+  ctx.textAlign='left'; ctx.font='11px IBM Plex Sans, sans-serif';
+  [[prot?'#c9a26b':'#3a5bd9',prot?'protein (large molecule)':'starch (large molecule)'],[good,prot?'amino acids (small)':'simple sugars (small)'],[hot,'enzyme']].forEach(([c,l],i)=>{ ctx.fillStyle=c; ctx.beginPath(); ctx.arc(50,486+i*18,5,0,7); ctx.fill(); ctx.fillStyle=muted; ctx.fillText(l, 62, 490+i*18); });
+  // test results: spotting tile (iodine) or cloudiness
+  const tx=360; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText(prot?'How cloudy is the egg white? (one sample each minute)':'Iodine test: one drop of the mixture each minute', tx, 60);
+  for (let m=0;m<=10;m++){ const x=tx+14+(m%6)*76, y=90+Math.floor(m/6)*80; const h=history.reduce((a,p)=>p[0]<=m?p:a,history[0]); const done=et>=m;
+    ctx.fillStyle=css('--panel'); ctx.strokeStyle=line; ctx.beginPath(); ctx.arc(x+20,y+20,22,0,7); ctx.fill(); ctx.stroke();
+    if (done){ const s=h[1]; ctx.fillStyle = prot ? `rgba(235,235,225,${0.2+0.8*s})` : (s>0.12? `rgb(${Math.round(40+150*(1-s))},${Math.round(30+90*(1-s))},${Math.round(80-40*(1-s))})` : '#d9a441'); ctx.beginPath(); ctx.arc(x+20,y+20,17,0,7); ctx.fill(); if (prot){ ctx.strokeStyle=muted; ctx.stroke(); } }
+    ctx.fillStyle=muted; ctx.font='10px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.fillText(m+' min', x+20, y+56); ctx.textAlign='left'; }
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(prot?'Cloudy white = protein still there. Clear = protein digested.':'Blue-black = starch still there. Yellow-brown (iodine colour) = no starch left.', tx, 262);
+  // graph
+  const gx=tx+30, gy=290, gw=470, gh=170; ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.lineTo(gx+gw,gy+gh); ctx.stroke();
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='right'; ctx.fillText('100%',gx-4,gy+4); ctx.fillText('0',gx-4,gy+gh+4); ctx.textAlign='center'; for (let m=0;m<=10;m+=2) ctx.fillText(m, gx+m/10*gw, gy+gh+14); ctx.fillText('time / min', gx+gw/2, gy+gh+30);
+  ctx.save(); ctx.translate(gx-36,gy+gh/2); ctx.rotate(-Math.PI/2); ctx.fillText(prot?'protein left':'starch left',0,0); ctx.restore();
+  ctx.strokeStyle=prot?'#c9a26b':'#3a5bd9'; ctx.lineWidth=2.5; ctx.beginPath(); history.forEach(([m,s],i)=>{ const x=gx+m/10*gw, y=gy+gh-s*gh; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke(); ctx.lineWidth=1;
+  const a=activity(); ctx.textAlign='left'; ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif';
+  ctx.fillText($('noEnz').checked?'No enzyme: nothing is broken down.': denatured?'Heated above about 60 °C the enzyme is destroyed: it will not work even if cooled.': a>0.7?'Enzyme working fast: close to its best temperature and pH.': a>0.25?'Enzyme working, but slowly.':'Enzyme hardly working: wrong temperature or pH.', tx, 500);
+  ctx.fillStyle=muted; ctx.fillText(prot?'Protease from the stomach works best in acid (about pH 2) at body temperature.':'Carbohydrase from saliva works best near pH 7 at body temperature (37 °C).', tx, 520);
+  $('rTime').textContent=et.toFixed(1)+' min'; $('rLeftL').textContent=prot?'Protein left':'Starch left'; $('rLeft').textContent=Math.round(sub*100)+'%';
+}
+
+// ===================== BLOOD GLUCOSE =====================
+let gt=0;
+function glucose(tt,who,food){ // mg per 100 cm³ of blood, tt in hours, meal at 0.5 h
+  const base = who==='healthy'?90:150, peak = (food==='sugary'?1:0.55)*(who==='healthy'?60:160), tp=food==='sugary'?0.45:1.0, back=who==='healthy'?(food==='sugary'?0.5:0.9):2.6;
+  const x=tt-0.5; if (x<0) return base; const rise=1-Math.exp(-x/(tp*0.45)); const fall=Math.exp(-Math.max(0,x-tp)/back);
+  return base + peak*rise*fall; }
+function drawGlucose(dt){
+  if (running){ gt+=dt*0.25; if (gt>4.2) gt=4.2; }
+  const fg=css('--fg'),muted=css('--muted'),line=css('--line'),acc=css('--accent'),good=css('--good'),hot=css('--hot');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const gx=80, gy=60, gw=760, gh=330, Gmax=340; const X=h=>gx+h/4*gw, Y=g=>gy+gh-g/Gmax*gh;
+  if ($('band').checked){ ctx.fillStyle=good; ctx.globalAlpha=.12; ctx.fillRect(gx,Y(140),gw,Y(70)-Y(140)); ctx.globalAlpha=1; ctx.fillStyle=good; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('normal range', gx+6, Y(140)+14); }
+  ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.lineTo(gx+gw,gy+gh); ctx.stroke();
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='right'; for (let g=0;g<=300;g+=50) ctx.fillText(g, gx-6, Y(g)+4); ctx.textAlign='center'; for (let h=0;h<=4;h++) ctx.fillText(h+' h', X(h), gy+gh+16);
+  ctx.save(); ctx.translate(30,gy+gh/2); ctx.rotate(-Math.PI/2); ctx.fillText('blood glucose (mg per 100 cm³)',0,0); ctx.restore();
+  ctx.strokeStyle=hot; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(X(0.5),gy); ctx.lineTo(X(0.5),gy+gh); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=hot; ctx.fillText('meal eaten', X(0.5), gy-6);
+  const draw=(who,col,w)=>{ ctx.strokeStyle=col; ctx.lineWidth=w; ctx.beginPath(); for (let h=0;h<=gt;h+=0.02){ const x=X(h), y=Y(glucose(h,who,meal)); h?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke(); ctx.lineWidth=1; };
+  const other = person==='healthy'?'diabetes':'healthy';
+  if ($('compare').checked) draw(other, muted, 2);
+  draw(person, person==='healthy'?acc:hot, 3);
+  const g=glucose(gt,person,meal);
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  ctx.fillText(`Now: ${gt.toFixed(1)} h after the start, blood glucose ${Math.round(g)}`, gx, gy+gh+50);
+  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted;
+  const msg = person==='healthy'
+    ? 'Healthy person: digested sugar is absorbed into the blood, so the level rises after the meal. The body then brings it back down to normal within about two hours.'
+    : 'Person with diabetes: the body cannot control blood glucose well. The level rises higher and stays high for much longer, which damages the body over time.';
+  wrap(msg, gx, gy+gh+72, 760, 17);
+  wrap(meal==='sugary' ? 'Sugary drink: the sugar is absorbed quickly, giving a sharp spike.' : 'Wholemeal meal: starch must be digested first, so glucose enters the blood slowly and the rise is gentler.', gx, gy+gh+110, 760, 17);
+  if ($('compare').checked){ ctx.fillStyle=muted; ctx.fillText('grey line: '+(other==='healthy'?'healthy person':'person with diabetes'), gx+gw-220, gy+14); }
+}
+
+// ===================== frame and controls =====================
+function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (mode==='journey') drawJourney(dt); else if (mode==='enzyme') drawEnzyme(dt); else drawGlucose(dt); requestAnimationFrame(frame); }
+function notice(){ $('notice').innerHTML = {
+  journey:'<b>What to notice.</b> Food is broken down into small molecules so it can be absorbed into the blood. Teeth and the churning stomach break it up physically; digestive juices with enzymes break it down chemically. Starch digestion starts in the mouth, protein digestion in the stomach, and everything is finished and absorbed in the small intestine. The large intestine absorbs water.',
+  enzyme:'<b>What to notice.</b> Enzymes speed up the breakdown of large food molecules into small ones. Each enzyme works best at a particular temperature and pH. Too cold: slow. Too hot: the enzyme is destroyed. The control tube with no enzyme shows that the enzyme is what does the work.',
+  glucose:'<b>What to notice.</b> After a meal, digested sugar is absorbed into the blood. A healthy body brings the level back to normal; in diabetes the level stays high. Sugary drinks give a fast spike; wholemeal food gives a slow, gentle rise.'}[mode]; }
+const seg=(id,fn)=>$(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; [...$(id).children].forEach(x=>x.setAttribute('aria-pressed',x===b)); fn(b.dataset.v); });
+seg('modeSeg',v=>{ mode=v; for (const [k,id] of [['journey','jCtl'],['enzyme','eCtl'],['glucose','gCtl']]){ $(id).classList.toggle('hide',mode!==k); $(id).style.display=mode===k?'flex':''; } notice(); });
+seg('person',v=>{ person=v; gt=0; }); seg('meal',v=>{ meal=v; gt=0; });
+$('jspeed').addEventListener('input',()=>$('jspeedV').textContent=$('jspeed').value+'×');
+$('food').addEventListener('change',()=>{ t=0; });
+$('temp').addEventListener('input',()=>{ $('tempV').textContent=$('temp').value+' °C'; });
+$('ph').addEventListener('input',()=>{ const p=+$('ph').value; $('phV').textContent=p+(p<7?' (acid)':p>7?' (alkaline)':' (neutral)'); });
+['enz','noEnz'].forEach(id=>$(id).addEventListener('change',resetEnzyme));
+$('temp').addEventListener('change',resetEnzyme); $('ph').addEventListener('change',resetEnzyme);
+$('play').addEventListener('click',()=>{ running=!running; $('play').textContent=running?'❚❚ Pause':'▶ Play'; });
+$('reset').addEventListener('click',()=>{ if (mode==='journey'){ t=0; selected=null; } else if (mode==='enzyme') resetEnzyme(); else gt=0; });
+cv.addEventListener('click',e=>{ if (mode!=='journey') return; const r=cv.getBoundingClientRect(), s=cv.width/r.width; selected=partAt((e.clientX-r.left)*s,(e.clientY-r.top)*s); });
+resetEnzyme(); notice(); requestAnimationFrame(frame);
+})();
+</script>

@@ -1,0 +1,257 @@
+<title>Plant Transport Lab</title>
+<meta charset="utf-8">
+
+<header>
+  <h1>Plant Transport Lab</h1>
+  <span class="lo">2021 LSS · Ch 15 · xylem and phloem (G3), diffusion in plants, osmosis and water uptake (G3)</span>
+</header>
+
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c" width="900" height="540" aria-label="A plant with water and food moving through it, a root hair cell, or a leaf exchanging gases"></canvas>
+    <p class="notice" id="notice"></p>
+  </div>
+  <div class="panel">
+    <div class="ctl">
+      <span class="lbl">Mode</span>
+      <div class="seg three" id="modeSeg">
+        <button data-v="plant" aria-pressed="true">Whole plant</button>
+        <button data-v="root" aria-pressed="false">Root hair and osmosis (G3)</button>
+        <button data-v="leaf" aria-pressed="false">Leaf gases</button>
+      </div>
+    </div>
+
+    <div id="pCtl" style="display:flex;flex-direction:column;gap:12px">
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="xylem" checked> Show xylem and water</label>
+        <label class="check"><input type="checkbox" id="phloem" checked> Show phloem and food (sugars)</label>
+        <label class="check"><input type="checkbox" id="light" checked> Light on (leaves make food)</label>
+        <label class="check"><input type="checkbox" id="stomata" checked> Stomata open</label>
+        <label class="check"><input type="checkbox" id="dye"> Stand the plant in red-dyed water</label>
+        <label class="check"><input type="checkbox" id="xs" checked> Show a cut across the stem</label>
+        <label class="check"><input type="checkbox" id="plabels" checked> Show labels</label>
+      </div>
+    </div>
+
+    <div id="rCtl" class="hide" style="flex-direction:column;gap:12px">
+      <div class="ctl">
+        <div class="row"><label for="salt">Salt in the soil water</label><span class="val" id="saltV">0%</span></div>
+        <input type="range" id="salt" min="0" max="10" step="0.5" value="0">
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="potato" checked> Show the potato strip results</label>
+      </div>
+      <div class="read">
+        <div><small>Water moves</small><span id="rDir" style="font-size:.85rem">–</span></div>
+        <div><small>Cell</small><span id="rCell" style="font-size:.85rem">–</span></div>
+      </div>
+    </div>
+
+    <div id="lCtl" class="hide" style="flex-direction:column;gap:12px">
+      <div class="ctl">
+        <span class="lbl">Light</span>
+        <div class="seg" id="dayNight"><button data-v="day" aria-pressed="true">bright light</button><button data-v="night" aria-pressed="false">dark</button></div>
+      </div>
+      <div class="ctl">
+        <label class="check"><input type="checkbox" id="lstomata" checked> Stomata open</label>
+      </div>
+      <div class="read">
+        <div><small>CO₂ inside the leaf</small><span id="rCO2">–</span></div>
+        <div><small>O₂ inside the leaf</small><span id="rO2">–</span></div>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button class="btn primary" id="play">❚❚ Pause</button>
+      <button class="btn" id="reset">Restart</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let mode='plant', running=true, last=performance.now(), t=0, dyeFront=0, day=true;
+const WATER='#2a7de1', SUGAR='#e08a1e', DYE='#d33f5a', LEAF='#5fae5a', LEAF_D='#3d8a3a', SOIL='#b08a62', STEM='#7fb86a';
+function wrap(text,x,y,w,lh){ const words=text.split(' '); let line='', yy=y; for (const wd of words){ const test=line+wd+' '; if (ctx.measureText(test).width>w && line){ ctx.fillText(line,x,yy); line=wd+' '; yy+=lh; } else line=test; } ctx.fillText(line,x,yy); return yy; }
+function lens(p){ const L=[0]; for(let i=1;i<p.length;i++) L.push(L[i-1]+Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1])); return L; }
+function at(p,L,d){ d=Math.max(0,Math.min(L[L.length-1],d)); let i=1; while(i<L.length-1&&L[i]<d) i++; const g=(d-L[i-1])/((L[i]-L[i-1])||1); return [p[i-1][0]+(p[i][0]-p[i-1][0])*g, p[i-1][1]+(p[i][1]-p[i-1][1])*g]; }
+function tube(pts,w,col){ ctx.strokeStyle=col; ctx.lineWidth=w; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.beginPath(); pts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.stroke(); ctx.lineWidth=1; ctx.lineCap='butt'; }
+
+// ===================== WHOLE PLANT =====================
+// water routes: soil → root hair → root xylem → stem xylem → a leaf → out of a stoma
+const XL=296, PH=304;
+const W_ROUTES=[
+  [[200,492],[236,480],[296,440],[XL,300],[XL,232],[250,214],[200,206],[180,214]],
+  [[392,512],[360,494],[300,452],[XL,300],[XL,272],[350,262],[400,256],[420,266]],
+  [[296,522],[XL,500],[XL,300],[XL,232],[250,214],[205,212],[190,224]],
+  [[230,506],[260,470],[XL,436],[XL,272],[350,264],[395,262],[410,276]],
+];
+// food routes: leaf → phloem → down to roots or up to the fruit
+const S_ROUTES=[
+  [[200,210],[250,218],[PH,236],[PH,446],[250,480]],
+  [[400,258],[350,266],[PH,276],[PH,140],[PH,112]],
+  [[205,214],[255,222],[PH,240],[PH,128],[PH,110]],
+  [[395,262],[345,270],[PH,280],[PH,460],[360,496]],
+];
+const WL=W_ROUTES.map(lens), SL=S_ROUTES.map(lens);
+function drawPlant(dt){
+  if (running){ t+=dt; if ($('dye').checked && $('stomata').checked) dyeFront=Math.min(1,dyeFront+dt*0.05); }
+  const fg=css('--fg'), muted=css('--muted'), line=css('--line');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const lightOn=$('light').checked, open=$('stomata').checked, dye=$('dye').checked;
+  // sky / soil
+  ctx.fillStyle=lightOn?'rgba(255,220,120,.18)':'rgba(40,50,90,.18)'; ctx.fillRect(0,0,520,380);
+  if (lightOn){ ctx.fillStyle='#f5c542'; ctx.beginPath(); ctx.arc(470,50,24,0,7); ctx.fill(); } else { ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('dark', 450, 50); }
+  if (dye){ ctx.fillStyle='rgba(211,63,90,.22)'; ctx.fillRect(150,380,300,160); ctx.strokeStyle=line; ctx.strokeRect(150,380,300,160); ctx.fillStyle=DYE; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('beaker of red-dyed water', 156, 532); }
+  else { ctx.fillStyle=SOIL; ctx.globalAlpha=.35; ctx.fillRect(0,380,520,160); ctx.globalAlpha=1; ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('soil', 10, 396); }
+  // roots with root hairs
+  const roots=[[[300,380],[300,524]],[[300,420],[236,480],[200,492]],[[300,440],[360,494],[392,512]],[[300,436],[260,470],[230,506]]];
+  roots.forEach(r=>tube(r,6,'#c8ad86'));
+  ctx.strokeStyle='#c8ad86'; for (const r of roots) for (let i=0;i<r.length-1;i++) for (let k=0;k<6;k++){ const f=k/6, x=r[i][0]+(r[i+1][0]-r[i][0])*f, y=r[i][1]+(r[i+1][1]-r[i][1])*f; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+(k%2?7:-7),y+5); ctx.stroke(); }
+  // stem, leaves, fruit
+  ctx.fillStyle=STEM; ctx.fillRect(290,108,20,274);
+  const leaf=(cx,cy,ang)=>{ ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang); ctx.fillStyle=LEAF; ctx.beginPath(); ctx.ellipse(0,0,62,22,0,0,7); ctx.fill(); ctx.strokeStyle=LEAF_D; ctx.beginPath(); ctx.moveTo(-60,0); ctx.lineTo(60,0); ctx.stroke(); ctx.restore(); };
+  leaf(236,214,0.12); leaf(362,264,-0.12);
+  ctx.fillStyle='#e45b4a'; ctx.beginPath(); ctx.arc(300,98,16,0,7); ctx.fill();
+  // xylem and phloem lines
+  if ($('xylem').checked){ const col = dye ? null : WATER; ctx.globalAlpha=.8;
+    tube([[XL,524],[XL,108]], 4, WATER); if (dye){ const top=380-dyeFront*290; tube([[XL,524],[XL,Math.max(108,top)]],4,DYE); if (dyeFront>0.55){ tube([[XL,232],[250,214],[200,206]],3,DYE); tube([[XL,272],[350,262],[400,256]],3,DYE); } }
+    tube([[XL,232],[250,214],[200,206]],2,dye&&dyeFront>0.55?DYE:WATER); tube([[XL,272],[350,262],[400,256]],2,dye&&dyeFront>0.55?DYE:WATER); ctx.globalAlpha=1; }
+  if ($('phloem').checked){ ctx.globalAlpha=.8; tube([[PH,480],[PH,108]],4,SUGAR); tube([[PH,236],[250,218],[205,214]],2,SUGAR); tube([[PH,276],[350,266],[400,258]],2,SUGAR); ctx.globalAlpha=1; }
+  // moving water
+  if ($('xylem').checked && open){ W_ROUTES.forEach((r,ri)=>{ const L=WL[ri], tot=L[L.length-1]; for (let k=0;k<5;k++){ const d=((t*60+k*tot/5+ri*37)%tot); const [x,y]=at(r,L,d); const last=d>tot-25; ctx.fillStyle=dye?DYE:WATER; ctx.globalAlpha=last?0.4:1; ctx.beginPath(); ctx.arc(x,y,3.2,0,7); ctx.fill(); ctx.globalAlpha=1; } }); }
+  // water vapour leaving the stomata
+  if (open){ ctx.fillStyle=WATER; for (const [x,y] of [[185,236],[230,240],[405,290],[350,290]]){ for (let k=0;k<3;k++){ const f=((t*0.8+k/3+x*0.01)%1); ctx.globalAlpha=0.6*(1-f); ctx.beginPath(); ctx.arc(x+Math.sin(f*6+k)*4,y+f*40,2.6,0,7); ctx.fill(); } } ctx.globalAlpha=1; }
+  // moving sugar (only made in the light)
+  if ($('phloem').checked){ const rate = lightOn ? 1 : 0.15; S_ROUTES.forEach((r,ri)=>{ const L=SL[ri], tot=L[L.length-1]; for (let k=0;k<4;k++){ const d=((t*45*rate+k*tot/4+ri*29)%tot); const [x,y]=at(r,L,d); ctx.fillStyle=SUGAR; ctx.globalAlpha=lightOn?1:0.35; ctx.fillRect(x-3,y-3,6,6); ctx.globalAlpha=1; } }); }
+  // labels
+  if ($('plabels').checked){ ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillStyle=fg;
+    ctx.fillText('leaf', 150, 190); ctx.fillText('stem', 316, 160); ctx.fillText('root', 316, 470); ctx.fillText('root hairs', 160, 470); ctx.fillText('fruit', 320, 96);
+    if ($('xylem').checked){ ctx.fillStyle=dye?DYE:WATER; ctx.fillText('xylem', 238, 330); }
+    if ($('phloem').checked){ ctx.fillStyle=SUGAR; ctx.fillText('phloem', 316, 330); }
+    if (open){ ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('water vapour out', 140, 262); ctx.fillText('through stomata', 140, 274); } }
+  // stem cross-section
+  if ($('xs').checked){ const cx=700, cy=190, R=110; ctx.fillStyle=STEM; ctx.globalAlpha=.35; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.fill(); ctx.globalAlpha=1; ctx.strokeStyle=LEAF_D; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.stroke(); ctx.lineWidth=1;
+    const cutLevel=0.4; // the cut is part-way up the stem
+    const dyed = dye && dyeFront>cutLevel;
+    for (let i=0;i<8;i++){ const a=i/8*Math.PI*2, bx=cx+Math.cos(a)*70, by=cy+Math.sin(a)*70;
+      ctx.save(); ctx.translate(bx,by); ctx.rotate(a);
+      ctx.fillStyle=SUGAR; ctx.beginPath(); ctx.ellipse(10,0,9,12,0,0,7); ctx.fill();
+      ctx.fillStyle=dyed?DYE:WATER; ctx.beginPath(); ctx.ellipse(-8,0,10,13,0,0,7); ctx.fill(); ctx.restore(); }
+    ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('Cut across the stem', cx, cy-R-12);
+    ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillStyle=dyed?DYE:WATER; ctx.fillText(dyed?'■ xylem (stained red by the dye)':'■ xylem (inner side): water and mineral salts', cx-R, cy+R+24); ctx.fillStyle=SUGAR; ctx.fillText('■ phloem (outer side): food (sugars)', cx-R, cy+R+40);
+    if (dye && !dyed){ ctx.fillStyle=muted; ctx.fillText('the dye has not reached this height yet', cx-R, cy+R+56); } }
+  // explanation
+  ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  const msg = !open ? 'Stomata closed: water vapour cannot escape from the leaves, so water stops moving up the xylem.'
+            : dye ? 'The red dye travels up with the water. Only the xylem turns red, because only the xylem carries water.'
+            : lightOn ? 'Water and mineral salts go UP in the xylem, from the roots to the leaves. Food made in the leaves goes in the phloem to every part that needs it: up to the fruit and down to the roots.'
+            : 'In the dark the leaves cannot make food, so much less food moves in the phloem. Water still moves up the xylem.';
+  wrap(msg, 560, 420, 320, 17);
+}
+
+// ===================== ROOT HAIR AND OSMOSIS =====================
+let cellSize=1, waterP=[];
+const SAP=3; // % solutes in the cell sap
+function resetRoot(){ cellSize=1; waterP=Array.from({length:70},()=>({x:Math.random()*560+20,y:Math.random()*300+40,inside:null})); }
+function drawRoot(dt){
+  const salt=+$('salt').value, fg=css('--fg'), muted=css('--muted'), line=css('--line'), good=css('--good'), hot=css('--hot');
+  const diff = SAP - salt; // positive: cell sap more concentrated, water moves in
+  if (running){ t+=dt; cellSize += (1+0.18*Math.tanh(diff/2)-cellSize)*dt*0.6; }
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // soil water
+  ctx.fillStyle='rgba(176,138,98,.22)'; ctx.fillRect(20,40,580,320);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(salt===0?'soil water (very dilute)':`soil water with ${salt}% salt`, 28, 58);
+  // root hair cell (body + long hair), scaled by cellSize
+  const cx=150, cy=200, s=cellSize;
+  ctx.save(); ctx.translate(cx,cy); ctx.scale(s, s);
+  ctx.fillStyle='#e9f3dc'; ctx.strokeStyle=LEAF_D; ctx.lineWidth=2/s;
+  ctx.beginPath(); ctx.moveTo(-60,-70); ctx.lineTo(60,-70); ctx.lineTo(60,-12); ctx.lineTo(300,-12); ctx.quadraticCurveTo(320,0,300,12); ctx.lineTo(60,12); ctx.lineTo(60,70); ctx.lineTo(-60,70); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='rgba(120,90,200,.18)'; ctx.beginPath(); ctx.ellipse(-5,0,42,48,0,0,7); ctx.fill(); // vacuole with cell sap
+  ctx.fillStyle='#6b4fbf'; for (let i=0;i<14;i++){ ctx.beginPath(); ctx.arc(-30+(i%5)*14, -30+Math.floor(i/5)*22, 4, 0, 7); ctx.fill(); }
+  ctx.fillStyle='#b9a15a'; ctx.beginPath(); ctx.arc(-40,46,10,0,7); ctx.fill();
+  ctx.restore(); ctx.lineWidth=1;
+  // salt particles in the soil water (cannot cross the membrane)
+  ctx.fillStyle='#6b4fbf'; for (let i=0;i<salt*4;i++){ const x=380+((i*53)%200), y=80+((i*97)%260); ctx.beginPath(); ctx.arc(x+Math.sin(t+i)*3,y+Math.cos(t*1.3+i)*3,4,0,7); ctx.fill(); }
+  // water particles: drift across the membrane in the direction of osmosis
+  const dir=Math.tanh(diff/2); ctx.fillStyle=WATER;
+  for (let i=0;i<24;i++){ const ph=((t*0.25+i/24)%1); const fx = dir>=0 ? 600-ph*420 : 180+ph*420; const y=60+((i*37)%290); if (Math.abs(dir)<0.05){ ctx.globalAlpha=.6; ctx.beginPath(); ctx.arc(250+((i*71)%330)+Math.sin(t*2+i)*8,y,2.6,0,7); ctx.fill(); ctx.globalAlpha=1; continue; } ctx.beginPath(); ctx.arc(fx,y+Math.sin(t*3+i)*4,2.6,0,7); ctx.fill(); }
+  // labels
+  ctx.fillStyle=fg; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.fillText('root hair cell', 60, 300); ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('the long, thin hair gives a large surface area for taking in water', 60, 314);
+  ctx.fillText('cell sap (more concentrated)', 70, 130); ctx.fillText('partially permeable membrane: lets water through, not salt', 60, 328);
+  // explanation
+  const px=620; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText(diff>0.25?'WATER MOVES INTO THE CELL':diff<-0.25?'WATER MOVES OUT OF THE CELL':'NO NET MOVEMENT', px, 70);
+  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted;
+  wrap(diff>0.25?'The soil water is more dilute than the cell sap. Water moves into the root hair by osmosis, through the partially permeable membrane. The cell swells and becomes firm.':diff<-0.25?'The soil water is more concentrated than the cell sap (salty soil). Water moves OUT of the root hair by osmosis. The plant cannot take in water and wilts.':'The soil water and the cell sap have about the same concentration, so there is no net movement of water.', px, 94, 260, 17);
+  // potato strip graph
+  if ($('potato').checked){ const gx=80, gy=380, gw=440, gh=130, X=c=>gx+c/10*gw, Y=p=>gy+gh/2-p/25*gh/2;
+    ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.moveTo(gx,gy+gh/2); ctx.lineTo(gx+gw,gy+gh/2); ctx.stroke();
+    ctx.strokeStyle=css('--accent'); ctx.lineWidth=2.5; ctx.beginPath(); for (let c=0;c<=10;c+=0.25){ const p=18*Math.tanh((SAP-c)/2); c?ctx.lineTo(X(c),Y(p)):ctx.moveTo(X(c),Y(p)); } ctx.stroke(); ctx.lineWidth=1;
+    const p=18*Math.tanh(diff/2); ctx.fillStyle=hot; ctx.beginPath(); ctx.arc(X(salt),Y(p),6,0,7); ctx.fill();
+    ctx.fillStyle=muted; ctx.font='10px IBM Plex Mono, monospace'; ctx.textAlign='center'; for (let c=0;c<=10;c+=2) ctx.fillText(c+'%', X(c), gy+gh+12); ctx.fillText('salt in the solution', gx+gw/2, gy+gh+26);
+    ctx.textAlign='right'; ctx.fillText('longer', gx-4, gy+12); ctx.fillText('0', gx-4, gy+gh/2+4); ctx.fillText('shorter', gx-4, gy+gh-4);
+    ctx.textAlign='left'; ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('Potato strips left in each solution for 25 minutes: change in length', gx, gy-8);
+    ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; wrap('Dilute solutions: the strips take in water and get longer. Concentrated solutions: they lose water and get shorter. Where the line crosses zero, the solution matches the cell sap.', 560, 420, 320, 15); }
+  $('saltV').textContent=salt+'%'; $('rDir').textContent=diff>0.25?'into the cell':diff<-0.25?'out of the cell':'no net movement'; $('rCell').textContent=cellSize>1.05?'swollen, firm':cellSize<0.95?'shrunk, soft':'normal';
+}
+
+// ===================== LEAF GASES =====================
+let G=[];
+function resetLeaf(){ G=[]; for (let i=0;i<90;i++) G.push({k:Math.random()<0.5?'CO2':'O2', x:40+Math.random()*820, y:400+Math.random()*120}); for (let i=0;i<40;i++) G.push({k:Math.random()<0.5?'CO2':'O2', x:60+Math.random()*780, y:250+Math.random()*90}); }
+const STOMA=[[250,360],[520,360],[740,360]];
+function inLeafAir(x,y){ return y>238 && y<352 && x>40 && x<860; }
+function stepLeaf(dt){ const open=$('lstomata').checked;
+  for (const g of G){ const nx=g.x+(Math.random()-0.5)*220*dt, ny=g.y+(Math.random()-0.5)*220*dt; const wasIn=g.y<360;
+    // the lower epidermis is a wall except at the stomata
+    const crossing = (g.y<360) !== (ny<360);
+    if (crossing){ const nearStoma=open && STOMA.some(([sx])=>Math.abs(nx-sx)<14); if (!nearStoma) continue; }
+    if (ny<238 || ny>530 || nx<40 || nx>860) continue;
+    g.x=nx; g.y=ny;
+    // inside the leaf, the cells use one gas and give out the other
+    if (g.y<352 && g.y>238 && Math.random()<0.25*dt){ if (day && g.k==='CO2') g.k='O2'; else if (!day && g.k==='O2') g.k='CO2'; } }
+  // the outside air is kept at normal air composition (it mixes with the atmosphere)
+  for (const g of G){ if (g.y>480 && Math.random()<0.3*dt) g.k = Math.random()<0.5?'CO2':'O2'; }
+  t+=dt; }
+function drawLeaf(dt){
+  if (running) stepLeaf(dt);
+  const fg=css('--fg'), muted=css('--muted'), line=css('--line');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // leaf section: upper epidermis, palisade cells, spongy cells with air spaces, lower epidermis with stomata
+  ctx.fillStyle=day?'rgba(255,220,120,.25)':'rgba(40,50,90,.2)'; ctx.fillRect(0,0,900,140);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(day?'bright light':'dark', 20, 24);
+  ctx.fillStyle='#cfe6c3'; ctx.fillRect(40,150,820,14);
+  for (let x=44;x<860;x+=26){ ctx.fillStyle='#7cc46f'; ctx.beginPath(); ctx.roundRect(x,166,22,62,6); ctx.fill(); }
+  ctx.fillStyle='rgba(124,196,111,.12)'; ctx.fillRect(40,232,820,124);
+  for (let i=0;i<22;i++){ const x=60+(i*37)%790, y=250+((i*53)%90); ctx.fillStyle='#9fd394'; ctx.beginPath(); ctx.ellipse(x,y,16,11,0,0,7); ctx.fill(); }
+  ctx.fillStyle='#cfe6c3'; ctx.fillRect(40,356,820,10);
+  const open=$('lstomata').checked;
+  for (const [sx] of STOMA){ ctx.fillStyle=css('--panel'); ctx.fillRect(sx-14,354,28,14); ctx.fillStyle='#5fae5a'; const gap=open?8:1; ctx.beginPath(); ctx.ellipse(sx-gap-6,361,7,6,0,0,7); ctx.fill(); ctx.beginPath(); ctx.ellipse(sx+gap+6,361,7,6,0,0,7); ctx.fill(); }
+  // gases
+  for (const g of G){ ctx.fillStyle=g.k==='CO2'?'#6b7280':'#e4572e'; ctx.beginPath(); ctx.arc(g.x,g.y,3.4,0,7); ctx.fill(); }
+  ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.fillStyle=fg; ctx.textAlign='left';
+  ctx.fillText('upper epidermis', 40, 145); ctx.fillText('cells that make food (in light)', 40, 182); ctx.fillText('air spaces', 40, 300); ctx.fillText('lower epidermis with stomata', 40, 384); ctx.fillText('outside air', 40, 520);
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(open?'stomata open':'stomata closed', STOMA[0][0]-30, 384);
+  const inside=G.filter(g=>g.y<356), co2=inside.filter(g=>g.k==='CO2').length, o2=inside.length-co2;
+  const px=200; ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('● carbon dioxide   ', px, 30); ctx.fillStyle='#6b7280'; ctx.fillText('●', px, 30); ctx.fillStyle='#e4572e'; ctx.fillText('●', px+130, 30); ctx.fillStyle=fg; ctx.fillText('oxygen', px+142, 30);
+  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted;
+  wrap(!open ? 'Stomata closed: gases cannot diffuse in or out of the leaf.' : day ? 'In light the leaf uses carbon dioxide to make food and gives out oxygen. CO₂ inside falls, so CO₂ diffuses IN through the stomata; O₂ builds up and diffuses OUT.' : 'In the dark the leaf only respires: it uses oxygen and gives out carbon dioxide. Now O₂ diffuses in and CO₂ diffuses out.', px, 54, 640, 16);
+  $('rCO2').textContent=co2; $('rO2').textContent=o2;
+}
+
+function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (mode==='plant') drawPlant(dt); else if (mode==='root') drawRoot(dt); else drawLeaf(dt); requestAnimationFrame(frame); }
+function notice(){ $('notice').innerHTML = {
+  plant:'<b>What to notice.</b> Two separate transport tubes. Xylem carries water and mineral salts up from the roots. Phloem carries food made in the leaves to all parts of the plant. Water leaves as water vapour through the stomata, which keeps more water moving up. (Xylem and phloem: G3.)',
+  root:'<b>What to notice.</b> Water moves by osmosis through a partially permeable membrane, from a more dilute solution to a more concentrated one. Root hairs take in water when the soil water is more dilute than the cell sap. Salty soil draws water out. (G3)',
+  leaf:'<b>What to notice.</b> Gases enter and leave the leaf by diffusion through the stomata, from higher to lower concentration. Light decides which way they go.'}[mode]; }
+const seg=(id,fn)=>$(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; [...$(id).children].forEach(x=>x.setAttribute('aria-pressed',x===b)); fn(b.dataset.v); });
+seg('modeSeg',v=>{ mode=v; for (const [k,id] of [['plant','pCtl'],['root','rCtl'],['leaf','lCtl']]){ $(id).classList.toggle('hide',mode!==k); $(id).style.display=mode===k?'flex':''; } if (mode==='leaf') resetLeaf(); if (mode==='root') resetRoot(); notice(); });
+seg('dayNight',v=>{ day=v==='day'; });
+$('dye').addEventListener('change',()=>{ dyeFront=0; });
+$('play').addEventListener('click',()=>{ running=!running; $('play').textContent=running?'❚❚ Pause':'▶ Play'; });
+$('reset').addEventListener('click',()=>{ if (mode==='plant'){ t=0; dyeFront=0; } else if (mode==='root') resetRoot(); else resetLeaf(); });
+resetRoot(); resetLeaf(); notice(); requestAnimationFrame(frame);
+})();
+</script>
