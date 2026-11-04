@@ -47,7 +47,7 @@ QUESTIONS = [
          q="No friction. Describe the energy changes as the car goes from A (top) down through B, to C (next hill top), using the bars.",
          hint="Coaster: friction none, pause at A, B and C.",
          keys=[dict(label="A to B: gravitational potential energy decreases and kinetic energy increases", any=["ep decreases", "potential energy decreases", "gpe decreases", "loses potential", "potential to kinetic", "ep to ek", "gpe to ke", "kinetic increases", "ke increases", "speeds up"]),
-               dict(label="B to C: kinetic energy is transferred back to gravitational potential energy", any=["kinetic to potential", "ek to ep", "ke to gpe", "back to potential", "slows down", "gains height", "ep increases", "potential energy increases"]),
+               dict(label="B to C: kinetic energy is transferred back to gravitational potential energy", any=["kinetic to potential", "ek to ep", "ke to gpe", "back to potential", "back to gravitational", "slows", "slows down", "gains height", "ep increases", "potential energy increases"]),
                dict(label="the total energy stays constant (conservation of energy)", any=["total", "constant", "conserved", "conservation", "same"])],
          model="From A to B the car drops, so gravitational potential energy decreases and is transferred to kinetic energy: the car speeds up. From B up to C kinetic energy is transferred back to gravitational potential energy and the car slows. At every point Ep + Ek = the same total, because energy is conserved and no energy is transferred to the surroundings."),
     dict(id="e12", level=3, type="explain",

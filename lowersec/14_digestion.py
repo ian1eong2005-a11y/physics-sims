@@ -13,6 +13,7 @@ APPLETS = [
              "Enzyme test tube: find the temperature where the iodine turns brown fastest. Then try 70 °C and cool it back down. What happened?",
              "Protease: what pH works best? Why does that make sense for the stomach?",
              "Blood glucose: compare the sugary drink with the wholemeal meal for both people.",
+             "What if one part does not work? Try each option and explain how the rest of the system is affected.",
          ]),
 ]
 

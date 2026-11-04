@@ -56,7 +56,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
 <div class="wrap">
   <div class="stage">
-    <canvas id="c" width="900" height="470" aria-label="A wave on a rope with its two graphs"></canvas>
+    <canvas id="c" width="900" height="520" aria-label="A wave on a rope with its two graphs"></canvas>
     <p class="notice"><b>What to notice.</b> Both graphs have <i>displacement</i> up the side, which is why they look alike. The difference is the axis along the bottom. Click any particle on the rope to follow it.</p>
     <div class="two">
       <div><b class="h">Displacement–distance</b>A photograph of the <i>whole rope</i> at one instant. Every particle gives one point. Read <b>λ</b> and <b>A</b> from it. For a transverse wave it looks like the rope itself.</div>
@@ -70,6 +70,13 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <div class="seg" id="typeSeg">
         <button data-v="trans" aria-pressed="true">Transverse</button>
         <button data-v="long" aria-pressed="false">Longitudinal</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Wave travels</span>
+      <div class="seg" id="dirSeg">
+        <button data-v="1" aria-pressed="true">to the right →</button>
+        <button data-v="-1" aria-pressed="false">← to the left</button>
       </div>
     </div>
     <div class="ctl">
@@ -91,6 +98,16 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     <div class="ctl">
       <label class="check"><input type="checkbox" id="map" checked> Show mapping lines</label>
       <label class="check"><input type="checkbox" id="marks" checked> Label λ, T and A</label>
+      <label class="check"><input type="checkbox" id="behind"> Look behind: where does the particle go next?</label>
+      <label class="check"><input type="checkbox" id="vel"> Show how every particle is moving (arrows)</label>
+    </div>
+    <div class="ctl">
+      <label for="dtMode">Displacement–time display</label>
+      <select id="dtMode">
+        <option value="grow">time axis moves (normal graph)</option>
+        <option value="right">frozen time axis: trace moves →</option>
+        <option value="left">frozen time axis: trace moves ←</option>
+      </select>
     </div>
     <div class="read">
       <div><small>Period T = 1/f</small><span id="rT">2.0 s</span></div>
@@ -98,6 +115,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     </div>
     <div class="buttons">
       <button class="btn primary" id="play">Pause</button>
+      <button class="btn" id="step">Step a little ▶</button>
       <button class="btn" id="reset">Reset</button>
     </div>
     <div class="ctl" id="scrubWrap" hidden>
@@ -113,9 +131,11 @@ const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const N=41, L=3.0;           // 41 particles along 3.0 m of rope
-let t=0, running=true, tPause=0, type='trans';
+let t=0, running=true, tPause=0, type='trans', D=1;
 const S=()=>({f:+$('freq').value, lam:+$('lam').value, A:+$('amp').value/100, sel:+$('sel').value});
-const disp=(x,tt,s)=>s.A*Math.sin(2*Math.PI*(x/s.lam - s.f*tt));
+const disp=(x,tt,s)=>s.A*Math.sin(2*Math.PI*(x/s.lam - D*s.f*tt));
+const vel=(x,tt,s)=>-2*Math.PI*D*s.f*s.A*Math.cos(2*Math.PI*(x/s.lam - D*s.f*tt));
+const pmod=(a,m)=>((a%m)+m)%m;
 
 // panel geometry (canvas units)
 const WX0=60, WX1=560, ROPE_Y=105;                 // wave panel
@@ -134,7 +154,7 @@ function draw(){
   // ---- wave panel
   ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
   ctx.fillText(type==='trans'?'The rope (transverse wave)':'The spring (longitudinal wave)', WX0, 22);
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('wave travels →', WX1, 22);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText(D>0?'wave travels →':'← wave travels', WX1, 22);
   ctx.strokeStyle=line; ctx.setLineDash([3,4]); ctx.beginPath(); ctx.moveTo(WX0,ROPE_Y); ctx.lineTo(WX1,ROPE_Y); ctx.stroke(); ctx.setLineDash([]);
   const px=[], py=[];
   for (let i=0;i<N;i++){
@@ -142,7 +162,13 @@ function draw(){
     else { px[i]=xToPx(xs[i])+ds[i]*SCALE*0.45; py[i]=ROPE_Y; ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(xToPx(xs[i]),ROPE_Y-6); ctx.lineTo(xToPx(xs[i]),ROPE_Y+6); ctx.stroke(); }
   }
   if (type==='trans'){ ctx.strokeStyle=wave; ctx.lineWidth=2; ctx.beginPath(); px.forEach((x,i)=>i?ctx.lineTo(x,py[i]):ctx.moveTo(x,py[i])); ctx.stroke(); ctx.lineWidth=1; }
+  if ($('vel').checked){ const vmax=2*Math.PI*s.f*s.A; for (let i=0;i<N;i++){ const v=vel(xs[i],t,s)/vmax; if (Math.abs(v)<0.08) continue; const len=v*26;
+      if (type==='trans'){ ctx.strokeStyle=mark; ctx.fillStyle=mark; ctx.lineWidth=1.6; ctx.beginPath(); ctx.moveTo(px[i],py[i]); ctx.lineTo(px[i],py[i]-len); ctx.stroke(); ctx.beginPath(); ctx.moveTo(px[i],py[i]-len-Math.sign(len)*6); ctx.lineTo(px[i]-3.5,py[i]-len); ctx.lineTo(px[i]+3.5,py[i]-len); ctx.fill(); ctx.lineWidth=1; }
+      else { ctx.strokeStyle=mark; ctx.fillStyle=mark; ctx.lineWidth=1.6; const y=ROPE_Y-12; ctx.beginPath(); ctx.moveTo(px[i],y); ctx.lineTo(px[i]+len*0.6,y); ctx.stroke(); ctx.lineWidth=1; } } }
   for (let i=0;i<N;i++){ ctx.fillStyle=i===s.sel?sel:wave; ctx.beginPath(); ctx.arc(px[i],py[i],i===s.sel?7:4,0,7); ctx.fill(); }
+  const bi = s.sel - D*2;   // the particle just BEHIND the selected one (the side the wave comes from)
+  const lookBehind = $('behind').checked && bi>=0 && bi<N;
+  if (lookBehind && type==='trans'){ drawBehind(px[s.sel],py[s.sel],px[bi],py[bi], ROPE_Y); }
   ctx.fillStyle=sel; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.fillText('P'+s.sel, px[s.sel], py[s.sel]-14);
   if (type==='long'){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('particles move left–right along the spring; displacement to the right counts as positive', (WX0+WX1)/2, ROPE_Y+34); }
 
@@ -167,15 +193,34 @@ function draw(){
     ctx.strokeStyle=sel; ctx.setLineDash([5,4]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(px[s.sel],py[s.sel]); ctx.lineTo(xToPx(xsel),GY-dsel*SCALE); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth=1;
   }
   for (let i=0;i<N;i++){ ctx.fillStyle=i===s.sel?sel:wave; ctx.beginPath(); ctx.arc(xToPx(xs[i]),GY-ds[i]*SCALE,i===s.sel?6:2.5,0,7); ctx.fill(); }
+  if (lookBehind){ drawBehind(xToPx(xsel),GY-dsel*SCALE,xToPx(xs[bi]),GY-ds[bi]*SCALE, GY);
+    const up = ds[bi]>dsel+1e-4, down = ds[bi]<dsel-1e-4;
+    const word = type==='trans' ? (up?'UP':down?'DOWN':'nowhere: it is at a crest or trough, about to turn') : (up?'to the RIGHT (positive)':down?'to the LEFT (negative)':'nowhere: it is at maximum displacement, about to turn');
+    ctx.fillStyle=css('--fg'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+    ctx.fillText(`Look behind P${s.sel} (${D>0?'to its left':'to its right'}, where the wave comes from).`, WX0, 486);
+    ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText(`In the next instant P${s.sel} moves to where that particle is now: it moves ${word}.`, WX0, 504); }
 
   // ---- d-t graph for the selected particle
-  const T=1/s.f, win=2.5*T, t0=Math.max(0,t-win);   // the diary fills from the left, then scrolls
-  const tToPx=tt=>TX0+(tt-t0)/win*(TX1-TX0), nowX=tToPx(t);
-  axis(TX0,TX1,'time / s','Displacement–time graph: diary of P'+s.sel, time);
+  const T=1/s.f, win=2.5*T, dtm=$('dtMode').value;
+  let t0, tToPx;
+  if (dtm==='grow'){ t0=Math.max(0,t-win); tToPx=tt=>TX0+(tt-t0)/win*(TX1-TX0); }        // the diary fills from the left, then scrolls
+  else if (dtm==='right'){ t0=Math.max(0,t-win); tToPx=tt=>TX0+8+(t-tt)/win*(TX1-TX0-8); } // pen fixed on the left; older readings slide right
+  else { t0=Math.max(0,t-win); tToPx=tt=>TX1-8-(t-tt)/win*(TX1-TX0-8); }                   // pen fixed on the right; older readings slide left
+  const nowX=tToPx(t);
+  axis(TX0,TX1,dtm==='grow'?'time / s':dtm==='right'?'← newer   older →':'← older   newer →','Displacement–time graph: diary of P'+s.sel, time);
   ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center';
-  for (let k=0;k<=5;k++){ const tt=t0+k*win/5; ctx.fillText(tt.toFixed(1), tToPx(tt), GY+GH+12); }
+  if (dtm==='grow'){ for (let k=0;k<=5;k++){ const tt=t0+k*win/5; ctx.fillText(tt.toFixed(1), tToPx(tt), GY+GH+12); } }
+  else { // paper sliding under a fixed pen
+    ctx.fillStyle='rgba(31,111,235,.05)'; ctx.fillRect(TX0,GY-GH,TX1-TX0,2*GH);
+    const off=pmod(t/win*(TX1-TX0-8), 40); ctx.strokeStyle='rgba(31,111,235,.15)';
+    for (let x=0;x<TX1-TX0;x+=40){ const X = dtm==='right' ? TX0+8+pmod(x+off,TX1-TX0-8) : TX1-8-pmod(x+off,TX1-TX0-8); ctx.beginPath(); ctx.moveTo(X,GY-GH); ctx.lineTo(X,GY+GH); ctx.stroke(); }
+    ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(dtm==='right'?'paper moves →, the pen only moves up and down':'paper moves ←, the pen only moves up and down', (TX0+TX1)/2, GY+GH+12);
+    // the pen
+    ctx.strokeStyle=css('--fg'); ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(nowX,GY-GH-6); ctx.lineTo(nowX,GY+GH+2); ctx.stroke(); ctx.lineWidth=1; }
   ctx.strokeStyle=time; ctx.lineWidth=2; ctx.beginPath();
   for (let k=0;k<=250;k++){ const tt=t0+(t-t0)*k/250; const X=tToPx(tt), Y=GY-disp(xsel,tt,s)*SCALE; k?ctx.lineTo(X,Y):ctx.moveTo(X,Y); } ctx.stroke(); ctx.lineWidth=1;
+  if (dtm!=='grow' && t>win*0.6){ ctx.fillStyle=time; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
+    ctx.fillText(((dtm==='right')===(D>0)) ? 'the trace has the same shape as the wave on the rope!' : 'the trace is the mirror image of the rope', (TX0+TX1)/2, GY-GH-8+14); }
   ctx.fillStyle=sel; ctx.beginPath(); ctx.arc(nowX,GY-dsel*SCALE,6,0,7); ctx.fill();
   ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('now', nowX, GY-GH-4);
   if ($('map').checked){ ctx.strokeStyle=sel; ctx.setLineDash([5,4]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(xToPx(xsel),GY-dsel*SCALE); ctx.lineTo(nowX,GY-dsel*SCALE); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth=1;
@@ -186,13 +231,11 @@ function draw(){
     ctx.strokeStyle=mark; ctx.fillStyle=mark; ctx.font='600 13px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.lineWidth=1.5;
     const brace=(x1,x2,y,label)=>{ ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2,y); ctx.moveTo(x1,y-5); ctx.lineTo(x1,y+5); ctx.moveTo(x2,y-5); ctx.lineTo(x2,y+5); ctx.stroke(); ctx.fillText(label,(x1+x2)/2,y-7); };
     // crests on the d-x graph: x = lam*(1/4 + f t + n)
-    let n=Math.ceil(-(0.25+s.f*t)); let c1=s.lam*(0.25+s.f*t+n); while (c1<0) { n++; c1=s.lam*(0.25+s.f*t+n); }
-    const c2=c1+s.lam;
+    const c1=s.lam*pmod(0.25+D*s.f*t,1), c2=c1+s.lam;
     if (c2<=L) brace(xToPx(c1),xToPx(c2),GY-GH-6,'λ = '+s.lam.toFixed(1)+' m');
     // crests in time for the selected particle: t' = (xsel/lam - 1/4 - n)/f
-    let m=Math.floor(xsel/s.lam-0.25-s.f*t0); let k1=(xsel/s.lam-0.25-m)/s.f; while (k1<Math.max(0,t0)) { m--; k1=(xsel/s.lam-0.25-m)/s.f; }
-    const k2=k1+T;
-    if (k2<=t) brace(tToPx(k1),tToPx(k2),GY-GH-6,'T = '+T.toFixed(2)+' s');
+    const ph0=xsel/s.lam-D*s.f*t0, k1=t0+(D>0?pmod(ph0-0.25,1):pmod(0.25-ph0,1))/s.f, k2=k1+T;
+    if (k2<=t) { const a=tToPx(k1), b=tToPx(k2); brace(Math.min(a,b),Math.max(a,b),GY-GH-6,'T = '+T.toFixed(2)+' s'); }
     // amplitude on the d-x graph
     const ax=GX1-14; ctx.beginPath(); ctx.moveTo(ax,GY); ctx.lineTo(ax,GY-s.A*SCALE); ctx.moveTo(ax-4,GY-s.A*SCALE); ctx.lineTo(ax+4,GY-s.A*SCALE); ctx.stroke();
     ctx.textAlign='left'; ctx.fillText('A', ax+6, GY-s.A*SCALE/2+4);
@@ -203,10 +246,21 @@ function draw(){
   $('selV').textContent='P'+s.sel;
 }
 
+function drawBehind(x,y,bx,by,axisY){
+  const b=css('--mark'), sel=css('--sel');
+  ctx.strokeStyle=b; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(bx,by,9,0,7); ctx.stroke();
+  ctx.setLineDash([4,3]); ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(x+14*Math.sign(x-bx||1),by); ctx.stroke(); ctx.setLineDash([]);
+  // ghost: where the selected particle will be in a moment
+  ctx.globalAlpha=.45; ctx.fillStyle=sel; ctx.beginPath(); ctx.arc(x,by,6,0,7); ctx.fill(); ctx.globalAlpha=1;
+  if (Math.abs(by-y)>3){ ctx.strokeStyle=sel; ctx.fillStyle=sel; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,by+(by>y?-6:6)); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x,by); ctx.lineTo(x-4,by+(by>y?-8:8)); ctx.lineTo(x+4,by+(by>y?-8:8)); ctx.fill(); }
+  ctx.lineWidth=1; ctx.fillStyle=b; ctx.font='600 10px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('behind', bx, by+(by<axisY?-14:22));
+}
 let last=performance.now();
 function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (running) t+=dt; draw(); requestAnimationFrame(frame); }
 
 $('typeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; type=b.dataset.v; [...$('typeSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); });
+$('dirSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; D=+b.dataset.v; [...$('dirSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); });
+$('step').addEventListener('click',()=>{ if (running){ running=false; $('play').textContent='Play'; $('scrubWrap').hidden=false; tPause=t; } t+=1/S().f/16; tPause=t; $('scrub').value=0; });
 $('freq').addEventListener('input',()=>$('freqV').textContent=(+$('freq').value).toFixed(1)+' Hz');
 $('lam').addEventListener('input',()=>$('lamV').textContent=(+$('lam').value).toFixed(1)+' m');
 $('amp').addEventListener('input',()=>$('ampV').textContent=$('amp').value+' cm');

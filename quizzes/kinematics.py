@@ -60,7 +60,7 @@ QUESTIONS = [
          hint="Choose 'Uniform acceleration' and look at the distance–time graph.",
          keys=[dict(label="the distance–time graph is a curve getting steeper", any=["curve", "steeper", "curved"]),
                dict(label="gradient of distance–time = speed", any=["gradient", "slope"]),
-               dict(label="speed is increasing, so the gradient must keep increasing", any=["speed is increasing", "speed increases", "speed rises", "faster", "increasing speed"]),
+               dict(label="speed is increasing, so the gradient must keep increasing", any=["speed is increasing", "speed increases", "speed rises", "faster", "increasing speed", "speed keeps increasing"]),
                dict(label="a straight line would mean constant speed", any=["constant speed", "uniform speed", "same speed", "steady speed"])],
          model="The gradient of a distance–time graph is the speed. With uniform acceleration the speed keeps increasing, so the gradient of the distance–time graph must keep increasing: the graph is a curve that gets steeper. A straight line would mean constant speed, not constant acceleration. It is the speed–time graph that is a straight line."),
     dict(id="m13", level=3, type="explain",

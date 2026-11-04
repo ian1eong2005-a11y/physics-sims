@@ -7,6 +7,8 @@ APPLETS = [
     dict(name="Wave Graph Mapper", file="wave-graphs", height=760,
          blurb="A wave on a rope with its two graphs. The **displacement–distance** graph is a photo of the whole rope now; the **displacement–time** graph is the diary of the one particle you choose. Click any particle to follow it.",
          tasks=[
+             "**Frozen time axis:** choose 'trace moves →'. The pen only moves up and down. Why does the trace look like the wave on the rope?",
+             "**Look behind:** for a wave moving right, which neighbour tells you where a particle goes next? Use 'Step a little' to check, then reverse the wave.",
              "**Predict:** if you click a different particle, which graph will change, the left one or the right one? Test it.",
              "Pause the wave. Use the scrub slider to move time forward by exactly one period. What happens to the whole rope? What happens to your particle?",
              "Double the frequency without touching the wavelength. What happens to T? to the wave speed? Find the rule.",

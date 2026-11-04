@@ -10,6 +10,7 @@ st.markdown(
 st.caption("Parts marked **G3** go beyond the G2 syllabus.")
 
 CHAPTERS = [
+    ("lowersec/12_ecosystems.py", "Ch 12 · Interactions within Ecosystems", "Food webs, energy flow, decomposers, relationships, habitats and adaptations"),
     ("lowersec/14_digestion.py", "Ch 14 · Human Digestive System", "Journey of food, enzyme test tube, blood glucose"),
     ("lowersec/15_transport_humans.py", "Ch 15 · Transport in Humans", "Heart and blood vessels, diffusion, why we need a transport system"),
     ("lowersec/15_transport_plants.py", "Ch 15 · Transport in Plants", "Xylem and phloem, root hairs and osmosis, leaf gases"),

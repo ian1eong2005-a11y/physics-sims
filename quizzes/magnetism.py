@@ -75,7 +75,7 @@ QUESTIONS = [
          q="Explain why the core of an electromagnet is made of iron rather than steel.",
          hint="Iron or steel?: magnetise both bars, then move the magnet away.",
          keys=[dict(label="iron is easily magnetised and loses its magnetism when the current stops", any=["loses", "lose its magnetism", "demagnetise", "temporary", "switched off", "current stops", "current is off"]),
-               dict(label="steel would keep its magnetism (permanent)", any=["steel keeps", "steel would keep", "permanent", "stays magnetised", "retain", "remains magnetised"]),
+               dict(label="steel would keep its magnetism (permanent)", any=["steel keeps", "steel would keep", "permanent", "stays magnetised", "stay magnetised", "retain", "remains magnetised"]),
                dict(label="an electromagnet must be able to switch off / release", any=["switch off", "turn off", "release", "drop", "let go", "on and off"])],
          model="An electromagnet must be a magnet only while the current flows. Iron is magnetised strongly by the current in the coil, but it loses its magnetism almost completely as soon as the current is switched off, so a crane electromagnet can release its load and a relay can open. Steel would stay magnetised after the current stopped, so the electromagnet could not be switched off."),
 ]

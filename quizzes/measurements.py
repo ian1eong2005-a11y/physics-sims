@@ -61,7 +61,7 @@ QUESTIONS = [
          model="A coin is about 2 mm thick and the rule reads to 1 mm, so the uncertainty is half of the reading. Instead, stack 10 identical coins, measure the height of the stack (about 20 mm, now with 1 mm uncertainty, i.e. 5%) and divide by 10 to get the thickness of one coin."),
     dict(id="m13", level=3, type="explain",
          q="State the difference between a scalar and a vector quantity and give one example of each.",
-         keys=[dict(label="scalar has magnitude (size) only", any=["magnitude only", "size only", "only magnitude", "only size", "no direction"]),
+         keys=[dict(label="scalar has magnitude (size) only", any=["magnitude only", "size only", "only magnitude", "only size", "no direction", "(size) only"]),
                dict(label="vector has magnitude and direction", any=["and direction", "direction as well", "both magnitude", "has direction"]),
                dict(label="an example of each", any=["speed", "mass", "distance", "time", "energy", "weight", "force", "velocity", "displacement", "acceleration"])],
          model="A scalar has magnitude (size) only, e.g. mass, distance, speed, time, energy. A vector has both magnitude and direction, e.g. displacement, velocity, acceleration, force, weight."),

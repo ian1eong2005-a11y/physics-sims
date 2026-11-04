@@ -8,7 +8,7 @@
 
 <div class="wrap">
   <div class="stage">
-    <canvas id="c" width="900" height="560" aria-label="Digestive system with food moving through it, an enzyme test tube, or a blood glucose graph"></canvas>
+    <canvas id="c" width="900" height="600" aria-label="Digestive system with food moving through it, an enzyme test tube, or a blood glucose graph"></canvas>
     <p class="notice" id="notice"></p>
   </div>
   <div class="panel">
@@ -35,6 +35,15 @@
         <label class="check"><input type="checkbox" id="labels" checked> Show names of the parts</label>
         <label class="check"><input type="checkbox" id="phys" checked> Show physical digestion (teeth, churning)</label>
         <label class="check"><input type="checkbox" id="g3"> Show enzyme names and end products (G3)</label>
+      </div>
+      <div class="ctl">
+        <label for="fault">What if one part does not work?</label>
+        <select id="fault">
+          <option value="none">everything works</option>
+          <option value="stomach">stomach makes no gastric juice</option>
+          <option value="absorb">small intestine cannot absorb food</option>
+          <option value="water">large intestine cannot absorb water</option>
+        </select>
       </div>
       <div class="ctl">
         <div class="row"><label for="jspeed">Speed</label><span class="val" id="jspeedV">1×</span></div>
@@ -127,14 +136,15 @@ function posAt(tt){ // returns {x,y,part,frac within part}
 const FOODS={ bread:{S:8,P:2,F:1,fibre:3}, chicken:{S:0,P:9,F:3,fibre:0}, butter:{S:0,P:0,F:10,fibre:0}, meal:{S:5,P:4,F:3,fibre:3} };
 // how far each nutrient has been digested by the END of each part
 const DIG={ mouth:{S:0.3,P:0,F:0}, gullet:{S:0.3,P:0,F:0}, stomach:{S:0.3,P:0.4,F:0}, small:{S:1,P:1,F:1}, large:{S:1,P:1,F:1}, rectum:{S:1,P:1,F:1}, anus:{S:1,P:1,F:1} };
-function digestedAt(part,f){ const i=ORDER.indexOf(part); const prev=i?DIG[ORDER[i-1]]:{S:0,P:0,F:0}, cur=DIG[part]; return {S:prev.S+(cur.S-prev.S)*f, P:prev.P+(cur.P-prev.P)*f, F:prev.F+(cur.F-prev.F)*f}; }
-function absorbedAt(part,f){ const i=ORDER.indexOf(part), si=ORDER.indexOf('small'); return i<si?0:i===si?Math.max(0,(f-0.25)/0.75):1; }
+function digTable(){ if ($('fault').value!=='stomach') return DIG; const D2=JSON.parse(JSON.stringify(DIG)); D2.stomach.P=0; return D2; }
+function digestedAt(part,f){ const DIG=digTable(); const i=ORDER.indexOf(part); const prev=i?DIG[ORDER[i-1]]:{S:0,P:0,F:0}, cur=DIG[part]; return {S:prev.S+(cur.S-prev.S)*f, P:prev.P+(cur.P-prev.P)*f, F:prev.F+(cur.F-prev.F)*f}; }
+function absorbedAt(part,f){ if ($('fault').value==='absorb') return 0; const i=ORDER.indexOf(part), si=ORDER.indexOf('small'); return i<si?0:i===si?Math.max(0,(f-0.25)/0.75):1; }
 const INFO={
-  mouth:{phys:'Teeth cut and grind the food into smaller pieces (larger surface area). The tongue mixes it with saliva.', chem:'Saliva contains a carbohydrase: starch digestion starts here.', g3:'Carbohydrase: starch → simple sugars (begins).'},
+  mouth:{phys:'Teeth chew the food into smaller pieces, giving a larger surface area for digestive juices. Saliva softens the food for swallowing.', chem:'Saliva contains a carbohydrase: starch digestion starts here.', g3:'Carbohydrase: starch → simple sugars (begins).'},
   gullet:{phys:'Muscles in the wall squeeze the food down to the stomach.', chem:'No digestive juices are made here: no digestion.', g3:'No enzymes.'},
   stomach:{phys:'The muscular wall churns the food and mixes it with gastric juice.', chem:'Gastric juice contains a protease: protein digestion starts. The acid kills most bacteria in the food.', g3:'Protease: protein → amino acids (begins). The acid stops the saliva carbohydrase working.'},
-  small:{phys:'Food is mixed and moved along.', chem:'Digestion is completed by several digestive juices. The small, soluble molecules are then absorbed through the wall into the blood.', g3:'Carbohydrase → simple sugars, protease → amino acids, lipase: fats → fatty acids + glycerol. All absorbed here.'},
-  large:{phys:'Undigested food (fibre) moves along slowly.', chem:'Water is absorbed back into the blood.', g3:'No digestion; water absorption.'},
+  small:{phys:'Food is mixed and moved along.', chem:'Digestion is completed by several digestive juices. The small, soluble molecules are then absorbed through the wall into the blood.', g3:'Carbohydrases → simple sugars, proteases → amino acids, lipases: fats → fatty acids + glycerol. Absorbed here and used by the cells for respiration (energy), growth and repair of tissues.'},
+  large:{phys:'Undigested food (fibre) moves along slowly and faeces are formed.', chem:'Water and mineral salts are absorbed back into the blood. Helpful bacteria living here help keep us healthy.', g3:'No digestion: water and mineral salts are absorbed.'},
   rectum:{phys:'The undigested remains (faeces) are stored here.', chem:'—', g3:'—'},
   anus:{phys:'Faeces are passed out of the body (egestion).', chem:'—', g3:'—'},
 };
@@ -202,6 +212,8 @@ function drawJourney(dt){
     ctx.fillStyle=BLOOD; ctx.globalAlpha=.6; ctx.fillRect(x0+amt*(1-dd*ab)*u,yy,amt*dd*ab*u,16); ctx.globalAlpha=1;
     if (amt>0) { ctx.fillStyle=css('--muted'); ctx.fillText(dd<0.01?'not digested yet':dd>0.99?(ab>0.99?'all absorbed':'digested into '+end):'being digested', x0, yy+30); } });
   const ly=by+16+3*38+4; [['#c9a26b','large food molecules'],[good,'small, digested molecules'],[BLOOD,'absorbed into the blood']].forEach(([c,l],i)=>{ ctx.fillStyle=c; ctx.fillRect(px+i*140,ly,12,12); ctx.fillStyle=css('--muted'); ctx.fillText(l, px+i*140+16, ly+10); });
+  const fv=$('fault').value; if (fv!=='none'){ const msg={stomach:'No gastric juice: protein digestion cannot start in the stomach, and harmful bacteria in the food are not killed. The small intestine has to do all of the work.', absorb:'The small intestine cannot absorb: the digested food passes on and is lost in the faeces. The body cells get no energy or nutrients, even though digestion happened.', water:'The large intestine cannot absorb water: the faeces stay watery (diarrhoea) and the body loses water and mineral salts.'}[fv];
+    ctx.fillStyle=css('--hot'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('SYSTEM DISRUPTED', px, ly+56); ctx.font='12px IBM Plex Sans, sans-serif'; wrap(msg, px, ly+74, 400, 16); }
   if (food.fibre>0 && ORDER.indexOf(pos.part)>=4){ ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('Left over: fibre and other undigested food → faeces', px, ly+34); }
 }
 
@@ -287,6 +299,7 @@ function drawGlucose(dt){
     : 'Person with diabetes: the body cannot control blood glucose well. The level rises higher and stays high for much longer, which damages the body over time.';
   wrap(msg, gx, gy+gh+72, 760, 17);
   wrap(meal==='sugary' ? 'Sugary drink: the sugar is absorbed quickly, giving a sharp spike.' : 'Wholemeal meal: starch must be digested first, so glucose enters the blood slowly and the rise is gentler.', gx, gy+gh+110, 760, 17);
+  ctx.fillStyle=css('--good'); wrap('Reduce the risk of diabetes: a balanced diet (half the plate fruit and vegetables), less sugar and fat, regular exercise and regular health screening.', gx, gy+gh+136, 760, 17);
   if ($('compare').checked){ ctx.fillStyle=muted; ctx.fillText('grey line: '+(other==='healthy'?'healthy person':'person with diabetes'), gx+gw-220, gy+14); }
 }
 
@@ -301,6 +314,7 @@ seg('modeSeg',v=>{ mode=v; for (const [k,id] of [['journey','jCtl'],['enzyme','e
 seg('person',v=>{ person=v; gt=0; }); seg('meal',v=>{ meal=v; gt=0; });
 $('jspeed').addEventListener('input',()=>$('jspeedV').textContent=$('jspeed').value+'×');
 $('food').addEventListener('change',()=>{ t=0; });
+$('fault').addEventListener('change',()=>{ t=0; });
 $('temp').addEventListener('input',()=>{ $('tempV').textContent=$('temp').value+' °C'; });
 $('ph').addEventListener('input',()=>{ const p=+$('ph').value; $('phV').textContent=p+(p<7?' (acid)':p>7?' (alkaline)':' (neutral)'); });
 ['enz','noEnz'].forEach(id=>$(id).addEventListener('change',resetEnzyme));

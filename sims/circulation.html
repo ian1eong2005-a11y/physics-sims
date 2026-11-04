@@ -28,11 +28,12 @@
       </div>
       <div class="ctl">
         <label class="check"><input type="checkbox" id="exercise"> Exercising (muscles working hard)</label>
+        <label class="check"><input type="checkbox" id="drugs"> Effects of drug abuse</label>
         <label class="check"><input type="checkbox" id="vlabels" checked> Label arteries, veins and capillaries</label>
         <label class="check"><input type="checkbox" id="showO2" checked> Show oxygen</label>
         <label class="check"><input type="checkbox" id="showCO2"> Show carbon dioxide</label>
         <label class="check"><input type="checkbox" id="showFood"> Show digested food</label>
-        <label class="check"><input type="checkbox" id="xsec"> Show vessel cross-sections</label>
+        <label class="check"><input type="checkbox" id="xsec"> Show vessel cross-sections (extra: not required)</label>
       </div>
       <div class="read">
         <div><small>Pulse (count in 15 s)</small><span id="rPulse">–</span></div>
@@ -108,7 +109,8 @@ function drawCirc(dt){
   const fg=css('--fg'), muted=css('--muted'), line=css('--line'), panel=css('--panel');
   let bpm=+$('bpm').value; if ($('exercise').checked && bpm<140){ bpm=Math.min(140,bpm+dt*25); $('bpm').value=Math.round(bpm/5)*5; $('bpmV').textContent=$('bpm').value+' beats/min'; }
   bpm=+$('bpm').value;
-  if (running){ t+=dt; const before=Math.floor(phase); phase+=dt*bpm/60; if (Math.floor(phase)>before) beats.push(t); beats=beats.filter(b=>t-b<15); }
+  const drugs=$('drugs').checked; const effBpm = drugs ? bpm*1.35*(1+0.45*Math.sin(t*2.3)*Math.sin(t*0.9)) : bpm;
+  if (running){ t+=dt; const before=Math.floor(phase); phase+=dt*effBpm/60; if (Math.floor(phase)>before) beats.push(t); beats=beats.filter(b=>t-b<15); }
   const flow=dt*bpm*1.6*(running?1:0);
   ctx.clearRect(0,0,cv.width,cv.height);
   // organs
@@ -119,6 +121,7 @@ function drawCirc(dt){
   // vessels coloured by oxygen
   const vessel=(pts,loop,L)=>{ for (let i=0;i<pts.length-1;i++){ const dmid=L[i]+(L[i+1]-L[i])/2; ctx.strokeStyle=mix(BLUE,RED,oxy(loop,dmid)); ctx.lineWidth=10; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(pts[i][0],pts[i][1]); ctx.lineTo(pts[i+1][0],pts[i+1][1]); ctx.stroke(); } ctx.lineWidth=1; ctx.lineCap='butt'; };
   vessel(LUNG_LOOP,'lung',LL); vessel(BODY_LOOP,'body',BL);
+  if (drugs){ for (const [x,y] of [[700,330],[600,300],[560,150]]){ ctx.fillStyle='#e8d27a'; ctx.beginPath(); ctx.arc(x,y,6,0,7); ctx.fill(); } }
   // thin capillary look
   tube(LUNG_CAP,3,'rgba(255,255,255,.6)'); tube(BODY_CAP,3,'rgba(255,255,255,.6)');
   // heart (beats)
@@ -142,9 +145,10 @@ function drawCirc(dt){
   if ($('vlabels').checked){ ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillStyle=fg;
     ctx.fillText('artery', 566, 160); ctx.fillText('vein', 300, 160); ctx.fillText('capillaries', 600, 70);
     ctx.fillText('artery', 706, 360); ctx.fillText('vein', 160, 360); ctx.fillText('capillaries', 720, 452);
-    ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText('arteries: blood AWAY from the heart', 20, 30); ctx.fillText('veins: blood back TO the heart', 20, 46); ctx.fillText('capillaries: tiny vessels where substances are exchanged', 20, 62); }
+    ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText('arteries: blood AWAY from the heart', 20, 30); ctx.fillText('veins: blood back TO the heart', 20, 46); ctx.fillText('capillaries: tiny vessels where substances are exchanged', 20, 62); ctx.fillStyle=css('--accent'); ctx.fillText('A vessel is named by the direction of blood flow, not by how much oxygen it carries.', 20, 78); }
   ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillStyle=RED; ctx.fillText('red = rich in oxygen', 880, 30); ctx.fillStyle=BLUE; ctx.fillText('blue = low in oxygen', 880, 46);
   if ($('exercise').checked){ ctx.fillStyle=css('--hot'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('Exercising: muscles use oxygen and digested food faster, so the heart beats faster', 450, 526); }
+  if (drugs){ ctx.fillStyle=css('--hot'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('Drug abuse: faster, irregular heartbeat; narrowed arteries (yellow deposits) and high blood pressure: higher risk of heart attack and stroke', 450, $('exercise').checked?510:526); }
   // cross-sections
   if ($('xsec').checked){ const bx=610, by=150; ctx.fillStyle=panel; ctx.strokeStyle=line; ctx.fillRect(bx,by,280,250); ctx.strokeRect(bx,by,280,250);
     const ring=(cx,cy,R,wall,lab,sub)=>{ ctx.fillStyle='#c9686f'; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.fill(); ctx.fillStyle='#f8e0e0'; ctx.beginPath(); ctx.arc(cx,cy,R-wall,0,7); ctx.fill(); ctx.fillStyle=fg; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(lab, cx+R+10, cy-4); ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; wrap(sub, cx+R+10, cy+10, 190, 12); };

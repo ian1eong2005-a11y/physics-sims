@@ -4,3 +4,4 @@ __pycache__/
 .harness/
 .harness_server.py
 .harness_test.js
+.harness_wrap.py

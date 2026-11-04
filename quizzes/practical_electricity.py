@@ -51,7 +51,7 @@ QUESTIONS = [
          q="Explain why switches and fuses are fitted in the live wire rather than the neutral wire.",
          hint="Mode: Switch: live or neutral? Switch OFF and compare the two positions.",
          keys=[dict(label="the live wire is at 230 V (high voltage)", any=["230", "high voltage", "high potential", "live wire is at", "live carries"]),
-               dict(label="when the switch/fuse opens, the appliance is disconnected from the live supply", any=["disconnect", "cut off", "isolated", "no longer connected", "not connected to the live", "separated from"]),
+               dict(label="when the switch/fuse opens, the appliance is disconnected from the live supply", any=["disconnect", "cut off", "isolated", "no longer connected", "not connected to the live", "separated from", "breaks the connection"]),
                dict(label="if it were in the neutral, the appliance would still be live even when off", any=["still live", "still at 230", "still connected to the live", "remain live", "shock", "even when off", "even when switched off"])],
          model="The live wire carries the 230 V supply. A switch or fuse in the live wire breaks the connection between the appliance and this high voltage, so the appliance is safe to touch when it is off or the fuse has blown. If the switch were in the neutral wire, the appliance would stop working but its wiring would still be at 230 V, and someone touching it could get a shock."),
     dict(id="p13", level=3, type="explain",
