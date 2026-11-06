@@ -19,11 +19,34 @@ def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", text.lower())
 
 
+def _stem(word: str) -> str:
+    """Crude stem so that 'decreases', 'decreased' and 'decreasing' all match 'decreas'."""
+    for suf in ("ing", "ies", "ied", "es", "ed", "s", "d"):
+        if len(word) > 4 and word.endswith(suf):
+            return word[: -len(suf)]
+    return word
+
+
+def _phrase_regex(phrase: str):
+    words = _norm(phrase).split()
+    if not words:
+        return None
+    parts = [re.escape(_stem(w)) + r"\w*" if w.isalpha() and len(w) > 4 else re.escape(w) for w in words]
+    return re.compile(r"(?<!\w)" + r"\s+".join(parts))
+
+
+def _matches(phrase: str, t: str) -> bool:
+    if phrase in t:
+        return True
+    rx = _phrase_regex(phrase)
+    return bool(rx and rx.search(t))
+
+
 def check_explain(text: str, keys):
     t = _norm(text)
     hit, miss = [], []
     for k in keys:
-        (hit if any(s in t for s in k["any"]) else miss).append(k["label"])
+        (hit if any(_matches(s, t) for s in k["any"]) else miss).append(k["label"])
     return hit, miss
 
 

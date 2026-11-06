@@ -2,7 +2,9 @@
 
 Interactive models with self-checking quizzes for G3 Science (Physics), syllabus 5086. Built for Queenstown Secondary School.
 
-Each chapter page has three tabs: **Explore** (the applet plus predict-then-test prompts), **Guided** (a step-by-step walkthrough for students working alone: do this, look for this, quick check before the next step) and **Quiz** (levels 1–3, self-checking, with the applet alongside).
+Each chapter page has four tabs: **Explore** (the applet plus predict-then-test prompts), **Guided** (a step-by-step walkthrough for students working alone: do this, look for this, quick check before the next step), **Inquiry** (a short investigation: predict, plan a fair test, record results in a table, find the pattern, conclude; content in `core/inquiries.py`) and **Quiz** (levels 1–3, self-checking, with the applet alongside).
+
+Every applet can be zoomed (Ctrl + scroll, pinch, or the +/− buttons on the canvas; the `scroll = zoom` button makes the plain wheel zoom). Space pauses, R resets. This is injected by `sims/_shared.js` through the embed helper.
 
 | Page | Chapter | Applets |
 |---|---|---|
@@ -49,7 +51,9 @@ A second app in the same repo, for Sec 1–2, with the same Explore / Guided / Q
 
 | Page | Chapter | Applet |
 |---|---|---|
-| Digestive System | Ch 14 | Digestion Lab: journey of food, enzyme test tube, blood glucose |
+| Forces and Energy | Ch 9 | Pressure Lab (bed of nails with your own face, sharp or blunt), Energy Coaster, Moments See-saw |
+| Ecosystems | Ch 12 | Ecosystem Lab: food web effects, energy and nutrients, relationships, habitats |
+| Digestive System | Ch 14 | Digestion Lab: journey of food with a molecule close-up, enzyme test tube, blood glucose |
 | Transport in Humans | Ch 15 | Human Transport Lab: circulation, diffusion close-up, why a transport system (G3) |
 | Transport in Plants | Ch 15 | Plant Transport Lab: xylem and phloem with dye, root hair and osmosis (G3), leaf gases |
 | Reproductive System | Ch 16 | Reproduction Lab: parts and functions, menstrual cycle, fertilisation and birth control |

@@ -6,6 +6,7 @@ import streamlit as st
 
 PAGES = [
     st.Page("lowersec/home.py", title="Home", icon="🏠", default=True),
+    st.Page("lowersec/9_forces_energy.py", title="Ch 9 · Forces and Energy", icon="⚖️", url_path="forces-energy"),
     st.Page("lowersec/12_ecosystems.py", title="Ch 12 · Interactions within Ecosystems", icon="🌿", url_path="ecosystems"),
     st.Page("lowersec/14_digestion.py", title="Ch 14 · Digestive System", icon="🍞", url_path="digestion"),
     st.Page("lowersec/15_transport_humans.py", title="Ch 15 · Transport in Humans", icon="❤️", url_path="transport-humans"),

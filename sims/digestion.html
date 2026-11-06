@@ -8,7 +8,7 @@
 
 <div class="wrap">
   <div class="stage">
-    <canvas id="c" width="900" height="600" aria-label="Digestive system with food moving through it, an enzyme test tube, or a blood glucose graph"></canvas>
+    <canvas id="c" width="900" height="620" aria-label="Digestive system with food moving through it, an enzyme test tube, or a blood glucose graph"></canvas>
     <p class="notice" id="notice"></p>
   </div>
   <div class="panel">
@@ -25,10 +25,11 @@
       <div class="ctl">
         <label for="food">Food eaten</label>
         <select id="food">
-          <option value="bread">Bread (mostly starch)</option>
-          <option value="chicken">Chicken (mostly protein)</option>
-          <option value="butter">Butter (mostly fat)</option>
-          <option value="meal" selected>Mixed meal</option>
+          <option value="bread">🍞 Slice of bread (mostly starch)</option>
+          <option value="chicken">🍗 Chicken wing (mostly protein)</option>
+          <option value="butter">🧈 Pat of butter (mostly fat)</option>
+          <option value="egg">🥚 Boiled egg (protein and fat)</option>
+          <option value="meal" selected>🍛 Chicken rice (mixed meal)</option>
         </select>
       </div>
       <div class="ctl">
@@ -133,7 +134,7 @@ function posAt(tt){ // returns {x,y,part,frac within part}
   let tau=tt%(CYCLE+2); if (tau>CYCLE) tau=CYCLE;
   let acc=0; for (const k of ORDER){ if (tau<=acc+DWELL[k]){ const f=(tau-acc)/DWELL[k]; const [a,b]=PART_LEN[k]; const d=a+(b-a)*f; let i=1; while(i<RL.length-1&&RL[i]<d) i++; const g=(d-RL[i-1])/((RL[i]-RL[i-1])||1); return {x:ROUTE[i-1].p[0]+(ROUTE[i].p[0]-ROUTE[i-1].p[0])*g, y:ROUTE[i-1].p[1]+(ROUTE[i].p[1]-ROUTE[i-1].p[1])*g, part:k, f}; } acc+=DWELL[k]; }
   const L=ROUTE[ROUTE.length-1].p; return {x:L[0],y:L[1],part:'anus',f:1}; }
-const FOODS={ bread:{S:8,P:2,F:1,fibre:3}, chicken:{S:0,P:9,F:3,fibre:0}, butter:{S:0,P:0,F:10,fibre:0}, meal:{S:5,P:4,F:3,fibre:3} };
+const FOODS={ bread:{S:8,P:2,F:1,fibre:3,icon:'🍞'}, chicken:{S:0,P:9,F:3,fibre:0,icon:'🍗'}, butter:{S:0,P:0,F:10,fibre:0,icon:'🧈'}, egg:{S:0,P:6,F:5,fibre:0,icon:'🥚'}, meal:{S:5,P:4,F:3,fibre:3,icon:'🍛'} };
 // how far each nutrient has been digested by the END of each part
 const DIG={ mouth:{S:0.3,P:0,F:0}, gullet:{S:0.3,P:0,F:0}, stomach:{S:0.3,P:0.4,F:0}, small:{S:1,P:1,F:1}, large:{S:1,P:1,F:1}, rectum:{S:1,P:1,F:1}, anus:{S:1,P:1,F:1} };
 function digTable(){ if ($('fault').value!=='stomach') return DIG; const D2=JSON.parse(JSON.stringify(DIG)); D2.stomach.P=0; return D2; }
@@ -148,6 +149,30 @@ const INFO={
   rectum:{phys:'The undigested remains (faeces) are stored here.', chem:'—', g3:'—'},
   anus:{phys:'Faeces are passed out of the body (egestion).', chem:'—', g3:'—'},
 };
+// Magnified view of the food molecules in the current part, with the digestive juice (enzymes) chopping them.
+function closeUp(x,y,w,h,part,food,d,ab){
+  const fg=css('--fg'), muted=css('--muted'), line=css('--line'), good=css('--good'), hot=css('--hot'), warn=css('--warn'), g3=$('g3').checked;
+  ctx.fillStyle=css('--panel'); ctx.strokeStyle=line; ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
+  ctx.fillStyle=fg; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('🔍 Close-up: the food molecules in the '+NAME[part], x+8, y+16);
+  const rows=[]; if (food.S) rows.push(['S','starch',[58,91,217],'carbohydrase','simple sugars',d.S]); if (food.P) rows.push(['P','protein',[201,120,60],'protease','amino acids',d.P]); if (food.F) rows.push(['F','fat',[230,190,60],'lipase','fatty acids + glycerol',d.F]);
+  const active={mouth:['S'],stomach:['P'],small:['S','P','F']}[part]||[];
+  const rh=(h-28)/Math.max(1,rows.length);
+  rows.forEach(([k,nm,rgb,enz,end,dd],i)=>{ const yy=y+28+i*rh+rh/2, col=`rgb(${rgb.join(',')})`; const beads=k==='F'?4:8, bx=x+70, gap=16;
+    ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(nm, x+8, yy+4);
+    const intact=Math.round(beads*(1-dd));
+    // the remaining chain
+    for (let b=0;b<intact;b++){ const cx=bx+b*gap; if (b>0){ ctx.strokeStyle=col; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx-gap+5,yy); ctx.lineTo(cx-5,yy); ctx.stroke(); ctx.lineWidth=1; } ctx.fillStyle=col; ctx.beginPath(); if (k==='F'&&b===0){ ctx.rect(cx-5,yy-8,10,16); } else ctx.arc(cx,yy,5,0,7); ctx.fill(); }
+    // chopped-off pieces drift to the right; absorbed ones turn red and head for the blood
+    for (let b=intact;b<beads;b++){ const ph=((t*0.5+b*0.13)%1); const cx=bx+b*gap+20+ph*40, cy=yy+Math.sin(t*4+b)*5; const absorbed=ab>0 && ph>0.6; ctx.fillStyle=absorbed?BLOOD:good; ctx.beginPath(); ctx.arc(cx,cy,4,0,7); ctx.fill(); }
+    // the enzyme at work
+    if (active.includes(k) && dd<0.999 && !(part==='stomach' && $('fault').value==='stomach')){ const ex=bx+intact*gap-8+Math.sin(t*10)*3, m=0.25+0.25*Math.abs(Math.sin(t*9)); ctx.fillStyle=hot; ctx.beginPath(); ctx.moveTo(ex,yy); ctx.arc(ex,yy,8,m,2*Math.PI-m); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=hot; ctx.font='600 10px IBM Plex Sans, sans-serif'; ctx.fillText(g3?enz:'digestive juice (enzyme)', ex+12, yy-9); }
+    else if (dd>0.999){ ctx.fillStyle=good; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText(g3?end:'small, soluble molecules', bx, yy-10); }
+    else if (!active.includes(k)){ ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('not digested here', bx+beads*gap+8, yy+4); } });
+  if (part==='stomach'){ ctx.fillStyle='#9ad'; for (let i=0;i<6;i++){ const a=t*2+i; ctx.beginPath(); ctx.arc(x+w-30+Math.cos(a)*14, y+40+Math.sin(a)*10+i*14, 2,0,7); ctx.fill(); } ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('acid kills germs', x+w-8, y+h-6); }
+  if (ab>0){ ctx.fillStyle=BLOOD; ctx.font='600 10px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('→ absorbed into the blood', x+w-8, y+16); }
+  ctx.textAlign='left';
+}
 function drawBody(){
   const fg=css('--fg'),muted=css('--muted'),line=css('--line'),panel=css('--panel');
   ctx.strokeStyle=line; ctx.lineWidth=2; ctx.fillStyle=panel;
@@ -190,7 +215,12 @@ function drawJourney(dt){
   const d=digestedAt(pos.part,pos.f), ab=absorbedAt(pos.part,pos.f);
   const bigLeft = food.S*(1-d.S)+food.P*(1-d.P)+food.F*(1-d.F), small=(food.S*d.S+food.P*d.P+food.F*d.F)*(1-ab);
   const r=6+0.6*(bigLeft+small)+0.5*food.fibre;
-  ctx.fillStyle='#c9a26b'; ctx.strokeStyle='#7a5a30'; ctx.beginPath(); ctx.arc(pos.x,pos.y,Math.max(5,r*0.7),0,7); ctx.fill(); ctx.stroke();
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  if (pos.part==='mouth'){ ctx.font='26px system-ui, sans-serif'; ctx.fillText(food.icon, pos.x, pos.y); if ($('phys').checked){ ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(pos.x+8-((t*6)%3)*4,pos.y-6,4,0,7); ctx.fill(); } }
+  else if (ORDER.indexOf(pos.part)<=2 || bigLeft>0.4){ const n=pos.part==='gullet'?3:4, sz=Math.max(8,Math.min(18,r)); ctx.font=sz+'px system-ui, sans-serif';
+    for (let i=0;i<n;i++){ const a=t*2+i*2.1; ctx.fillText(food.icon, pos.x+Math.cos(a)*7, pos.y+Math.sin(a)*5); } }
+  else { ctx.fillStyle=good; for (let i=0;i<6;i++){ const a=t*3+i; ctx.beginPath(); ctx.arc(pos.x+Math.cos(a)*6,pos.y+Math.sin(a)*4,2.2,0,7); ctx.fill(); } if (food.fibre>0){ ctx.fillStyle='#8a6a3a'; ctx.beginPath(); ctx.arc(pos.x,pos.y,4,0,7); ctx.fill(); } }
+  ctx.textBaseline='alphabetic';
   // absorbed molecules travelling into the blood vessel
   if (pos.part==='small'){ ctx.fillStyle=good; for (let i=0;i<10*ab+2;i++){ const ph=(t*1.3+i*0.37)%1; ctx.beginPath(); ctx.arc(pos.x+(176+(i*13)%120-pos.x)*ph, pos.y+(339-pos.y)*ph, 2.5,0,7); ctx.fill(); } }
   // ---- right-hand panel: where the food is and what is happening
@@ -199,12 +229,13 @@ function drawJourney(dt){
   const show=selected||pos.part, info=INFO[show];
   ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillStyle=fg; let y=96;
   if (selected){ ctx.fillStyle=acc; ctx.fillText('You clicked: '+NAME[selected]+'  (click empty space to go back)', px, y); y+=22; ctx.fillStyle=fg; }
-  ctx.fillText('Physical digestion / movement', px, y); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=css('--muted'); y=wrap(info.phys, px, y+18, 400, 16)+24;
-  ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillStyle=fg; ctx.fillText('Chemical digestion / absorption', px, y); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=css('--muted'); y=wrap(info.chem, px, y+18, 400, 16)+24;
-  if ($('g3').checked){ ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillStyle=warn; ctx.fillText('G3: enzymes and end products', px, y); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=css('--muted'); y=wrap(info.g3, px, y+18, 400, 16)+24; }
+  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=css('--muted'); y=wrap(info.phys+' '+info.chem, px, y, 410, 15)+6;
+  if ($('g3').checked){ ctx.fillStyle=warn; y=wrap('G3: '+info.g3, px, y+8, 410, 15)+6; }
+  // ---- close-up: what the digestive juices do to the molecules
+  closeUp(px, Math.max(y+8,178), 410, 150, show, food, d, ab);
   // bar chart of the food's nutrients
-  const by=Math.max(y+10,330), bw=400; ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('What is in the food right now', px, by);
-  const rows=[['starch',food.S,d.S,$('g3').checked?'simple sugars':'small molecules'],['protein',food.P,d.P,$('g3').checked?'amino acids':'small molecules'],['fat',food.F,d.F,$('g3').checked?'fatty acids + glycerol':'small molecules']];
+  const by=400, bw=400; ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('What is in the food right now', px, by);
+  ctx.textAlign='left'; const rows=[['starch',food.S,d.S,$('g3').checked?'simple sugars':'small molecules'],['protein',food.P,d.P,$('g3').checked?'amino acids':'small molecules'],['fat',food.F,d.F,$('g3').checked?'fatty acids + glycerol':'small molecules']];
   rows.forEach(([nm,amt,dd,end],i)=>{ const yy=by+16+i*38; ctx.fillStyle=css('--muted'); ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(nm, px, yy+12); const x0=px+60, W=bw-80, u=W/10;
     ctx.fillStyle=line; ctx.fillRect(x0,yy,W,16);
     ctx.fillStyle='#c9a26b'; ctx.fillRect(x0,yy,amt*(1-dd)*u,16);

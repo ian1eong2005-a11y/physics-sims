@@ -4,12 +4,13 @@ st.set_page_config(page_title="Lower Sec Science Applets", page_icon="🔬", lay
 st.title("Lower Sec Science Applets")
 st.markdown(
     "Interactive models for Lower Secondary Science (2021 syllabus). Each chapter has an **Explore** tab "
-    "(play, predict, test), a **Guided** tab (step-by-step: do this, look for this, quick check) "
+    "(play, predict, test), a **Guided** tab (step-by-step: do this, look for this, quick check), an **Inquiry** tab (predict, plan a fair test, record, conclude) "
     "and a **Quiz** tab (self-checking questions you answer with the applet open)."
 )
 st.caption("Parts marked **G3** go beyond the G2 syllabus.")
 
 CHAPTERS = [
+    ("lowersec/9_forces_energy.py", "Ch 9 · Application of Forces and Transfer of Energy", "Pressure (bed of nails), moments, energy and work"),
     ("lowersec/12_ecosystems.py", "Ch 12 · Interactions within Ecosystems", "Food webs, energy flow, decomposers, relationships, habitats and adaptations"),
     ("lowersec/14_digestion.py", "Ch 14 · Human Digestive System", "Journey of food, enzyme test tube, blood glucose"),
     ("lowersec/15_transport_humans.py", "Ch 15 · Transport in Humans", "Heart and blood vessels, diffusion, why we need a transport system"),

@@ -33,6 +33,7 @@
         <label class="check"><input type="checkbox" id="showO2" checked> Show oxygen</label>
         <label class="check"><input type="checkbox" id="showCO2"> Show carbon dioxide</label>
         <label class="check"><input type="checkbox" id="showFood"> Show digested food</label>
+        <label class="check"><input type="checkbox" id="follow" checked> Follow one blood cell (close-up)</label>
         <label class="check"><input type="checkbox" id="xsec"> Show vessel cross-sections (extra: not required)</label>
       </div>
       <div class="read">
@@ -101,7 +102,7 @@ const LL=lens(LUNG_LOOP), BL=lens(BODY_LOOP);
 const segLen=(pts,a,b)=>{ let s=0; for(let i=a;i<b;i++) s+=Math.hypot(pts[i+1][0]-pts[i][0],pts[i+1][1]-pts[i][1]); return s; };
 const L_CAP0=LL[1+LUNG_ART.length-1], L_CAP1=LL[1+LUNG_ART.length+LUNG_CAP.length-2];
 const B_CAP0=BL[1+BODY_ART.length-1], B_CAP1=BL[1+BODY_ART.length+BODY_CAP.length-2];
-let beats=[], phase=0, pulseShown='–';
+let beats=[], phase=0, pulseShown='–', cellD=0;
 function oxy(loop,d){ // oxygen level 0..1 of a blood cell at distance d along a loop
   if (loop==='lung'){ if (d<L_CAP0) return 0; if (d<L_CAP1) return (d-L_CAP0)/(L_CAP1-L_CAP0); return 1; }
   if (d<B_CAP0) return 1; if (d<B_CAP1) return 1-(d-B_CAP0)/(B_CAP1-B_CAP0)*($('exercise').checked?0.95:0.7); return $('exercise').checked?0.05:0.3; }
@@ -136,6 +137,27 @@ function drawCirc(dt){
       if ($('showCO2').checked && o<0.7){ ctx.fillStyle=CO2C; ctx.beginPath(); ctx.arc(x-5,y-5,2.2,0,7); ctx.fill(); }
       if ($('showFood').checked && loop==='body' && d>B_CAP0+(B_CAP1-B_CAP0)*0.55){ ctx.fillStyle=FOODC; ctx.beginPath(); ctx.arc(x,y+6,2.2,0,7); ctx.fill(); }
       if ($('showFood').checked && loop==='body' && d<B_CAP0+(B_CAP1-B_CAP0)*0.55 && d>B_CAP0){ /* food is used by muscles */ } } }
+  // ---- the followed cell goes round the lungs loop, then the body loop
+  if ($('follow').checked){ const LT=LL[LL.length-1], BT=BL[BL.length-1], TOT=LT+BT; cellD=(cellD+flow)%TOT;
+    const onLung=cellD<LT, loop=onLung?'lung':'body', dd=onLung?cellD:cellD-LT, [cx,cy]=at(onLung?LUNG_LOOP:BODY_LOOP, onLung?LL:BL, dd);
+    const o=oxy(loop,dd);
+    let where='in an artery', doing='carrying its load along'; let co2=1-o, glu=0.5;
+    if (onLung){ if (dd>L_CAP0 && dd<L_CAP1){ where='in the LUNG capillaries'; doing='oxygen diffuses IN from the air sacs; carbon dioxide diffuses OUT'; } else if (dd>L_CAP1) where='in a vein, back to the heart'; }
+    else { const f=(dd-B_CAP0)/(B_CAP1-B_CAP0); if (dd>B_CAP0 && dd<B_CAP1){ if (f<0.5){ where='in the capillaries of the MUSCLES'; doing='oxygen and glucose diffuse OUT to the cells; carbon dioxide diffuses IN'; glu=0.5-f; } else { where='in the capillaries of the SMALL INTESTINE'; doing='digested food (glucose) diffuses IN from the gut'; glu=(f-0.5); } } else if (dd>B_CAP1){ where='in a vein, back to the heart'; glu=0.5; } else glu=0.5; }
+    ctx.strokeStyle=fg; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(cx,cy,10,0,7); ctx.stroke(); ctx.lineWidth=1;
+    // inset
+    const ix=232, iy=306, iw=436, ih=104; ctx.fillStyle=panel; ctx.strokeStyle=line; ctx.fillRect(ix,iy,iw,ih); ctx.strokeRect(ix,iy,iw,ih);
+    ctx.fillStyle=fg; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('🔍 Following one red blood cell: now '+where, ix+8, iy+16);
+    ctx.fillStyle=mix(BLUE,RED,o); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.ellipse(ix+52,iy+66,36,24,0,0,7); ctx.fill(); ctx.stroke(); ctx.lineWidth=1;
+    const nO=Math.round(o*6), nC=Math.round(co2*4), nG=Math.round(glu*6);
+    for (let i=0;i<6;i++){ ctx.fillStyle=i<nO?O2C:'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.arc(ix+30+(i%3)*14, iy+56+Math.floor(i/3)*16, 4.5,0,7); ctx.fill(); }
+    ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(`oxygen: ${nO} of 6`, ix+52, iy+99);
+    // plasma carries glucose and CO2
+    ctx.textAlign='left'; ctx.fillStyle=fg; ctx.font='600 10px IBM Plex Sans, sans-serif'; ctx.fillText('in the plasma around it:', ix+110, iy+40);
+    for (let i=0;i<6;i++){ ctx.fillStyle=i<nG?FOODC:'rgba(0,0,0,.08)'; ctx.beginPath(); ctx.arc(ix+118+i*13, iy+56, 4.5,0,7); ctx.fill(); } ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('glucose', ix+200, iy+60);
+    for (let i=0;i<4;i++){ ctx.fillStyle=i<nC?CO2C:'rgba(0,0,0,.08)'; ctx.beginPath(); ctx.arc(ix+118+i*13, iy+76, 4.5,0,7); ctx.fill(); } ctx.fillStyle=muted; ctx.fillText('carbon dioxide', ix+174, iy+80);
+    ctx.fillStyle=fg; ctx.font='10px IBM Plex Sans, sans-serif'; wrap(doing, ix+110, iy+94, 320, 12);
+    if (!onLung && dd>B_CAP0 && dd<B_CAP0+(B_CAP1-B_CAP0)*0.5){ ctx.fillStyle=css('--hot'); ctx.font='600 10px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('in the cells: glucose + oxygen → carbon dioxide + water + ENERGY (respiration)', ix+iw-8, iy+30); ctx.textAlign='left'; } }
   // exchange arrows at the capillaries
   const ex=(x,y,dir,col,lab)=>{ const k=(t*1.2)%1; ctx.fillStyle=col; for (let i=0;i<3;i++){ const f=(k+i/3)%1; ctx.beginPath(); ctx.arc(x+i*14-14, y+dir*f*26, 2.6,0,7); ctx.fill(); } ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; if (lab) ctx.fillText(lab, x, y+dir*36+(dir>0?6:0)); };
   if ($('showO2').checked){ ex(450,92,1,O2C,'oxygen in'); ex(585,440,1,O2C,'oxygen out to cells'); }

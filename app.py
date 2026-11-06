@@ -4,7 +4,7 @@ st.set_page_config(page_title="5086 Physics Applets", page_icon="⚛", layout="w
 st.title("5086 Physics Applets")
 st.markdown(
     "Interactive models for G3 Science (Physics). Each chapter has an **Explore** tab "
-    "(play, predict, test), a **Guided** tab (step-by-step: do this, look for this, quick check) "
+    "(play, predict, test), a **Guided** tab (step-by-step: do this, look for this, quick check), an **Inquiry** tab (predict, plan a fair test, record, conclude) "
     "and a **Quiz** tab (self-checking questions you answer with the applet open)."
 )
 
