@@ -14,9 +14,14 @@ html,body{{margin:0;background:#eef1f4}} body{{padding:6px 8px !important}}</sty
 </head><body>{fragment}<script>{shared_js}</script></body></html>"""
 
 
-def show_sim(name: str, height: int = 720) -> None:
-    """Render sims/<name>.html inside the page at the given pixel height."""
+def show_sim(name: str, height: int = 720, opts: dict | None = None) -> None:
+    """Render sims/<name>.html inside the page at the given pixel height.
+
+    opts is passed to the applet as window.SIM_OPTS (e.g. {"sec2": True} for Lower Sec wording)."""
+    import json
     fragment = (SIMS / f"{name}.html").read_text(encoding="utf-8")
+    if opts:
+        fragment = f"<script>window.SIM_OPTS={json.dumps(opts)};</script>" + fragment
     shared = (SIMS / "_shared.css").read_text(encoding="utf-8")
     shared_js = (SIMS / "_shared.js").read_text(encoding="utf-8")
     components.html(WRAPPER.format(fragment=fragment, shared=shared, shared_js=shared_js), height=height, scrolling=True)

@@ -12,6 +12,12 @@ def _pick_applet(applets, key):
     names = [a["name"] for a in applets]
     if len(names) == 1:
         return applets[0]
+    # A link or QR code such as ?applet=energy-coaster opens that applet first (used by the printed worksheets and slides).
+    want = st.query_params.get("applet")
+    if want and key not in st.session_state:
+        hit = next((x["name"] for x in applets if x["file"] == want), None)
+        if hit:
+            st.session_state[key] = hit
     pick = st.radio("Applet", names, horizontal=True, key=key, label_visibility="collapsed")
     return next(x for x in applets if x["name"] == pick)
 
@@ -152,7 +158,7 @@ def chapter_page(title: str, los: str, applets: list, questions: list, key: str,
     with explore:
         a = _pick_applet(applets, key + "_applet")
         st.markdown(a["blurb"])
-        show_sim(a["file"], a.get("height", 720))
+        show_sim(a["file"], a.get("height", 720), a.get("opts"))
         st.subheader("Try this: predict, then test")
         for i, p in enumerate(a["tasks"], 1):
             st.markdown(f"{i}. {p}")
@@ -162,7 +168,7 @@ def chapter_page(title: str, los: str, applets: list, questions: list, key: str,
         left, right = st.columns([1.15, 1], gap="medium")
         with left:
             a = _pick_applet(applets, key + "_gapplet")
-            show_sim(a["file"], a.get("height", 720))
+            show_sim(a["file"], a.get("height", 720), a.get("opts"))
         with right:
             if a.get("guide") or GUIDES.get(a["file"]):
                 _guided(a, key)
@@ -174,7 +180,7 @@ def chapter_page(title: str, los: str, applets: list, questions: list, key: str,
         left, right = st.columns([1.15, 1], gap="medium")
         with left:
             a = _pick_applet(applets, key + "_iapplet")
-            show_sim(a["file"], a.get("height", 720))
+            show_sim(a["file"], a.get("height", 720), a.get("opts"))
         with right:
             _inquiry(a, key)
 
@@ -182,6 +188,6 @@ def chapter_page(title: str, los: str, applets: list, questions: list, key: str,
         left, right = st.columns([1.15, 1], gap="medium")
         with left:
             a = _pick_applet(applets, key + "_qapplet")
-            show_sim(a["file"], a.get("height", 720))
+            show_sim(a["file"], a.get("height", 720), a.get("opts"))
         with right:
             quiz(questions, key)

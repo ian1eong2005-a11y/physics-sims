@@ -75,6 +75,11 @@
 <script>
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+// Lower Sec wording (window.SIM_OPTS.sec2): GPE, KE and the internal store, as in the Sec 2 notes.
+const S2=!!(window.SIM_OPTS&&window.SIM_OPTS.sec2);
+const W_=t=>!S2?t:String(t).replace(/\bEp\b/g,'GPE').replace(/\bEk\b/g,'KE').replace(/thermal store/g,'internal store').replace(/\bthermal\b/g,'internal');
+if (S2){ const ft=ctx.fillText.bind(ctx); ctx.fillText=(t,x,y,mw)=>mw===undefined?ft(W_(t),x,y):ft(W_(t),x,y,mw);
+  document.querySelectorAll('small, .lo').forEach(el=>{ el.textContent=W_(el.textContent); }); }
 const $=id=>document.getElementById(id);
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const g=10;
@@ -154,15 +159,15 @@ function drawCrane(){
   const rx=640; ctx.fillStyle=fg; ctx.textAlign='left'; ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.fillText('Lifting at steady speed', rx, 70);
   ctx.font='13px IBM Plex Sans, sans-serif';
   [`force needed = weight = ${m} × 10 = ${F} N`, `distance moved = ${hh} m`, `work done = F × d = ${F} × ${hh} = ${Wd} J`, `= Ep gained = mgh = ${Wd} J`, `time = ${T} s`, `power = work ÷ time = ${Wd} ÷ ${T} = ${+(P.toFixed(0))} W`].forEach((s,i)=>ctx.fillText(s, rx, 100+i*26));
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('Faster lift (smaller time): same work, more power.', rx, 280); ctx.fillText('Heavier crate: more force, more work, more power.', rx, 300);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('Faster lift (less time):', rx, 280); ctx.fillText('same work, more power.', rx, 298); ctx.fillText('Heavier crate: more force,', rx, 320); ctx.fillText('more work, more power.', rx, 338);
   // progress
-  ctx.fillStyle=line; ctx.fillRect(rx, 330, 220, 14); ctx.fillStyle=acc; ctx.fillRect(rx,330,220*f,14); ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText(`t = ${Math.min(T,ct).toFixed(1)} s`, rx, 362);
+  ctx.fillStyle=line; ctx.fillRect(rx, 356, 220, 14); ctx.fillStyle=acc; ctx.fillRect(rx,356,220*f,14); ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText(`t = ${Math.min(T,ct).toFixed(1)} s`, rx, 388);
   $('cmV').textContent=m+' kg'; $('chV').textContent=hh+' m'; $('ctV').textContent=T+' s'; $('rF').textContent=F+' N'; $('rWd').textContent=Wd+' J'; $('rPw').textContent=(+P.toFixed(0))+' W'; $('rEpg').textContent=Wd+' J';
 }
 function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (running){ if (mode==='coaster') stepCoaster(dt); else { ct+=dt; if (ct>+$('ct').value+1.5) ct=0; } } if (mode==='coaster') drawCoaster(); else drawCrane(); requestAnimationFrame(frame); }
-function notice(){ $('notice').innerHTML = mode==='coaster'
+function notice(){ $('notice').innerHTML = W_(mode==='coaster'
   ? '<b>What to notice.</b> Energy is transferred mechanically between the gravitational potential store (height) and the kinetic store (speed). Without friction the total stays the same, so the car reaches exactly the start height on the far side. With friction the thermal store grows and the car cannot climb as high.'
-  : '<b>What to notice.</b> Work done = force × distance moved in the direction of the force. Lifting at steady speed, the force equals the weight, so work done = mgh, the gain in gravitational potential energy. Power is how fast that work is done.'; }
+  : '<b>What to notice.</b> Work done = force × distance moved in the direction of the force. Lifting at steady speed, the force equals the weight, so work done = mgh, the gain in gravitational potential energy. Power is how fast that work is done.'); }
 $('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; mode=b.dataset.v; [...$('modeSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); $('coCtl').classList.toggle('hide',mode!=='coaster'); $('crCtl').classList.toggle('hide',mode!=='crane'); $('crCtl').style.display=mode==='crane'?'flex':''; reset(); if (mode==='crane'){ running=true; $('play').textContent='❚❚ Pause'; } notice(); });
 $('h0').addEventListener('input',()=>{ $('h0V').textContent=$('h0').value+' m'; reset(); });
 $('mass').addEventListener('input',()=>{ $('massV').textContent=$('mass').value+' kg'; });

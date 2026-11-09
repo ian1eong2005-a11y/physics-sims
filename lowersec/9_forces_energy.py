@@ -1,7 +1,29 @@
 import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+import re
 from core.page import chapter_page
+from core.guides import GUIDES
+from core.inquiries import INQUIRIES
 from quizzes.lss_forces_energy import QUESTIONS
+
+
+def _sec2(x, key=None):
+    """Sec 2 words for the shared Energy Coaster guide and inquiries: GPE, KE and the internal store (as on the applet)."""
+    if isinstance(x, str):
+        x = re.sub(r"\bEp\b", "GPE", x)
+        x = re.sub(r"\bEk\b", "KE", x)
+        return x.replace("thermal store", "internal store").replace("thermal", "internal")
+    if isinstance(x, dict):
+        return {k: _sec2(v, k) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        out = [_sec2(v) for v in x]
+        if key == "any":   # answer keys: accept both the old and the Sec 2 words
+            out = list(dict.fromkeys(list(x) + out))
+        return type(x)(out) if isinstance(x, tuple) else out
+    return x
+
+
+_COASTER_GUIDE = GUIDES.get("energy-coaster", {})
 
 APPLETS = [
     dict(name="Pressure Lab", file="pressure-lab", height=820,
@@ -13,11 +35,13 @@ APPLETS = [
              "A person on a stiletto heel versus an elephant: who puts more pressure on the floor? Check.",
              "Why do camels have wide feet and why do knives need sharpening? Use the word pressure in both answers.",
          ]),
-    dict(name="Energy Coaster", file="energy-coaster", height=800,
-         blurb="**Coaster**: a car runs along a track while bars show the gravitational potential, kinetic, thermal and total energy. **Crane**: lift a crate at steady speed and read off the force, the work done and the power.",
+    dict(name="Energy Coaster", file="energy-coaster", height=800, opts={"sec2": True},
+         guide=_sec2(_COASTER_GUIDE.get("steps")), controls=_sec2(_COASTER_GUIDE.get("controls")),
+         inquiry=_sec2(INQUIRIES.get("energy-coaster")),
+         blurb="**Coaster**: a car runs along a track while bars show the energy in the gravitational potential store (GPE), the kinetic store (KE), the internal store and the total. **Crane**: lift a crate at steady speed and read off the force, the work done and the power.",
          tasks=[
              "**Predict:** with no friction, how high will the car get on the far hill? Watch the dashed start line.",
-             "Look at the bars before you press Release the car, then pause in the first valley. Compare Ep and Ek. What does the total bar do?",
+             "Look at the bars before you press Release the car, then pause in the first valley. Compare GPE and KE. What does the total bar do?",
              "Turn friction on. Which bar grows? Does the total change? Where has the energy gone?",
              "Crane: keep the crate and height, halve the time. Which readout changes and which does not?",
          ]),
