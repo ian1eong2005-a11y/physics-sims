@@ -408,7 +408,7 @@ GUIDES = {
     ]),
 # ---------------------------------------------------------------- Ch 14 Practical electricity
 "home-electricity": dict(
-    controls=["**Mode**: Toaster fault, Wiring a plug, Switch: live or neutral?, Appliances & cost.", "Toaster fault: **Real toaster** or **Circuit diagram** view; tick or untick the **earth**, the **fuse** and **someone touches the case**; then press **⚡ Make the fault happen**.", "The moving dots are charge: follow them to see where the current goes."],
+    controls=["**Mode**: Toaster fault, Wiring a plug, Switch & fuse: live or neutral?, Appliances & cost.", "Switch & fuse: choose the wire for the **switch** and for the **fuse**, switch OFF, tick or untick the **earth**, press **⚡ Make the fault happen**, and choose what the **person touches**.", "Toaster fault: **Real toaster** or **Circuit diagram** view; tick or untick the **earth**, the **fuse** and **someone touches the case**; then press **⚡ Make the fault happen**.", "The moving dots are charge: follow them to see where the current goes."],
     steps=[
         dict(do="**Toaster fault**, **Real toaster** view. Follow the yellow dots before you touch anything.",
              see="Current flows along the brown LIVE wire, through the glowing heating element, and back along the blue NEUTRAL wire. The green/yellow earth wire carries nothing.",
@@ -427,9 +427,15 @@ GUIDES = {
         dict(do="Tick **earth**, untick the **fuse**, press Reset and make the fault happen.",
              see="The case stays safe, but the huge current never stops: the cable overheats. Earth and fuse work as a team.",
              check=_c("Earthed but with no fuse, the danger is…", ["an electric shock", "the cable overheating and catching fire", "nothing at all"], 1)),
-        dict(do="**Wiring a plug**, then **Switch: live or neutral?** with the switch in the neutral wire and OFF.",
-             see="Brown live with the fuse, blue neutral, green/yellow earth. A switch in the neutral turns the lamp off but leaves it connected to 230 V.",
+        dict(do="**Wiring a plug**, then **Switch & fuse: live or neutral?** Put the switch in the **neutral wire**, switch it **OFF** and make the person touch **the parts inside**.",
+             see="The lamp is dark but the parts inside are still at 230 V: the person gets a shock. With the switch in the live wire, the same touch is safe.",
              check=_c("Switches and fuses go in the live wire so that when they open…", ["the lamp is brighter", "the appliance is disconnected from 230 V", "less energy is used"], 1)),
+        dict(do="Keep the switch in the neutral and OFF. Untick **earth**, press **⚡ Make the fault happen**, and touch **the metal case**.",
+             see="The case is at 230 V even though the switch is off, because the fault joins it to the live wire before the switch. The current flows through the person to earth.",
+             check=_c("With the switch in the neutral wire and OFF, a faulty unearthed case is at…", ["0 V", "230 V"], 1)),
+        dict(do="Switch in the live and ON, **earth** ticked, **fuse in the neutral wire**. Make the fault happen.",
+             see="The fault current goes live → case → earth wire and never passes through the neutral, so the fuse does not blow. The live wire glows: it is overheating.",
+             check=_c("A fuse in the neutral wire does not blow in an earth fault because…", ["the fault current does not flow through the neutral wire", "the fuse rating is too high", "the earth wire has a high resistance"], 0)),
         dict(do="**Appliances & cost**: choose the **Kettle**, try each fuse, then read the cost lines.",
              see="8.7 A needs the 13 A fuse. 2 kW × 2 h = 4 kWh a day, × 30 ¢ = $1.20 a day.",
              check=_c("Cost = …", ["kWh × price per kWh", "watts × hours", "amps × volts"], 0)),
@@ -459,7 +465,7 @@ GUIDES = {
     ]),
 # ---------------------------------------------------------------- Ch 16 Radioactivity
 "radioactivity": dict(
-    controls=["**Mode**: Nuclide, Half-life, or α β γ.", "Nuclide: **Protons Z** and **Neutrons** sliders, or **Jump to** a known nuclide.", "Half-life: **Half-life** slider, **Start**/**Reset**, optional smooth curve and half-life marks.", "α β γ: choose a **Source** and a **Barrier**; the detector counts what gets through."],
+    controls=["**Mode**: Nuclide, Half-life, or α β γ.", "Nuclide: **Protons Z** and **Neutrons** sliders, or **Jump to** a known nuclide.", "Half-life: **Half-life** slider, **Start**/**Reset**, optional smooth curve and half-life marks.", "α β γ: pick one or more **Sources** and a **Barrier**; the detector counts what gets through. **Mystery source** hides the radiation: work out what is in it from the counts."],
     steps=[
         dict(do="**Nuclide**. Jump to **carbon-12**. Then slide **Neutrons** from 6 to 8.",
              see="Still carbon (Z = 6) but A = 14 now: carbon-14, an isotope of carbon.",
@@ -479,9 +485,15 @@ GUIDES = {
         dict(do="Try **β** with **5 mm Al**, then **γ** with **5 cm Pb**.",
              see="Beta is stopped by the aluminium. Some gamma still gets through even thick lead, and it barely ionises on the way.",
              check=_c("The most penetrating radiation is…", ["alpha", "beta", "gamma"], 2)),
-        dict(do="Set the source to **none** and watch the detector.",
+        dict(do="Unpick **α**, **β** and **γ** so there is no source, and watch the detector.",
              see="It still clicks now and then: background radiation from rocks, radon, cosmic rays, food and medical sources.",
              check=_c("Background radiation…", ["only exists near a source", "is always present at a low level", "comes from Wi-Fi"], 1)),
+        dict(do="Pick **α** and **β** together. Read the count with **no barrier**, **paper**, then **5 mm Al** (wait for each row of the results table).",
+             see="The count drops in two steps: paper removes the alpha, aluminium removes the beta. Behind the aluminium only the background (about 1 /s) is left.",
+             check=_c("Behind 5 mm of aluminium the count falls to background. The source has no…", ["alpha", "beta", "gamma"], 2)),
+        dict(do="Press **Mystery source**. Measure all four barriers, tick what you think is in it, then **Check**.",
+             see="A big drop with paper means alpha; a big drop with aluminium means beta; anything well above background behind aluminium means gamma.",
+             check=_c("Counts: none 33, paper 32, aluminium 16, lead 6 (background 1). The source gives out…", ["alpha and beta", "beta and gamma", "gamma only"], 1)),
     ]),
 
 # ================================================================ LOWER SEC (2021 LSS)

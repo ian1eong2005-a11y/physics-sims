@@ -87,20 +87,25 @@ let comp={x:620,y:140}, drag=false, steelMax=0, wireOff=0;
 const RED='#e4572e', BLUE='#2a7de1';
 
 // ---- bar magnets: poles as monopoles
-function poles(){ const y=250; if (arr==='one') return [{x:250,y,q:1},{x:450,y,q:-1}]; // N right end? define magnet from 250 (S) to 450 (N)
+function poles(){ const y=250; if (arr==='one') return [{x:250,y,q:-1},{x:450,y,q:1}]; // S at 250 (left), N at 450 (right), as drawn
   if (arr==='ns') return [{x:120,y,q:-1},{x:320,y,q:1},{x:580,y,q:-1},{x:780,y,q:1}];
   return [{x:120,y,q:-1},{x:320,y,q:1},{x:580,y,q:1},{x:780,y,q:-1}]; }
 function field(x,y){ let bx=0,by=0; for (const p of poles()){ const dx=x-p.x, dy=y-p.y, r2=dx*dx+dy*dy+400, r=Math.sqrt(r2); bx+=p.q*dx/(r2*r); by+=p.q*dy/(r2*r);} return [bx,by]; }
 function drawMagnet(x1,x2,y,flip){ // S at x1, N at x2 unless flip
   const h=44; ctx.fillStyle=flip?RED:BLUE; ctx.fillRect(x1,y-h/2,(x2-x1)/2,h); ctx.fillStyle=flip?BLUE:RED; ctx.fillRect((x1+x2)/2,y-h/2,(x2-x1)/2,h);
   ctx.fillStyle='#fff'; ctx.font='700 18px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(flip?'N':'S', x1+(x2-x1)/4, y+6); ctx.fillText(flip?'S':'N', x1+3*(x2-x1)/4, y+6); }
-function traceLine(x,y,sign,col){ ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(x,y); let px=x,py=y; for (let i=0;i<600;i++){ const [bx,by]=field(px,py); const m=Math.hypot(bx,by); if (m<1e-9) break; px+=sign*bx/m*4; py+=sign*by/m*4; if (px<0||px>900||py<0||py>500) break; ctx.lineTo(px,py); if (i%60===30){ ctx.stroke(); arrowAt(px,py,sign*bx/m,sign*by/m,col); ctx.beginPath(); ctx.moveTo(px,py);} if (poles().some(p=>p.q<0&&Math.hypot(px-p.x,py-p.y)<10)) break; } ctx.stroke(); }
+function tracePts(fld,x,y,sign,stopAt,n=600){ const pts=[[x,y]]; let px=x,py=y,exited=false; for (let i=0;i<n;i++){ const [bx,by]=fld(px,py); const m=Math.hypot(bx,by); if (m<1e-12) break; px+=sign*bx/m*4; py+=sign*by/m*4; if (px<0||px>900||py<0||py>500){ exited=true; break; } pts.push([px,py]); if (stopAt.some(p=>Math.hypot(px-p.x,py-p.y)<12)) break; } return {pts,exited}; }
+function drawPts(fld,pts,col,every=60){ ctx.strokeStyle=col; ctx.beginPath(); pts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.stroke(); for (let i=Math.floor(every/2);i<pts.length;i+=every){ const [x,y]=pts[i]; const [bx,by]=fld(x,y); const m=Math.hypot(bx,by); if (m>0) arrowAt(x,y,bx/m,by/m,col); } }
+// N poles: every line forward until it reaches an S pole. S poles: lines traced backwards, kept only if they come in from off-screen (the rest are already drawn).
+function fieldLines(fld,P,k,col,r=12,every=60){ const Ns=P.filter(p=>p.q>0), Ss=P.filter(p=>p.q<0);
+  for (const p of Ns) for (let i=0;i<k;i++){ const a=(i+0.5)/k*Math.PI*2; drawPts(fld, tracePts(fld,p.x+r*Math.cos(a),p.y+r*Math.sin(a),1,Ss).pts, col, every); }
+  for (const p of Ss) for (let i=0;i<k;i++){ const a=(i+0.5)/k*Math.PI*2; const tr=tracePts(fld,p.x+r*Math.cos(a),p.y+r*Math.sin(a),-1,Ns); if (tr.exited) drawPts(fld, tr.pts, col, every); } }
 function arrowAt(x,y,ux,uy,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(x+ux*6,y+uy*6); ctx.lineTo(x-uy*4-ux*4,y+ux*4-uy*4); ctx.lineTo(x+uy*4-ux*4,y-ux*4-uy*4); ctx.fill(); }
-function compassAt(x,y,r){ const [bx,by]=field(x,y); const a=Math.atan2(by,bx); ctx.fillStyle=css('--panel'); ctx.strokeStyle=css('--line'); ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); ctx.stroke(); ctx.save(); ctx.translate(x,y); ctx.rotate(a); ctx.fillStyle=RED; ctx.beginPath(); ctx.moveTo(r*0.85,0); ctx.lineTo(0,-r*0.22); ctx.lineTo(0,r*0.22); ctx.fill(); ctx.fillStyle=css('--muted'); ctx.beginPath(); ctx.moveTo(-r*0.85,0); ctx.lineTo(0,-r*0.22); ctx.lineTo(0,r*0.22); ctx.fill(); ctx.restore(); }
+function compassAt(x,y,r,fld=field){ const [bx,by]=fld(x,y); const a=Math.hypot(bx,by)<1e-12 ? -Math.PI/2 : Math.atan2(by,bx); ctx.fillStyle=css('--panel'); ctx.strokeStyle=css('--line'); ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); ctx.stroke(); ctx.save(); ctx.translate(x,y); ctx.rotate(a); ctx.fillStyle=RED; ctx.beginPath(); ctx.moveTo(r*0.85,0); ctx.lineTo(0,-r*0.22); ctx.lineTo(0,r*0.22); ctx.fill(); ctx.fillStyle=css('--muted'); ctx.beginPath(); ctx.moveTo(-r*0.85,0); ctx.lineTo(0,-r*0.22); ctx.lineTo(0,r*0.22); ctx.fill(); ctx.restore(); }
 function drawBar(){
   const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line');
   ctx.clearRect(0,0,W,H);
-  if ($('lines').checked){ for (const p of poles()) if (p.q>0) for (let k=0;k<12;k++){ const a=k/12*Math.PI*2; traceLine(p.x+12*Math.cos(a),p.y+12*Math.sin(a),1,muted); } }
+  if ($('lines').checked) fieldLines(field, poles(), 12, muted);
   if (arr==='one') drawMagnet(250,450,250,false); else { drawMagnet(120,320,250,false); drawMagnet(580,780,250, arr==='nn'); }
   if ($('compasses').checked){ for (let x=60;x<900;x+=70) for (let y=60;y<500;y+=70){ if (poles().some(p=>Math.abs(y-p.y)<40 && x>Math.min(...poles().map(q=>q.x))-20 && x<Math.max(...poles().map(q=>q.x))+20)) continue; compassAt(x,y,11);} }
   compassAt(comp.x,comp.y,26);
@@ -115,30 +120,43 @@ function drawCur(){
   ctx.clearRect(0,0,W,H); const I=+$('cur').value;
   if (cond==='wire'){
     const cx=300, cy=250; // wire seen end-on
-    for (let k=1;k<=I;k++){ const r=28+k*26; ctx.strokeStyle=muted; ctx.globalAlpha=1-k/(I+2); ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.stroke(); ctx.globalAlpha=1; for (const a of [0,Math.PI]){ const x=cx+r*Math.cos(a), y=cy+r*Math.sin(a); const ux=-Math.sin(a)*cdir, uy=Math.cos(a)*cdir; arrowAt(x,y,ux,uy,muted);} }
+    for (let k=1;k<=I;k++){ const r=28+k*26; ctx.strokeStyle=muted; ctx.globalAlpha=1-k/(I+2); ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.stroke(); ctx.globalAlpha=1; for (const a of [0,Math.PI]){ const x=cx+r*Math.cos(a), y=cy+r*Math.sin(a); const ux=Math.sin(a)*cdir, uy=-Math.cos(a)*cdir; arrowAt(x,y,ux,uy,muted);} }
     ctx.fillStyle=css('--warn'); ctx.beginPath(); ctx.arc(cx,cy,18,0,7); ctx.fill(); ctx.strokeStyle=fg; ctx.stroke();
     ctx.fillStyle=fg; ctx.font='700 20px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(cdir>0?'⦿':'⊗', cx, cy+7);
     ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-    ctx.fillText(`Straight wire seen end-on, current ${cdir>0?'OUT of the screen (dot)':'INTO the screen (cross)'}.`, 560, 80);
+    ctx.fillText(`Wire seen end-on: current ${cdir>0?'OUT of the screen (dot ⦿)':'INTO the screen (cross ⊗)'}.`, 540, 80);
     ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif';
-    ['Field lines are circles centred on the wire.', `${I===0?'No current: no field.':'Circles are closer near the wire: field is stronger there.'}`, 'More current → stronger field (more circles).', `Direction: ${cdir>0?'anticlockwise':'clockwise'} (right-hand grip rule).`, 'Reverse the current and every arrow reverses.'].forEach((s,i)=>ctx.fillText(s, 560, 110+i*22));
-    for (let k=0;k<3;k++) compassAt(cx+120+k*0, cy-120+k*120, 14);
+    ['Field lines are circles centred on the wire.', `${I===0?'No current: no field.':'Circles are closer near the wire: field is stronger there.'}`, 'More current → stronger field (more circles).', `Direction: ${cdir>0?'anticlockwise':'clockwise'} (right-hand grip rule).`, 'Reverse the current and every arrow reverses.'].forEach((s,i)=>ctx.fillText(s, 540, 110+i*22));
+    // compasses read the WIRE's field: B = cdir*(dy, -dx)/r^2 on screen (anticlockwise for current out of the screen)
+    const wfld=(x,y)=>{ if (I===0) return [0,0]; const dx=x-cx, dy=y-cy, r2=dx*dx+dy*dy; return [cdir*dy/r2, -cdir*dx/r2]; };
+    for (const [ox,oy] of [[0,-140],[140,0],[0,140],[-140,0]]) compassAt(cx+ox, cy+oy, 16, wfld);
+    if (I===0){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('no current: the compasses just point north (Earth'+String.fromCharCode(39)+'s field)', cx, cy+190); ctx.textAlign='left'; }
   } else {
     const x1=200,x2=600,y=250; const nTurn=10;
     // field lines (bar-magnet-like) using two poles at the ends
     const P=[{x:x1,y,q:-cdir},{x:x2,y,q:cdir}];
     const fld=(x,yy)=>{ let bx=0,by=0; for (const p of P){ const dx=x-p.x, dy=yy-p.y, r2=dx*dx+dy*dy+900, r=Math.sqrt(r2); bx+=p.q*dx/(r2*r); by+=p.q*dy/(r2*r);} return [bx,by]; };
-    const npole=P.find(p=>p.q>0); const nl=I*2;
+    if (I>0){ ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.rect(x1-10,y-46,x2-x1+20,92); ctx.clip('evenodd'); fieldLines(fld, P, I*2, muted, 14, 70); ctx.restore(); }
     ctx.strokeStyle=muted;
-    for (let k=0;k<nl;k++){ const a=(k+0.5)/nl*Math.PI*2; let px=npole.x+14*Math.cos(a), py=y+14*Math.sin(a); ctx.beginPath(); ctx.moveTo(px,py); for (let i=0;i<700;i++){ const [bx,by]=fld(px,py); const m=Math.hypot(bx,by); px+=bx/m*4; py+=by/m*4; if (px<0||px>900||py<0||py>500) break; ctx.lineTo(px,py); if (i%70===35){ ctx.stroke(); arrowAt(px,py,bx/m,by/m,muted); ctx.beginPath(); ctx.moveTo(px,py);} if (Math.hypot(px-(npole===P[0]?P[1].x:P[0].x),py-y)<12) break; } ctx.stroke(); }
     // inside: straight lines
     for (let k=-2;k<=2;k++){ if (I===0) break; ctx.beginPath(); ctx.moveTo(x1+10,y+k*14); ctx.lineTo(x2-10,y+k*14); ctx.stroke(); arrowAt((x1+x2)/2,y+k*14,cdir,0,muted); }
     // coil drawn over
-    ctx.strokeStyle=css('--warn'); ctx.lineWidth=3; for (let i=0;i<nTurn;i++){ const x=x1+(i+0.5)*(x2-x1)/nTurn; ctx.beginPath(); ctx.ellipse(x,y,10,40,0,0,7); ctx.stroke(); } ctx.lineWidth=1;
+    // back half of each turn faint, front half bold with the current direction.
+    // N at the right (cdir>0) needs the current to go DOWN the front of each turn (right-hand grip: fingers with the current, thumb to N).
+    const wc=css('--warn');
+    for (let i=0;i<nTurn;i++){ const x=x1+(i+0.5)*(x2-x1)/nTurn;
+      ctx.strokeStyle=wc; ctx.globalAlpha=0.35; ctx.lineWidth=2; ctx.beginPath(); ctx.ellipse(x,y,10,40,0,Math.PI/2,3*Math.PI/2); ctx.stroke(); ctx.globalAlpha=1;
+      ctx.lineWidth=3; ctx.beginPath(); ctx.ellipse(x,y,10,40,0,-Math.PI/2,Math.PI/2); ctx.stroke(); ctx.lineWidth=1;
+      if (I>0) arrowAt(x+10, y+(cdir>0?4:-4), 0, cdir>0?1:-1, css('--hot')); }
+    if (I>0){ ctx.fillStyle=css('--hot'); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('current goes '+(cdir>0?'DOWN':'UP')+' the front of each turn', (x1+x2)/2, y-58);
+      const ex=790, ey=110, er=26, ac=cdir>0; ctx.strokeStyle=wc; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(ex,ey,er,0,7); ctx.stroke(); ctx.lineWidth=1;
+      arrowAt(ex+(ac?-er:er), ey, 0, 1, css('--hot')); arrowAt(ex+(ac?er:-er), ey, 0, -1, css('--hot'));
+      ctx.fillStyle=fg; ctx.font='700 18px IBM Plex Sans, sans-serif'; ctx.fillText(ac?'N':'S', ex, ey+6);
+      ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('right-hand end, seen end-on:', ex, ey-38); ctx.fillText(ac?'anticlockwise = N':'clockwise = S', ex, ey+44); }
     ctx.fillStyle=fg; ctx.font='700 22px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(cdir>0?'S':'N', x1-30, y+8); ctx.fillText(cdir>0?'N':'S', x2+30, y+8);
     ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Solenoid (a coil of wire) carrying a current.', 20, 30);
     ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif';
-    ['The field looks like a bar magnet\'s: strong and uniform inside, N at one end, S at the other.', 'More current → stronger field. Reversing the current swaps the N and S ends.', 'Put an iron core inside and the field is much stronger: that is an electromagnet.'].forEach((s,i)=>ctx.fillText(s, 20, H-60+i*20));
+    ['The field looks like a bar magnet\'s: strong and uniform inside, N at one end, S at the other.', 'Right-hand grip rule: curl your fingers the way the current flows round the coil; your thumb points to the N end.', 'More current → stronger field. Reversing the current swaps the ends. An iron core makes it much stronger: an electromagnet.'].forEach((s,i)=>ctx.fillText(s, 20, H-60+i*20));
   }
   $('curV').textContent=I+' A';
 }
@@ -171,7 +189,8 @@ function drawForce(){
     ctx.fillStyle=hot; ctx.beginPath(); ctx.arc(hx,hy,12,0,7); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='700 14px IBM Plex Sans, sans-serif'; ctx.fillText(fI>0?'⦿':'⊗', hx, hy+5); ctx.fillStyle=hot; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('seCond finger: Current ('+(fI>0?'out':'in')+')', hx, hy+ (Fdir<0? 60: -50));
     ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('all three at right angles to each other', hx, 440); }
   ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  ctx.fillText('Reverse the current OR the field: the force reverses. Reverse both: it stays the same. In a motor, the two sides of the coil carry current in opposite directions, so they feel opposite forces: a turning effect.', 20, H-14);
+  ctx.fillText('Reverse the current OR the field: the force reverses. Reverse both: it stays the same.', 20, H-34);
+  ctx.fillText('In a motor, the two sides of the coil carry current in opposite directions, so they feel opposite forces: a turning effect.', 20, H-14);
 }
 
 // ---- induced magnetism

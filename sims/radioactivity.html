@@ -66,10 +66,11 @@
 
     <div id="penCtl" class="hide" style="flex-direction:column;gap:14px">
       <div class="ctl">
-        <span class="lbl">Source</span>
-        <div class="seg four" id="src">
-          <button data-v="none" aria-pressed="false">none</button><button data-v="a" aria-pressed="true">α</button><button data-v="b" aria-pressed="false">β</button><button data-v="g" aria-pressed="false">γ</button>
+        <span class="lbl">Source: pick one or more</span>
+        <div class="seg three" id="src">
+          <button data-v="a" aria-pressed="true">α</button><button data-v="b" aria-pressed="false">β</button><button data-v="g" aria-pressed="false">γ</button>
         </div>
+        <small style="color:var(--muted)">Nothing picked = no source (background only).</small>
       </div>
       <div class="ctl">
         <span class="lbl">Barrier</span>
@@ -83,7 +84,20 @@
       </div>
       <div class="read">
         <div><small>Detector count</small><span id="rC">0 /s</span></div>
-        <div><small>Of which background</small><span id="rB">0 /s</span></div>
+        <div><small>Background (no source)</small><span id="rB">about 1 /s</span></div>
+      </div>
+      <div class="ctl">
+        <span class="lbl">Your results for this source <span style="font-weight:400;color:var(--muted)">(fills in after 4 s on each barrier)</span></span>
+        <table id="res" style="width:100%;border-collapse:collapse;font-size:.88rem"></table>
+      </div>
+      <div class="buttons"><button class="btn" id="myst">Mystery source</button></div>
+      <div id="mystBox" class="hide" style="flex-direction:column;gap:8px">
+        <span class="lbl">Which radiation does the mystery source give out?</span>
+        <div style="display:flex;gap:14px">
+          <label class="check"><input type="checkbox" id="gA"> α</label><label class="check"><input type="checkbox" id="gB"> β</label><label class="check"><input type="checkbox" id="gG"> γ</label>
+        </div>
+        <div class="buttons"><button class="btn primary" id="check">Check</button><button class="btn" id="newM">New mystery</button><button class="btn" id="reveal">Reveal</button></div>
+        <div class="fb" id="mFb">Try each barrier and watch the count. Then tick what you think is in the source.</div>
       </div>
     </div>
   </div>
@@ -96,7 +110,7 @@ const $=id=>document.getElementById(id);
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const SYM='H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U'.split(' ');
 const NAME={1:'hydrogen',2:'helium',3:'lithium',6:'carbon',7:'nitrogen',8:'oxygen',11:'sodium',13:'aluminium',26:'iron',27:'cobalt',29:'copper',53:'iodine',82:'lead',86:'radon',88:'radium',92:'uranium'};
-let mode='nuc', t=0, last=performance.now(), running=false, src='a', bar='none', particles=[], bgTimer=0, counts=[], bgCounts=[];
+let mode='nuc', t=0, last=performance.now(), running=false, bar='none', particles=[];
 const RED='#e4572e', GREY='#7a8595';
 let cells=[]; function resetDecay(){ cells=Array(400).fill(true); t=0; hist=[[0,400]]; running=false; $('play').textContent='Start'; } let hist=[[0,400]];
 
@@ -149,56 +163,101 @@ function drawDecay(){
   $('rN').textContent=n; $('rT').textContent=t.toFixed(1)+' s';
 }
 
-// ---- penetration
-const STOP={none:0, paper:1, al:2, pb:3}; const PEN={a:1,b:2,g:4}; // radiation gets through if PEN > STOP
-function spawn(dt){ const rate = src==='none'?0:14; if (Math.random()<rate*dt) particles.push({x:120,y:250+(Math.random()-0.5)*60,kind:src,alive:true,ion:[]}); bgTimer+=dt; if (bgTimer>0.5){ bgTimer=0; if (Math.random()<0.45) bgCounts.push(t); } }
+// ---- penetration (one or more sources; mystery source challenge)
+// Detector rate is modelled: each radiation adds RATE[k] x TRANS[k][barrier]; background is about 1 /s.
+const RATE={a:20,b:18,g:15}, BG=1.0, NAMES={a:'alpha',b:'beta',g:'gamma'}, SYMS={a:'α',b:'β',g:'γ'};
+const TRANS={a:{none:1,paper:0,al:0,pb:0}, b:{none:1,paper:1,al:0,pb:0}, g:{none:1,paper:1,al:1,pb:0.3}};
+const BARS=[['none','no barrier'],['paper','paper'],['al','5 mm aluminium'],['pb','5 cm lead']];
+let srcSet=new Set(['a']), mystery=null, results={}, tChange=0, ev=[], flash=0, score={right:0,tries:0}, triedThis=false;
+const kinds=()=>mystery?[...mystery]:[...srcSet];
+function rateNow(){ return kinds().reduce((s,k)=>s+RATE[k]*TRANS[k][bar],0)+BG; }
+function poisson(m){ const L=Math.exp(-m); let k=0, p=1; do { k++; p*=Math.random(); } while (p>L); return k-1; }
+function changed(clearTable){ tChange=t; ev=[]; if (clearTable) results={}; }
+function spawn(dt){ for (const k of kinds()) if (Math.random()<RATE[k]*0.6*dt) particles.push({x:120,y:250+(Math.random()-0.5)*60,kind:k,alive:true,ion:[]});
+  const n=poisson(rateNow()*dt); for (let i=0;i<n;i++){ ev.push(t); flash=0.12; } }
+function measured(){ const win=Math.min(10,t-tChange); if (win<1) return null; return ev.filter(e=>t-e<=win).length/win; }
+function drawTable(){ const m=measured(), el=t-tChange; if (el>=4 && m!==null) results[bar]=m;
+  let h='<tr><th style="text-align:left;padding:2px 4px">barrier</th><th style="text-align:right;padding:2px 4px">count / s</th></tr>';
+  for (const [k,lab] of BARS){ const cur=k===bar; const v=results[k];
+    h+='<tr style="'+(cur?'background:var(--bg);font-weight:600':'')+'"><td style="padding:2px 4px">'+lab+'</td><td style="text-align:right;padding:2px 4px">'+(v!==undefined?v.toFixed(1):(cur?'measuring…':'–'))+'</td></tr>'; }
+  if ($('res').dataset.h!==h){ $('res').innerHTML=h; $('res').dataset.h=h; } }
 function drawPen(dt){
   const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),acc=css('--accent'),hot=css('--hot'),good=css('--good');
   ctx.clearRect(0,0,W,H);
-  spawn(dt);
-  const bx=430; // barrier x
+  spawn(dt); flash=Math.max(0,flash-dt);
+  const bx=430; const ks=kinds();
   // source
-  ctx.fillStyle=css('--warn'); ctx.fillRect(60,210,60,80); ctx.fillStyle=fg; ctx.font='26px system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText('☢', 90, 260); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText(src==='none'?'no source':'source: '+{a:'alpha',b:'beta',g:'gamma'}[src], 90, 310);
+  ctx.fillStyle=css('--warn'); ctx.fillRect(60,210,60,80); ctx.fillStyle=fg; ctx.font='26px system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText(mystery?'?':'☢', 90, 260);
+  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText(mystery?'mystery source':ks.length?'source: '+ks.map(k=>SYMS[k]).join(' + '):'no source', 90, 310);
   // barrier
   if (bar!=='none'){ const w={paper:4,al:14,pb:50}[bar]; ctx.fillStyle={paper:'#d8c9a3',al:'#9aa5b1',pb:'#4b5563'}[bar]; ctx.fillRect(bx,120,w,260); ctx.fillStyle=muted; ctx.textAlign='center'; ctx.fillText({paper:'sheet of paper',al:'5 mm aluminium',pb:'5 cm lead'}[bar], bx+w/2, 110); }
-  // detector
-  ctx.fillStyle=css('--panel'); ctx.strokeStyle=fg; ctx.fillRect(760,200,60,100); ctx.strokeRect(760,200,60,100); ctx.fillStyle=fg; ctx.textAlign='center'; ctx.fillText('detector', 790, 320);
-  // particles
-  const speed={a:90,b:260,g:400};
-  for (const p of particles){ if (!p.alive) continue; const v=speed[p.kind]; p.x+=v*dt;
-    if ($('ions').checked){ const rate={a:60,b:12,g:1.5}[p.kind]; if (Math.random()<rate*dt) p.ion.push([p.x,p.y+(Math.random()-0.5)*14]); }
-    if (bar!=='none' && p.x>=bx && !p.passed){ p.passed=true; const through = PEN[p.kind]>STOP[bar] || (p.kind==='g' && bar==='pb' && Math.random()<0.3); if (!through){ p.alive=false; p.stopX=bx; } }
-    if (p.x>760){ p.alive=false; counts.push(t); } }
-  particles=particles.filter(p=>p.alive||p.ion.length||p.stopX); if (particles.length>160) particles.splice(0,particles.length-160);
-  for (const p of particles){ ctx.fillStyle=acc; ctx.globalAlpha=.5; for (const [ix,iy] of p.ion){ ctx.fillRect(ix,iy,2,2);} ctx.globalAlpha=1;
-    if (!p.alive){ if (p.stopX){ ctx.fillStyle=hot; ctx.beginPath(); ctx.arc(p.stopX-3,p.y,3,0,7); ctx.fill(); } continue; }
+  // detector (flashes on each count)
+  ctx.fillStyle=flash>0?acc:css('--panel'); ctx.strokeStyle=fg; ctx.fillRect(760,200,60,100); ctx.strokeRect(760,200,60,100); ctx.fillStyle=fg; ctx.textAlign='center'; ctx.fillText('detector', 790, 320);
+  const m=measured(); ctx.font='600 15px IBM Plex Mono, monospace'; ctx.fillText(m===null?'…':m.toFixed(1)+' /s', 790, 190);
+  // particles (hidden for a mystery source: you only get the detector count, as in a real lab)
+  const speed={a:120,b:260,g:400};
+  for (const p of particles){ if (!p.alive) continue; p.x+=speed[p.kind]*dt;
+    if ($('ions').checked){ const r={a:60,b:12,g:1.5}[p.kind]; if (Math.random()<r*dt) p.ion.push([p.x,p.y+(Math.random()-0.5)*14,t]); }
+    if (bar!=='none' && p.x>=bx && !p.passed){ p.passed=true; if (Math.random()>=TRANS[p.kind][bar]){ p.alive=false; p.stopX=bx; } }
+    if (p.x>760) p.alive=false; }
+  for (const p of particles) p.ion=p.ion.filter(io=>t-io[2]<1.2); particles=particles.filter(p=>p.alive||p.ion.length||(p.stopX&&t-(p.stopT??(p.stopT=t))<2)); if (particles.length>200) particles.splice(0,particles.length-200);
+  if (!mystery){ for (const p of particles){ ctx.fillStyle=acc; ctx.globalAlpha=.5; for (const [ix,iy,it] of p.ion){ ctx.globalAlpha=.55*(1-(t-it)/1.2); ctx.fillRect(ix,iy,2,2);} ctx.globalAlpha=1;
+    if (!p.alive){ if (p.stopX){ ctx.fillStyle={a:hot,b:css('--cold'),g:good}[p.kind]; ctx.beginPath(); ctx.arc(p.stopX-3,p.y,3,0,7); ctx.fill(); } continue; }
     if (p.kind==='a'){ ctx.fillStyle=hot; ctx.beginPath(); ctx.arc(p.x,p.y,7,0,7); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='700 9px IBM Plex Sans, sans-serif'; ctx.fillText('++', p.x, p.y+3); }
     else if (p.kind==='b'){ ctx.fillStyle=css('--cold'); ctx.beginPath(); ctx.arc(p.x,p.y,4,0,7); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='700 8px IBM Plex Sans, sans-serif'; ctx.fillText('−', p.x, p.y+3); }
-    else { ctx.strokeStyle=good; ctx.lineWidth=2; ctx.beginPath(); for (let i=0;i<24;i++){ const x=p.x-24+i*2, y=p.y+Math.sin(i*0.9+t*20)*4; i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.stroke(); ctx.lineWidth=1; } }
-  // counts in last 1 s
-  counts=counts.filter(c=>t-c<1); bgCounts=bgCounts.filter(c=>t-c<3);
-  const bg=Math.round(bgCounts.length/3*10)/10; const total=counts.length+bg;
-  $('rC').textContent=total.toFixed(1)+' /s'; $('rB').textContent=bg.toFixed(1)+' /s';
+    else { ctx.strokeStyle=good; ctx.lineWidth=2; ctx.beginPath(); for (let i=0;i<24;i++){ const x=p.x-24+i*2, y=p.y+Math.sin(i*0.9+t*20)*4; i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.stroke(); ctx.lineWidth=1; } } }
+  else { ctx.fillStyle=muted; ctx.font='13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('You cannot see the radiation: only the detector count.', 440, 60); ctx.fillText('Try each barrier and see where the count drops.', 440, 80); }
+  ev=ev.filter(e=>t-e<=10.5);
+  $('rC').textContent=(m===null?'…':m.toFixed(1))+' /s';
+  drawTable();
   ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  const msg = src==='none' ? 'No source, yet the detector still clicks now and then: BACKGROUND radiation (rocks, radon in the air, cosmic rays, food, medical sources).'
-    : {a:'Alpha: a helium nucleus (2 protons + 2 neutrons), charge +2. Heavy and slow, strongly ionising, stopped by paper or a few cm of air.',
+  const ONE={a:'Alpha: a helium nucleus (2 protons + 2 neutrons), charge +2. Heavy and slow, strongly ionising, stopped by paper or a few cm of air.',
        b:'Beta: a fast electron from the nucleus, charge −1. Less ionising than alpha, stopped by a few mm of aluminium.',
-       g:'Gamma: an electromagnetic wave, no charge or mass. Weakly ionising, very penetrating: even thick lead only reduces it.'}[src];
+       g:'Gamma: an electromagnetic wave, no charge or mass. Weakly ionising, very penetrating: even thick lead only reduces it.'};
+  const msg = mystery ? 'Mystery source. Paper stops alpha, 5 mm of aluminium stops beta, and lead only reduces gamma. A big drop when you add a barrier means the radiation that barrier stops is in the source. Compare with the background (about 1 /s). Counts are random, so a change of only a few counts per second means nothing.'
+    : !ks.length ? 'No source, yet the detector still clicks now and then: BACKGROUND radiation (rocks, radon in the air, cosmic rays, food, medical sources).'
+    : ks.length===1 ? ONE[ks[0]]
+    : 'Mixed source: '+ks.map(k=>NAMES[k]).join(' + ')+'. Each kind is stopped by its own barrier, so the count drops in steps as the barrier gets thicker: paper removes alpha, aluminium removes beta, lead only reduces gamma.';
   wrap(msg, 20, 410, 860, 20);
   if ($('table').checked){ ctx.fillStyle=css('--panel'); ctx.globalAlpha=.95; ctx.fillRect(140,20,620,160); ctx.globalAlpha=1; ctx.strokeStyle=line; ctx.strokeRect(140,20,620,160);
     const rows=[['','alpha α','beta β','gamma γ'],['what it is','He nucleus (2p 2n)','fast electron','EM wave'],['charge','+2','−1','0'],['ionising','strong','medium','weak'],['stopped by','paper / skin','few mm aluminium','cm of lead (reduced)'],['speed','slow (~5% c)','fast (up to ~99% c)','speed of light']];
-    ctx.font='12px IBM Plex Sans, sans-serif'; rows.forEach((r,i)=>r.forEach((c,j)=>{ ctx.fillStyle=i===0||j===0?fg:muted; ctx.font=(i===0||j===0?'600 ':'')+'12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(c, 150+j*150, 44+i*22); })); }
+    rows.forEach((r,i)=>r.forEach((c,j)=>{ ctx.fillStyle=i===0||j===0?fg:muted; ctx.font=(i===0||j===0?'600 ':'')+'12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(c, 150+j*150, 44+i*22); })); }
 }
+// ---- mystery source
+function newMystery(){ const opts=[['a'],['b'],['g'],['a','b'],['a','g'],['b','g'],['a','b','g']]; let pick; do { pick=opts[Math.floor(Math.random()*opts.length)]; } while (mystery && pick.join()===[...mystery].join());
+  mystery=new Set(pick); triedThis=false; particles=[]; changed(true); ['gA','gB','gG'].forEach(id=>$(id).checked=false);
+  $('mFb').className='fb'; $('mFb').textContent='Try each barrier and watch the count. Then tick what you think is in the source.';
+  $('mystBox').classList.remove('hide'); $('mystBox').style.display='flex'; $('myst').textContent='Back to my own source';
+  [...$('src').children].forEach(b=>{ b.disabled=true; b.style.opacity=.4; }); }
+function endMystery(){ mystery=null; particles=[]; changed(true); $('mystBox').classList.add('hide'); $('mystBox').style.display=''; $('myst').textContent='Mystery source';
+  [...$('src').children].forEach(b=>{ b.disabled=false; b.style.opacity=''; }); }
+function reasons(){ const r=results, f=v=>v===undefined?'?':v.toFixed(1); const out=[];
+  out.push(mystery.has('a')?'Paper cut the count ('+f(r.none)+' → '+f(r.paper)+' /s), so there is alpha.':'Paper made no real difference ('+f(r.none)+' → '+f(r.paper)+' /s), so there is no alpha.');
+  out.push(mystery.has('b')?'Aluminium cut it again ('+f(r.paper)+' → '+f(r.al)+' /s), so there is beta.':'Aluminium made no real difference ('+f(r.paper)+' → '+f(r.al)+' /s), so there is no beta.');
+  out.push(mystery.has('g')?'Some still gets through aluminium ('+f(r.al)+' /s, well above the background of about 1 /s), so there is gamma.':'Behind aluminium the count is just background ('+f(r.al)+' /s), so there is no gamma.');
+  return out.join(' '); }
+function checkGuess(){ if (!mystery) return; const g=new Set([['gA','a'],['gB','b'],['gG','g']].filter(([id])=>$(id).checked).map(x=>x[1]));
+  if (!g.size){ $('mFb').className='fb'; $('mFb').textContent='Tick at least one: α, β or γ.'; return; }
+  const ok=g.size===mystery.size && [...g].every(k=>mystery.has(k));
+  if (!triedThis){ score.tries++; if (ok) score.right++; triedThis=true; }
+  const missing=[['none','no barrier'],['paper','paper'],['al','aluminium']].filter(([k])=>results[k]===undefined).map(x=>x[1]);
+  const tally='<br><small>Right first time: '+score.right+' of '+score.tries+'</small>';
+  $('mFb').className='fb '+(ok?'ok':'bad');
+  $('mFb').innerHTML = ok ? '<b>Correct: '+[...mystery].map(k=>SYMS[k]).join(' + ')+'.</b> '+reasons()+tally
+    : '<b>Not quite.</b> '+(missing.length?'Measure the count with '+missing.join(', ')+' first. ':'')+'Ask: does paper make the count drop? Does aluminium? Is anything left behind aluminium (more than about 1 /s)?'+tally; }
 function wrap(text,x,y,w,lh){ const words=text.split(' '); let line='', yy=y; for (const wd of words){ const test=line+wd+' '; if (ctx.measureText(test).width>w){ ctx.fillText(line,x,yy); line=wd+' '; yy+=lh; } else line=test; } ctx.fillText(line,x,yy); }
 
 function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (mode==='nuc'){ t+=dt; drawNuc(); } else if (mode==='decay'){ stepDecay(dt); drawDecay(); } else { t+=dt; drawPen(dt); } requestAnimationFrame(frame); }
 function notice(){ $('notice').innerHTML = {
   nuc:'<b>What to notice.</b> An atom has a tiny positive nucleus of protons and neutrons, with electrons around it. Z counts the protons and fixes the element; A counts protons + neutrons. Nuclides with the same Z but different A are isotopes.',
   decay:'<b>What to notice.</b> Decay is random (you cannot say which nucleus will decay next) and spontaneous (nothing you do to it changes the rate). The half-life is the time for half of the undecayed nuclei to decay: 400 → 200 → 100 → 50.',
-  pen:'<b>What to notice.</b> Alpha is the most ionising but least penetrating; gamma is the least ionising but most penetrating. Even with no source the detector counts background radiation, which must be subtracted in real measurements.'}[mode]; }
+  pen:'<b>What to notice.</b> Alpha is the most ionising but least penetrating; gamma is the least ionising but most penetrating. Pick more than one source to see a mixture: the count drops in steps. Then try the <b>Mystery source</b>: work out what is in it from the counts alone. Even with no source the detector counts background radiation.'}[mode]; }
 const seg=(id,fn)=>$(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; [...$(id).children].forEach(x=>x.setAttribute('aria-pressed',x===b)); fn(b.dataset.v); });
-seg('modeSeg',v=>{ mode=v; for (const [k,id] of [['nuc','nucCtl'],['decay','decCtl'],['pen','penCtl']]){ $(id).classList.toggle('hide',mode!==k); $(id).style.display=mode===k?'flex':''; } if (mode==='decay') resetDecay(); if (mode==='pen'){ particles=[]; counts=[]; bgCounts=[]; } notice(); });
-seg('src',v=>{ src=v; particles=[]; counts=[]; }); seg('bar',v=>{ bar=v; particles=[]; counts=[]; });
+seg('modeSeg',v=>{ mode=v; for (const [k,id] of [['nuc','nucCtl'],['decay','decCtl'],['pen','penCtl']]){ $(id).classList.toggle('hide',mode!==k); $(id).style.display=mode===k?'flex':''; } if (mode==='decay') resetDecay(); if (mode==='pen'){ particles=[]; changed(true); } notice(); });
+$('src').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b||mystery) return; const k=b.dataset.v; srcSet.has(k)?srcSet.delete(k):srcSet.add(k); b.setAttribute('aria-pressed',srcSet.has(k)); particles=[]; changed(true); });
+seg('bar',v=>{ bar=v; changed(false); });
+$('myst').addEventListener('click',()=>{ mystery?endMystery():newMystery(); }); $('newM').addEventListener('click',newMystery); $('check').addEventListener('click',checkGuess);
+$('reveal').addEventListener('click',()=>{ if(!mystery) return; triedThis=true; $('mFb').className='fb'; $('mFb').innerHTML='<b>It was '+[...mystery].map(k=>SYMS[k]).join(' + ')+'.</b> '+reasons(); });
 $('preset').addEventListener('change',()=>{ const v=$('preset').value; if(!v) return; const [z,n]=v.split(',').map(Number); $('Z').value=z; $('N').value=n; });
 $('half').addEventListener('input',()=>{ $('halfV').textContent=$('half').value+' s'; resetDecay(); });
 $('play').addEventListener('click',()=>{ if (cells.every(c=>!c)) resetDecay(); running=!running; $('play').textContent=running?'Pause':'Start'; });
