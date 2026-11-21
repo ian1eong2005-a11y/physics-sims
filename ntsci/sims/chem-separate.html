@@ -1,0 +1,63 @@
+<title>Separating mixtures</title>
+<div id="nt"></div>
+<script>
+(() => {
+const T = {
+  filter: ['sand mixed with water', 'sand on the filter paper, clear water below', 'Filtration: the water passes through the tiny holes in the filter paper. The sand is too big, so it stays behind.'],
+  evap: ['salt dissolved in water', 'salt crystals in the dish', 'Evaporation: heating turns the water into water vapour. The salt is left behind as crystals.'],
+  distil: ['seawater', 'pure water in the beaker (salt stays in the flask)', 'Distillation: the water boils into steam. The steam cools and turns back into pure liquid water.'],
+  chroma: ['the dyes in black ink', 'three colours on the paper', 'Paper chromatography: the water carries each dye a different distance up the paper.'],
+};
+NT.sim({
+  title: 'Separate the mixture', emoji: '⚗️',
+  idea: 'A mixture can be separated. The method depends on what is in the mixture.',
+  controls: [{ id: 'tech', label: 'Method', value: 'filter', options: [['filter', 'Filtration'], ['evap', 'Evaporation'], ['distil', 'Distillation'], ['chroma', 'Paper chromatography']] }],
+  go: { label: 'Start', time: 6 },
+  readings: [
+    { id: 'mix', label: 'The mixture', always: true, get: s => T[s.tech][0] },
+    { id: 'get', label: 'What you get', get: s => T[s.tech][1] },
+  ],
+  say: (s, done) => done ? T[s.tech][2] : '',
+  draw(P, s, p, t) {
+    const C = P.C, on = p > 0 && p < 1;
+    P.rect(0, 420, 900, 60, { fill: '#e9edf1' });
+    if (s.tech === 'filter') {
+      // funnel with filter paper over a beaker
+      P.beaker(360, 280, 180, 140, { level: 0.75 * p, color: '#bfe3ff', label: 'clear water (filtrate)' });
+      P.poly([[330, 120], [570, 120], [462, 250], [462, 300], [438, 300], [438, 250]], { fill: '#f4f7fa', stroke: C.dark, lw: 4 });
+      P.poly([[350, 128], [550, 128], [450, 244]], { fill: '#fffdf2', stroke: '#b8ad8a', lw: 3 });
+      if (p < 1) P.poly([[358 + 60 * p, 132 + 60 * p], [542 - 60 * p, 132 + 60 * p], [450, 240]], { fill: '#c9b48a', alpha: 0.8 });
+      for (let i = 0; i < Math.round(22 * p); i++) P.circle(410 + ((i * 37) % 80), 222 - ((i * 13) % 46), 5, { fill: C.brown });
+      if (on) for (let i = 0; i < 3; i++) P.circle(450, 300 + ((t * 120 + i * 40) % 100), 5, { fill: '#7cc4ff' });
+      P.emoji('🫗', 250, 110, 80, { flip: true }); P.text('sand + water', 230, 180, { size: 17, color: C.mute });
+      P.tag('sand stays on the filter paper (residue)', 700, 190, { bg: C.brown, size: 15 }); P.line(560, 200, 480, 215, { color: C.brown, lw: 2 });
+    } else if (s.tech === 'evap') {
+      const lv = 1 - p; P.poly([[330, 250], [570, 250], [520, 310], [380, 310]], { fill: '#fff', stroke: C.dark, lw: 4 });
+      if (lv > 0.02) P.poly([[340 + 46 * (1 - lv), 262 + 44 * (1 - lv)], [560 - 46 * (1 - lv), 262 + 44 * (1 - lv)], [522, 306], [378, 306]], { fill: '#bfe3ff' });
+      for (let i = 0; i < Math.round(26 * p); i++) P.rect(390 + ((i * 29) % 116), 294 - ((i * 7) % 12), 8, 8, { fill: '#fff', stroke: C.grey, lw: 1 });
+      P.rect(420, 316, 60, 14, { fill: C.dark }); P.emoji('🔥', 450, 372, 60 + 5 * Math.sin(t * 9));
+      if (on) for (let i = 0; i < 4; i++) { const u = (t * 0.5 + i / 4) % 1; P.emoji('💨', 390 + i * 40, 230 - u * 120, 34, { alpha: 1 - u }); }
+      P.text('salt solution in a dish', 450, 446, { size: 17, color: C.mute }); P.tag('water evaporates', 690, 130, { bg: C.blue, size: 16 }); if (p > 0.6) P.tag('salt crystals are left', 700, 290, { bg: C.ink, size: 16 });
+    } else if (s.tech === 'distil') {
+      // flask, sloping tube, beaker
+      P.circle(210, 300, 80, { fill: '#fff', stroke: C.dark, lw: 4 }); P.rect(192, 150, 36, 80, { fill: '#fff', stroke: C.dark, lw: 4 });
+      P.ctx.save(); P.ctx.beginPath(); P.ctx.arc(210, 300, 76, 0, 6.2832); P.ctx.clip(); P.rect(130, 300 - 40 + 60 * p, 160, 140, { fill: '#9fd4f5' }); for (let i = 0; i < Math.round(14 * p); i++) P.rect(160 + ((i * 23) % 100), 364 - ((i * 5) % 10), 7, 7, { fill: '#fff' }); if (on) P.bubbles(140, 280, 140, 90, 10, t, { r: 3 }); P.ctx.restore();
+      P.emoji('🔥', 210, 418, 56 + 4 * Math.sin(t * 9));
+      P.poly([[228, 160], [640, 300], [640, 326], [228, 186]], { fill: '#e8f5ff', stroke: C.dark, lw: 4 }); P.rect(360, 196, 190, 60, { fill: 'rgba(42,125,225,0.18)', stroke: C.blue, lw: 3, r: 10 }); P.text('cooled here', 455, 180, { size: 15, color: C.blue });
+      if (on) { for (let i = 0; i < 4; i++) { const u = (t * 0.35 + i / 4) % 1; P.circle(240 + u * 380, 172 + u * 130, 6, { fill: u < 0.45 ? '#fff' : '#7cc4ff', stroke: C.blue, lw: 2 }); } P.circle(650, 330 + ((t * 110) % 60), 5, { fill: '#7cc4ff' }); }
+      P.beaker(590, 330, 130, 90, { level: 0.8 * p, color: '#bfe3ff', label: 'pure water' });
+      P.text('seawater', 210, 122, { size: 17, color: C.mute }); if (p > 0.6) P.tag('salt stays behind', 110, 250, { bg: C.ink, size: 15 }); P.tag('steam', 300, 150, { bg: C.grey, size: 15 });
+    } else {
+      // paper strip in a little water
+      P.beaker(340, 250, 220, 170, { level: 0.2, color: '#bfe3ff' }); P.line(300, 80, 600, 80, { color: C.brown, lw: 8 });
+      P.rect(420, 80, 60, 318, { fill: '#fffdf2', stroke: '#b8ad8a', lw: 3 }); const front = 372 - 250 * p; P.rect(421, front, 58, 398 - front, { fill: 'rgba(120,190,240,0.25)' });
+      P.line(420, 360, 480, 360, { color: C.grey, lw: 2 });
+      if (p < 0.12) P.circle(450, 360, 10, { fill: '#222' });
+      else [['#2a7de1', 0.45], ['#e4572e', 0.25], ['#f4b400', 0.8]].forEach(d => P.oval(450, 360 - 250 * p * d[1], 12, 9, { fill: d[0], alpha: 0.85 }));
+      P.text('black ink dot starts here', 640, 360, { size: 15, color: C.mute }); P.line(490, 360, 545, 360, { color: C.grey, lw: 2 });
+      P.tag('water moves up the paper', 700, front, { bg: C.blue, size: 15 }); P.text('paper strip', 450, 60, { size: 16, color: C.mute });
+    }
+  },
+});
+})();
+</script>

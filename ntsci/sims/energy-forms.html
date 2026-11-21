@@ -1,0 +1,38 @@
+<title>Forms of energy</title>
+<div id="nt"></div>
+<script>
+NT.match({
+  title: 'Which form of energy?', emoji: '⚡',
+  intro: 'Energy comes in different forms. Sort each card into the right box.',
+  ask: 'Which form of energy is this? Tap a box.',
+  count: 10,
+  bins: [
+    { id: 'kin', label: 'Kinetic', emoji: '🏃', sub: 'moving things' },
+    { id: 'light', label: 'Light', emoji: '💡' },
+    { id: 'sound', label: 'Sound', emoji: '🔊' },
+    { id: 'therm', label: 'Thermal', emoji: '🔥', sub: 'hot things' },
+    { id: 'elec', label: 'Electrical', emoji: '🔌' },
+    { id: 'chem', label: 'Chemical potential', emoji: '🔋', sub: 'stored in food, fuel, batteries' },
+    { id: 'elas', label: 'Elastic potential', emoji: '🏹', sub: 'stored in stretched or squashed things' },
+    { id: 'grav', label: 'Gravitational potential', emoji: '⛰️', sub: 'stored in things high up' },
+  ],
+  cards: [
+    { t: 'A car moving along the road', emoji: '🚗', bin: 'kin', why: 'Moving things have kinetic energy.' },
+    { t: 'A boy running', emoji: '🏃', bin: 'kin', why: 'Moving things have kinetic energy.' },
+    { t: 'The glow from a lamp', emoji: '💡', bin: 'light' },
+    { t: 'Sunshine that lets us see', emoji: '☀️', bin: 'light' },
+    { t: 'A ringing bell', emoji: '🔔', bin: 'sound' },
+    { t: 'Music from a speaker', emoji: '🎵', bin: 'sound' },
+    { t: 'A hot cup of tea', emoji: '☕', bin: 'therm', why: 'Hot things have thermal energy.' },
+    { t: 'A hot iron', emoji: '♨️', bin: 'therm', why: 'Hot things have thermal energy.' },
+    { t: 'The current in a wire', emoji: '🔌', bin: 'elec' },
+    { t: 'A new battery', emoji: '🔋', bin: 'chem', why: 'Batteries, food and fuels store chemical potential energy.' },
+    { t: 'A bowl of rice', emoji: '🍚', bin: 'chem', why: 'Food stores chemical potential energy.' },
+    { t: 'Petrol in a tank', emoji: '⛽', bin: 'chem', why: 'Fuels store chemical potential energy.' },
+    { t: 'A stretched rubber band', emoji: '➰', bin: 'elas', why: 'Stretched things store elastic potential energy.' },
+    { t: 'A squashed spring', emoji: '🌀', bin: 'elas', why: 'Squashed things store elastic potential energy.' },
+    { t: 'A book on a high shelf', emoji: '📚', bin: 'grav', why: 'Things high up store gravitational potential energy.' },
+    { t: 'Water at the top of a dam', emoji: '🏞️', bin: 'grav', why: 'Things high up store gravitational potential energy.' },
+  ],
+});
+</script>

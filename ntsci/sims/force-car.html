@@ -1,0 +1,46 @@
+<title>Toy car race</title>
+<div id="nt"></div>
+<script>
+(() => {
+const CAR = { slow: ['Slow car', '🐢', 10], mid: ['Medium car', '🚗', 5], fast: ['Fast car', '🏎️', 4], bus: ['Bus (stops once)', '🚌', 8] };   // name, picture, time for 100 cm in s
+const T = s => CAR[s.car][2];
+const dist = (car, tt) => car === 'bus' ? (tt < 2 ? 20 * tt : tt < 5 ? 40 : Math.min(100, 40 + 20 * (tt - 5))) : Math.min(100, (100 / CAR[car][2]) * tt);
+const COL = { slow: '#2e9e5b', mid: '#2a7de1', fast: '#e4572e', bus: '#7b5ea7' };
+const runs = {};
+NT.sim({
+  title: 'Toy car race', emoji: '🏁',
+  idea: 'Average speed = total distance ÷ total time. A steeper line on a distance-time graph means a faster speed.',
+  controls: [{ id: 'car', label: 'Choose', noun: 'the car', value: 'mid', options: Object.entries(CAR).map(([k, c]) => [k, c[0], c[1]]) }],
+  go: { label: 'Go', time: s => T(s) / 2.5 },
+  readings: [
+    { id: 'd', label: 'Distance', unit: 'cm', always: true, get: () => 100 },
+    { id: 'time', label: 'Time taken', noun: 'the time taken', unit: 's', get: T },
+    { id: 'speed', label: 'Average speed', noun: 'the average speed', unit: 'cm/s', get: s => 100 / T(s) },
+  ],
+  say: (s, done) => !done ? '' : 'Average speed = distance ÷ time = 100 cm ÷ ' + T(s) + ' s = ' + (100 / T(s)) + ' cm/s.' + (s.car === 'bus' ? ' The flat part of the line shows when the bus was not moving.' : ''),
+  draw(P, s, p) {
+    const C = P.C, tt = p * T(s), d = dist(s.car, tt), x0 = 90, k = 7;
+    if (p >= 1) runs[s.car] = true;
+    // track with a measuring tape
+    P.rect(x0 - 30, 96, 100 * k + 110, 16, { fill: '#e9edf1', r: 6 });
+    for (let c = 0; c <= 100; c += 20) { P.line(x0 + c * k, 112, x0 + c * k, 126, { color: C.dark, lw: 3 }); P.text(c + ' cm', x0 + c * k, 142, { size: 15, color: C.mute }); }
+    P.emoji('🏁', x0 + 100 * k + 30, 62, 40); P.emoji(CAR[s.car][1], x0 + d * k, 70, 54, { flip: true });
+    // stopwatch
+    P.circle(800, 290, 62, { fill: '#fff', stroke: C.dark, lw: 5 }); P.rect(790, 214, 20, 16, { fill: C.dark, r: 4 }); P.text(tt.toFixed(1) + ' s', 800, 292, { size: 30 }); P.text('stopwatch', 800, 372, { size: 16, color: C.mute });
+    // distance-time graph
+    const g = P.graph(110, 190, 560, 220, { xmax: 10, ymax: 100, xl: 'time / s', yl: 'distance / cm', nx: 10 });
+    const line = (car, tmax, bold) => { const pts = []; for (let i = 0; i <= 80; i++) { const q = (tmax * i) / 80; pts.push([g.X(q), g.Y(dist(car, q))]); } P.curve(pts, { color: COL[car], lw: bold ? 6 : 3, alpha: bold ? 1 : 0.45 }); const e = pts[pts.length - 1]; P.emoji(CAR[car][1], e[0] + 14, e[1] - 14, bold ? 30 : 22, { flip: true, alpha: bold ? 1 : 0.6 }); };
+    Object.keys(runs).forEach(car => { if (car !== s.car) line(car, CAR[car][2], false); });
+    if (p > 0) line(s.car, tt, true);
+  },
+  inquiry: [{
+    q: 'Three cars travel 100 cm. How can you tell from the graph which car is fastest?',
+    guess: ['The fastest car has the steepest line', 'The fastest car has the flattest line', 'All the lines look the same'], guessAns: 0,
+    change: 'car', measure: ['time', 'speed'], tests: ['slow', 'mid', 'fast'],
+    same: ['the distance (100 cm)', 'the same track'],
+    found: ['A faster car takes ', ['less', 'more'], ' time for the same distance. Its line on the distance-time graph is ', ['steeper', 'flatter'], '. Average speed = total distance ÷ ', ['total time', 'total mass'], '.'], foundAns: [0, 0, 0],
+    why: 'Speed is the distance travelled in each second. Now try the bus: a flat (horizontal) line means it is not moving.',
+  }],
+});
+})();
+</script>

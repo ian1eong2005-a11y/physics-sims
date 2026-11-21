@@ -1,0 +1,26 @@
+<title>Choose the method</title>
+<div id="nt"></div>
+<script>
+NT.match({
+  title: 'Which method would you use?', emoji: '🧪',
+  intro: 'Pick the best way to separate each mixture.',
+  ask: 'Which method? Tap a box.',
+  bins: [
+    { id: 'dis', label: 'Dissolving', emoji: '🥄', sub: 'add water so one part dissolves' },
+    { id: 'fil', label: 'Filtration', emoji: '☕', sub: 'solid that does not dissolve, from a liquid' },
+    { id: 'eva', label: 'Evaporation', emoji: '♨️', sub: 'get the dissolved solid' },
+    { id: 'dist', label: 'Distillation', emoji: '💧', sub: 'get the pure liquid' },
+    { id: 'chr', label: 'Paper chromatography', emoji: '🎨', sub: 'separate dyes' },
+  ],
+  cards: [
+    { t: 'Remove tea leaves from a cup of tea', emoji: '🍵', bin: 'fil', why: 'The tea leaves are too big to pass through the strainer.' },
+    { t: 'Remove sand from muddy water', emoji: '🏖️', bin: 'fil', why: 'Sand does not dissolve, so it stays on the filter paper.' },
+    { t: 'Get salt from seawater', emoji: '🧂', bin: 'eva', why: 'The water evaporates and the salt is left behind.' },
+    { t: 'Get sugar crystals from sugar solution', emoji: '🍬', bin: 'eva', why: 'The water evaporates and the sugar is left behind.' },
+    { t: 'Get drinking water from seawater', emoji: '🚰', bin: 'dist', why: 'Distillation collects the pure water.' },
+    { t: 'Find out which dyes are in a food colouring', emoji: '🌈', bin: 'chr', why: 'Chromatography separates the dyes.' },
+    { t: 'Check if black ink is one dye or many', emoji: '🖊️', bin: 'chr', why: 'Chromatography separates the dyes.' },
+    { t: 'Salt mixed with sand: FIRST step, so that only the salt goes into the water', emoji: '🥄', bin: 'dis', why: 'Salt dissolves in water but sand does not. Then you can filter.' },
+  ],
+});
+</script>

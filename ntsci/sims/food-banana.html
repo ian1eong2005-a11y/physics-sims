@@ -1,0 +1,42 @@
+<title>Ripening bananas</title>
+<div id="nt"></div>
+<script>
+(() => {
+const DAYS = { none: 6, ripe: 3 };
+const mixc = (a, b, f) => 'rgb(' + a.map((v, i) => Math.round(v + (b[i] - v) * Math.max(0, Math.min(1, f)))).join(',') + ')';
+function banana(P, cx, cy, col, spots, sc) {
+  const pts = []; for (let i = 0; i <= 20; i++) { const a = Math.PI * (0.12 + 0.76 * (i / 20)); pts.push([cx - 110 * sc * Math.cos(a), cy + 60 * sc * Math.sin(a) - 30 * sc]); }
+  P.curve(pts, { color: '#5b4a2a', lw: 44 * sc }); P.curve(pts, { color: col, lw: 36 * sc });
+  P.circle(pts[0][0], pts[0][1], 9 * sc, { fill: '#5b4a2a' }); P.circle(pts[20][0], pts[20][1], 7 * sc, { fill: '#5b4a2a' });
+  for (let i = 0; i < spots; i++) { const q = pts[2 + ((i * 7) % 17)]; P.circle(q[0] + ((i * 13) % 9) - 4, q[1] + ((i * 5) % 11) - 5, 4 * sc, { fill: '#6b4a1e' }); }
+}
+NT.sim({
+  title: 'How to ripen bananas quickly', emoji: '🍌',
+  idea: 'Ripe fruit gives off a plant hormone (a gas) that makes other fruit ripen faster.',
+  controls: [{ id: 'with', label: 'In the bag with the green banana', noun: 'what is in the bag with the green banana', value: 'none', options: [['none', 'Nothing else'], ['ripe', 'A ripe banana', '🍌']] }],
+  go: { label: 'Wait 6 days', time: 6 },
+  readings: [{ id: 'days', label: 'Days for the green banana to turn yellow', noun: 'the number of days to turn yellow', unit: 'days', get: s => DAYS[s.with] }],
+  say: (s, done) => done ? (s.with === 'ripe' ? 'With a ripe banana, it turned yellow in only 3 days.' : 'On its own, it took 6 days to turn yellow.') : '',
+  draw(P, s, p, t) {
+    const C = P.C, day = p * 6, r = day / DAYS[s.with], col = mixc([96, 168, 72], [246, 211, 60], r), over = Math.max(0, day - DAYS[s.with]);
+    P.rect(0, 420, 900, 60, { fill: '#e9edf1' });
+    // paper bag
+    P.rect(170, 110, 560, 310, { fill: '#f1e1c4', stroke: '#b89a66', lw: 5, r: 20 }); P.text('closed paper bag', 450, 134, { size: 17, color: '#8a6d3b' });
+    banana(P, s.with === 'ripe' ? 330 : 450, 300, col, Math.round(over * 3), 1);
+    P.tag(r >= 1 ? 'yellow (ripe)' : r > 0.5 ? 'turning yellow' : 'green (unripe)', s.with === 'ripe' ? 330 : 450, 380, { bg: r >= 1 ? C.yellow : C.green, color: r >= 1 ? C.ink : '#fff', size: 17 });
+    if (s.with === 'ripe') { banana(P, 590, 300, 'rgb(246,211,60)', 6 + Math.round(day), 0.8); P.text('ripe banana', 590, 380, { size: 17, color: C.mute });
+      for (let i = 0; i < 7; i++) { const u = (t * 0.25 + i / 7) % 1; P.circle(560 - u * 190, 215 - 30 * Math.sin(u * Math.PI) + (i % 3) * 14, 6, { fill: C.purple, alpha: 0.75 * (1 - u * 0.4) }); } P.tag('plant hormone (gas)', 460, 172, { bg: C.purple, size: 16 }); }
+    // day counter
+    for (let d = 1; d <= 6; d++) { const on = day >= d - 0.001; P.rect(232 + (d - 1) * 74, 38, 64, 46, { fill: on ? '#fff8d6' : C.soft, stroke: on ? C.yellow : C.line, lw: 3, r: 10 }); P.text('Day ' + d, 264 + (d - 1) * 74, 62, { size: 16, color: on ? C.ink : C.grey }); }
+  },
+  inquiry: [{
+    q: 'Does a green banana ripen faster next to a ripe banana?',
+    guess: ['Yes. It ripens faster.', 'No. It ripens more slowly.', 'It makes no difference.'], guessAns: 0,
+    change: 'with', measure: 'days',
+    same: ['the same kind of green banana', 'the same kind of bag', 'the same room (same temperature)'],
+    found: ['The green banana ripens ', ['faster', 'more slowly'], ' next to a ripe banana. The ripe banana gives off a plant ', ['hormone', 'fertiliser'], ' that speeds up ripening.'], foundAns: [0, 0],
+    why: 'Plant hormones are used to control the ripening of fruits. They are also used as weed killers and to control how plants grow.',
+  }],
+});
+})();
+</script>

@@ -1,0 +1,41 @@
+<title>Acids react</title>
+<div id="nt"></div>
+<script>
+(() => {
+const R = {
+  metal: ['Metal (magnesium)', '🔩', 'yes', 'hydrogen', 'salt', 'Acid + metal → salt + hydrogen gas. This is why acidic food can damage metal cooking pots.'],
+  carb: ['Carbonate (baking soda)', '🧁', 'yes', 'carbon dioxide', 'salt and water', 'Acid + carbonate → salt + water + carbon dioxide gas. This gas makes cakes rise and vitamin C tablets fizz.'],
+  base: ['Base (antacid)', '💊', 'no', 'no gas', 'salt and water', 'Acid + base → salt + water only. No gas. This is neutralisation.'],
+};
+NT.sim({
+  title: 'What do acids react with?', emoji: '🫧',
+  idea: 'Acids react with metals, carbonates and bases. Each reaction makes new products.',
+  controls: [{ id: 'x', label: 'Add to the acid', noun: 'what is added to the acid', value: 'metal', options: Object.entries(R).map(([k, v]) => [k, v[0], v[1]]) }],
+  go: { label: 'Drop it in', time: 4 },
+  readings: [
+    { id: 'bub', label: 'Bubbles?', noun: 'whether there are bubbles', get: s => R[s.x][2] },
+    { id: 'gas', label: 'Gas made', noun: 'the gas made', get: s => R[s.x][3] },
+    { id: 'also', label: 'Also made', get: s => R[s.x][4] },
+  ],
+  say: (s, done) => done ? R[s.x][5] : '',
+  draw(P, s, p, t) {
+    const C = P.C, r = R[s.x], fizz = r[2] === 'yes' && p > 0.15;
+    P.rect(0, 410, 900, 70, { fill: '#e9edf1' });
+    P.beaker(310, 150, 280, 260, { level: 0.7, color: '#ffe08a', alpha: 0.8 }); P.text('dilute acid', 450, 440, { size: 18, color: C.mute });
+    const y = p === 0 ? 100 : 100 + 270 * Math.min(1, p * 3); P.emoji(r[1], 450, y, 50 * (r[2] === 'yes' ? 1 - 0.5 * p : Math.max(0.2, 1 - p)));
+    if (fizz) { P.bubbles(330, 240, 240, 165, s.x === 'carb' ? 40 : 22, t * 1.6, { color: '#fff', r: 4 }); for (let i = 0; i < 3; i++) { const u = (t * 0.5 + i / 3) % 1; P.circle(400 + i * 50, 220 - u * 120, 9, { stroke: C.grey, lw: 3, alpha: 1 - u }); } P.tag(r[3] + ' gas', 450, 70, { bg: s.x === 'carb' ? C.grey : C.blue, size: 18 }); }
+    if (!fizz && p > 0.5 && s.x === 'base') P.tag('no bubbles', 450, 70, { bg: C.green, size: 18 });
+    P.rect(650, 190, 220, 150, { fill: '#fff', stroke: C.line, lw: 3, r: 12 }); P.text('New products', 760, 214, { size: 17, color: C.mute });
+    if (p >= 1) { P.text(r[4], 760, 254, { size: 22 }); if (r[2] === 'yes') P.text('+ ' + r[3], 760, 294, { size: 20, color: C.blue }); } else P.text('?', 760, 270, { size: 44, color: C.grey });
+  },
+  inquiry: [{
+    q: 'What is made when an acid reacts with a metal, a carbonate and a base?',
+    guess: ['Different things are made each time', 'Nothing new is made', 'Only water is made each time'], guessAns: 0,
+    change: 'x', measure: ['gas', 'also'], dv: 'the new products that are made',
+    same: ['the same acid', 'the same amount of acid'],
+    found: ['Acid + metal → salt + ', ['hydrogen', 'oxygen'], '. Acid + carbonate → salt + water + ', ['carbon dioxide', 'hydrogen'], '. Acid + base → salt + ', ['water', 'hydrogen'], '.'], foundAns: [0, 0, 0],
+    why: 'A chemical reaction makes new products. Acids react with metals, bases and carbonates that we find in daily life.',
+  }],
+});
+})();
+</script>

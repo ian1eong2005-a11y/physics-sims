@@ -1,0 +1,53 @@
+<title>Lamps in series and parallel</title>
+<div id="nt"></div>
+<script>
+(() => {
+const ser = s => s.circuit === 'series', blown = s => s.broken === 'yes';
+const volts = s => (ser(s) ? (blown(s) ? 0 : 6 / s.n) : 6);
+const lit = s => (blown(s) ? (ser(s) ? 0 : s.n - 1) : s.n);
+const same = ['the same battery', 'the same kind of lamp'];
+NT.sim({
+  title: 'Lamps: series or parallel?', emoji: '💡',
+  idea: 'Homes use parallel circuits: every lamp gets the full voltage and has its own switch.',
+  controls: [
+    { id: 'circuit', label: 'Circuit', noun: 'the type of circuit', value: 'series', options: [['series', 'Series'], ['parallel', 'Parallel']] },
+    { id: 'n', label: 'Number of lamps', noun: 'the number of lamps', value: 2, options: [[1, '1'], [2, '2'], [3, '3']] },
+    { id: 'broken', label: 'Lamp 1', value: 'no', options: [['no', 'is working', '✅'], ['yes', 'blows (breaks)', '💥']] },
+  ],
+  readings: [
+    { id: 'vl', label: 'Voltage across each working lamp', noun: 'the voltage across each lamp', unit: 'V', always: true, get: volts },
+    { id: 'lit', label: 'Lamps still lit', noun: 'the number of lamps still lit', always: true, get: lit },
+  ],
+  say: s => blown(s) ? (ser(s) ? 'Lamp 1 has blown. The only path is broken, so ALL the lamps go off.' : (s.n > 1 ? 'Lamp 1 has blown, but the other branches still work. The other lamps stay on.' : 'Lamp 1 has blown.')) : (ser(s) ? (s.n > 1 ? 'The 6 V is shared, so each lamp is dimmer.' : '') : (s.n > 1 ? 'Each lamp gets the full 6 V, so every lamp is bright.' : '')),
+  draw(P, s, p, t) {
+    const C = P.C, n = s.n, sr = ser(s), b = blown(s), bright = Math.pow(volts(s) / 6, 1.4), W = { color: C.dark, lw: 5 };
+    const xs = sr ? (n === 1 ? [450] : n === 2 ? [350, 550] : [300, 450, 600]) : [400, 560, 720].slice(0, n);
+    if (sr) { P.poly([[150, 120], [750, 120], [750, 380], [150, 380]], { stroke: C.dark, lw: 5 }); if (!b) P.flow([[150, 215], [150, 120], [750, 120], [750, 380], [150, 380], [150, 285]], t * 70 / n, 46); }
+    else { const last = xs[n - 1]; P.poly([[150, 120], [last, 120], [last, 380], [150, 380]], { stroke: C.dark, lw: 5 }); xs.forEach((x, i) => { P.line(x, 120, x, 380, W); if (!(b && i === 0)) P.flow([[x, 120], [x, 380]], t * 70, 46); });
+      const live = lit(s); if (live > 0) { P.flow([[150, 215], [150, 120], [xs[0], 120]], t * 70 * live, 46); P.flow([[xs[0], 380], [150, 380], [150, 285]], t * 70 * live, 46); } }
+    P.rect(128, 215, 44, 70, { fill: '#fff' }); P.line(124, 236, 176, 236, { color: C.dark, lw: 5 }); P.line(138, 262, 162, 262, { color: C.dark, lw: 11 }); P.text('+', 104, 232, { size: 24 }); P.text('battery 6 V', 70, 320, { size: 17, color: C.mute });
+    xs.forEach((x, i) => { const y = sr ? 120 : 250, dead = b && i === 0, on = dead ? 0 : (sr && b ? 0 : bright);
+      P.lamp(x, y, 28, on); if (dead) P.emoji('💥', x, y, 46); P.text('lamp ' + (i + 1), x + (sr ? 0 : 62), y + (sr ? 54 : 30), { size: 18 });
+      if (!dead && !(sr && b)) P.tag((Math.round(volts(s) * 10) / 10) + ' V', x, y - 56, { bg: C.orange, size: 17 }); });
+    P.tag(sr ? 'SERIES: one path' : 'PARALLEL: one branch for each lamp', 450, 440, { bg: sr ? C.blue : C.purple, size: 18 });
+  },
+  inquiry: [
+    { name: 'More lamps in series', q: 'Series: what happens to the lamps when you add more?',
+      guess: ['Each lamp gets dimmer', 'Each lamp stays as bright', 'Each lamp gets brighter'], guessAns: 0,
+      change: 'n', measure: 'vl', fix: { circuit: 'series', broken: 'no' }, same,
+      found: ['In series, adding more lamps makes each lamp ', ['dimmer', 'brighter'], '. The battery voltage is ', ['shared between', 'given fully to each of'], ' the lamps.'], foundAns: [0, 0],
+      why: 'In a series circuit the voltage of the battery is shared: 6 V, then 3 V each, then 2 V each.' },
+    { name: 'More lamps in parallel', q: 'Parallel: what happens to the lamps when you add more?',
+      guess: ['Each lamp gets dimmer', 'Each lamp stays as bright', 'Each lamp gets brighter'], guessAns: 1,
+      change: 'n', measure: 'vl', fix: { circuit: 'parallel', broken: 'no' }, same,
+      found: ['In parallel, adding more lamps keeps each lamp ', ['just as bright', 'dimmer'], '. Each lamp gets the ', ['full', 'shared'], ' battery voltage.'], foundAns: [0, 0],
+      why: 'In a parallel circuit every branch gets the full voltage of the battery (6 V).' },
+    { name: 'One lamp blows', q: 'Three lamps. Lamp 1 blows. What happens to the other lamps?',
+      guess: ['Series: all go off. Parallel: the others stay on.', 'Both circuits: all go off.', 'Both circuits: the others stay on.'], guessAns: 0,
+      change: 'circuit', measure: 'lit', fix: { n: 3, broken: 'yes' }, same: ['the same battery', 'the same kind of lamp', 'the same number of lamps (3)'],
+      found: ['When one lamp blows in a ', ['series', 'parallel'], ' circuit, all the lamps go off. Homes use ', ['parallel', 'series'], ' circuits, so each appliance can be switched on and off ', ['on its own', 'only with the others'], '.'], foundAns: [0, 0, 0],
+      why: 'Household appliances are connected in parallel: each gets the full voltage, each has its own switch, and if one breaks the rest still work.' },
+  ],
+});
+})();
+</script>

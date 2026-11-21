@@ -1,0 +1,48 @@
+<title>Rope waves</title>
+<div id="nt"></div>
+<script>
+(() => {
+const F = { slow: 1, mid: 2, fast: 4 }, AMP = { small: 10, big: 20 }, SPEED = 4;        // Hz, cm, m/s (same rope: same wave speed)
+const lam = s => SPEED / F[s.speed];
+NT.sim({
+  title: 'Make waves on a rope', emoji: '〰️',
+  idea: 'A vibration makes a wave. The wave carries energy along the rope, but the rope itself only moves up and down.',
+  controls: [
+    { id: 'size', label: 'Shake size', noun: 'the size of the shake', value: 'small', options: [['small', 'Small shake'], ['big', 'Big shake']] },
+    { id: 'speed', label: 'Shake speed', noun: 'the speed of the shake', value: 'mid', options: [['slow', 'Slow', '🐢'], ['mid', 'Medium', '🚶'], ['fast', 'Fast', '🐇']] },
+  ],
+  readings: [
+    { id: 'f', label: 'Frequency (waves made each second)', noun: 'the frequency', unit: 'Hz', always: true, get: s => F[s.speed] },
+    { id: 'lam', label: 'Wavelength', noun: 'the wavelength', unit: 'm', always: true, get: lam },
+    { id: 'amp', label: 'Amplitude', noun: 'the amplitude', unit: 'cm', always: true, get: s => AMP[s.size] },
+  ],
+  draw(P, s, p, t) {
+    const C = P.C, f = F[s.speed] * 0.3, L = lam(s) * 100, A = AMP[s.size] * 4, y0 = 250, x0 = 110, y = x => y0 - A * Math.sin(2 * Math.PI * (f * t - (x - x0) / L));
+    P.line(60, y0, 880, y0, { color: C.line, lw: 2, dash: [8, 8] }); P.text('rest position', 820, 40 + 0 * y0, { size: 1, color: '#fff' });
+    const pts = []; for (let x = x0; x <= 880; x += 5) pts.push([x, y(x)]); P.curve(pts, { color: C.brown, lw: 8 });
+    P.emoji('✊', x0 - 26, y(x0), 60);
+    // ribbon tied to the rope: it only goes up and down
+    const rx = 560; P.line(rx, y0 - A - 12, rx, y0 + A + 12, { color: C.pink, lw: 3, dash: [5, 6] }); P.emoji('🎀', rx, y(rx), 40);
+    // wavelength: from one crest to the next (it moves along with the wave)
+    let cx = x0 + L * ((((f * t - 0.25) % 1) + 1) % 1); while (cx < 190) cx += L;
+    if (cx + L < 870) { const yy = y0 - A - 34; P.arrow(cx + L / 2, yy, cx + 4, yy, { color: C.blue, lw: 4 }); P.arrow(cx + L / 2, yy, cx + L - 4, yy, { color: C.blue, lw: 4 }); P.line(cx, yy - 10, cx, y0 - A, { color: C.blue, lw: 2 }); P.line(cx + L, yy - 10, cx + L, y0 - A, { color: C.blue, lw: 2 }); P.tag('wavelength ' + lam(s) + ' m', cx + L / 2, yy - 24, { bg: C.blue, size: 17 }); }
+    // amplitude: from the rest position to the top of a wave
+    P.arrow(40, y0, 40, y0 - A, { color: C.red, lw: 5 }); P.line(28, y0 - A, 100, y0 - A, { color: C.red, lw: 2, dash: [4, 5] }); P.tag('amplitude ' + AMP[s.size] + ' cm', 110, y0 + A + 48, { bg: C.red, size: 17 });
+    P.arrow(330, 440, 610, 440, { color: C.green, lw: 6 }); P.text('energy travels this way', 470, 462, { size: 17, color: C.green });
+    P.text('shown in slow motion', 790, 28, { size: 15, color: C.mute, bold: false });
+  },
+  inquiry: [
+    { name: 'Shake faster', q: 'What happens to the waves when you shake the rope faster?',
+      guess: ['The waves get closer together (shorter wavelength)', 'The waves get further apart (longer wavelength)', 'The waves stay the same'], guessAns: 0,
+      change: 'speed', measure: ['f', 'lam'], fix: { size: 'small' }, same: ['the same rope', 'the same size of shake'],
+      found: ['Shaking faster gives a ', ['higher', 'lower'], ' frequency and a ', ['shorter', 'longer'], ' wavelength.'], foundAns: [0, 0],
+      why: 'Frequency is the number of waves made each second. Wavelength is the length of one complete wave.' },
+    { name: 'Shake bigger', q: 'What happens to the waves when you make a bigger shake?',
+      guess: ['The waves get taller (bigger amplitude)', 'The waves get closer together', 'The waves stay the same'], guessAns: 0,
+      change: 'size', measure: 'amp', fix: { speed: 'mid' }, same: ['the same rope', 'the same speed of shake'],
+      found: ['A bigger shake gives a ', ['bigger', 'smaller'], ' amplitude. The wave carries ', ['more', 'less'], ' energy.'], foundAns: [0, 0],
+      why: 'Amplitude is the biggest distance the rope moves from its rest position. Waves transfer energy from one place to another.' },
+  ],
+});
+})();
+</script>

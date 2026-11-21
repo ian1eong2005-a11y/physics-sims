@@ -1,0 +1,24 @@
+<title>Food additives</title>
+<div id="nt"></div>
+<script>
+NT.match({
+  title: 'Why is it added to food?', emoji: '🧂',
+  intro: 'Food additives are added to food for different reasons. Sort each one.',
+  ask: 'Why is it added? Tap a box.',
+  bins: [
+    { id: 'pres', label: 'Preservative', emoji: '⏳', sub: 'keeps food from spoiling' },
+    { id: 'nutr', label: 'Nutritional supplement', emoji: '💪', sub: 'adds nutrients' },
+    { id: 'look', label: 'Texture and appearance', emoji: '🎨', sub: 'changes how food looks or feels' },
+  ],
+  cards: [
+    { t: 'Salt in salted eggs', emoji: '🧂', bin: 'pres' },
+    { t: 'Sugar in jam', emoji: '🍓', bin: 'pres', why: 'A lot of sugar stops microbes from growing.' },
+    { t: 'Vinegar in pickles', emoji: '🥒', bin: 'pres', why: 'Vinegar lowers the pH.' },
+    { t: 'Sulfur dioxide in dried fruit', emoji: '🍑', bin: 'pres' },
+    { t: 'Vitamins added to breakfast cereal', emoji: '🥣', bin: 'nutr' },
+    { t: 'Calcium (a mineral) added to soya milk', emoji: '🥛', bin: 'nutr' },
+    { t: 'Food colouring in sweets', emoji: '🍬', bin: 'look', why: 'Colouring changes how the food looks.' },
+    { t: 'Starch to make a sauce thicker', emoji: '🥣', bin: 'look', why: 'Starch changes the texture.' },
+  ],
+});
+</script>

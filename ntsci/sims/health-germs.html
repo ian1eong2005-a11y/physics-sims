@@ -1,0 +1,35 @@
+<title>Germ killers</title>
+<div id="nt"></div>
+<script>
+(() => {
+const A = { water: ['Water only', '💧', 40], anti: ['Antiseptic', '🩹', 8], dis: ['Disinfectant', '🧴', 2] };
+NT.sim({
+  title: 'Which one stops the microbes?', emoji: '🧫',
+  idea: 'Antimicrobial agents (antiseptics and disinfectants) reduce the growth of microbes.',
+  controls: [{ id: 'a', label: 'Added to the agar plate', noun: 'what is added to the plate', value: 'water', options: Object.entries(A).map(([k, v]) => [k, v[0], v[1]]) }],
+  go: { label: 'Keep warm for 2 days', time: 5 },
+  readings: [{ id: 'col', label: 'Colonies of bacteria after 2 days', noun: 'the number of colonies', get: s => A[s.a][2] }],
+  say: (s, done) => done ? (s.a === 'water' ? 'Water does not stop the bacteria. Many colonies grew.' : s.a === 'anti' ? 'The antiseptic stopped most of the bacteria.' : 'The disinfectant stopped nearly all of the bacteria.') : '',
+  draw(P, s, p) {
+    const C = P.C, n = Math.round(A[s.a][2] * Math.max(0, (p - 0.15) / 0.85));
+    P.rect(0, 420, 900, 60, { fill: '#e9edf1' });
+    P.emoji(A[s.a][1], 150, 220, 110); P.text(A[s.a][0], 150, 310, { size: 20 }); P.arrow(230, 240, 310, 240, { color: C.mute, lw: 6 });
+    // petri dish with agar
+    P.circle(520, 240, 190, { fill: '#f4f7fa', stroke: C.dark, lw: 5 }); P.circle(520, 240, 172, { fill: '#f6e7a8', stroke: '#d9c46a', lw: 3 });
+    for (let i = 0; i < n; i++) { const a = i * 2.399, r = 22 + ((i * 53) % 138); P.circle(520 + r * Math.cos(a), 240 + r * Math.sin(a), 7 + ((i * 3) % 6) * Math.min(1, p * 1.4), { fill: '#fff6dc', stroke: '#b89a52', lw: 2 }); }
+    P.text('agar plate with bacteria', 520, 452, { size: 17, color: C.mute });
+    P.tag('Day ' + Math.round(p * 2), 800, 50, { bg: C.ink, size: 22 });
+    if (p >= 1) P.tag(A[s.a][2] + ' colonies', 790, 240, { bg: A[s.a][2] > 20 ? C.red : C.green, size: 19 });
+    P.text('each dot = 1 colony', 790, 290, { size: 15, color: C.mute, bold: false }); P.text('(millions of bacteria)', 790, 310, { size: 15, color: C.mute, bold: false });
+  },
+  inquiry: [{
+    q: 'Which one is best at stopping bacteria from growing?',
+    guess: ['The disinfectant: fewest colonies', 'Water: fewest colonies', 'They are all the same'], guessAns: 0,
+    change: 'a', measure: 'col',
+    same: ['the same kind of agar plate', 'the same bacteria', 'the same time (2 days)', 'the same warm place'],
+    found: ['Antimicrobial agents ', ['reduce', 'increase'], ' the growth of microbes. Here, the ', ['disinfectant', 'water'], ' worked best.'], foundAns: [0, 0],
+    why: 'Antiseptics are used on skin and wounds. Disinfectants are used on things like tables and floors. The plate with water only is the control: it shows what happens with no agent.',
+  }],
+});
+})();
+</script>

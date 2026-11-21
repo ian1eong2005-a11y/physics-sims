@@ -1,0 +1,52 @@
+<title>Rusting</title>
+<div id="nt"></div>
+<script>
+(() => {
+// water touching the nail?, air touching the nail?, rust?
+const T = {
+  A: ['A', 'water and air', 'yes', 'yes', 'yes, it rusts'],
+  B: ['B', 'boiled water + oil on top', 'yes', 'no', 'no rust'],
+  C: ['C', 'dry air (drying agent)', 'no', 'yes', 'no rust'],
+  D: ['D', 'tin-plated nail, water and air', 'no (tin covers it)', 'no (tin covers it)', 'no rust'],
+};
+const X = { A: 150, B: 350, C: 550, D: 750 };
+NT.sim({
+  title: 'What makes iron rust?', emoji: '🔩',
+  idea: 'Iron rusts only when it touches both air and water.',
+  controls: [{ id: 'tube', label: 'Look at test tube', noun: 'the test tube', value: 'A', options: Object.values(T).map(v => [v[0], v[0] + ': ' + v[1]]) }],
+  go: { label: 'Wait 3 days', time: 4 },
+  readings: [
+    { id: 'w', label: 'Water touching the iron?', always: true, get: s => T[s.tube][2] },
+    { id: 'a', label: 'Air touching the iron?', always: true, get: s => T[s.tube][3] },
+    { id: 'rust', label: 'Rust after 3 days?', noun: 'whether the nail rusts', get: s => T[s.tube][4] },
+  ],
+  draw(P, s, p) {
+    const C = P.C;
+    P.rect(40, 400, 820, 16, { fill: C.brown, r: 6 });
+    Object.keys(T).forEach(k => {
+      const x = X[k], on = s.tube === k, top = 130, h = 260;
+      if (on) P.rect(x - 70, 80, 140, 372, { fill: '#fff8d6', stroke: C.yellow, lw: 4, r: 16 });
+      const lv = k === 'A' || k === 'D' ? 0.5 : k === 'B' ? 0.8 : 0;
+      P.tube(x - 32, top, 64, h, { level: lv, color: '#bfe3ff', inside: wt => { if (k === 'B') P.rect(x - 32, wt - 22, 64, 22, { fill: '#f2d66b' }); if (k === 'C') for (let i = 0; i < 7; i++) P.circle(x - 18 + ((i * 11) % 38), top + h - 14 - (i % 2) * 12, 8, { fill: '#fff', stroke: C.grey, lw: 2 }); } });
+      if (k === 'C') P.rect(x - 34, top - 16, 68, 20, { fill: C.dark, r: 6 });
+      // nail
+      const ny = k === 'C' ? top + 60 : top + 100, col = k === 'D' ? '#dfe6ec' : '#8a949e';
+      P.rect(x - 5, ny, 10, 120, { fill: col, stroke: C.dark, lw: 2, r: 3 }); P.rect(x - 13, ny - 6, 26, 8, { fill: col, stroke: C.dark, lw: 2, r: 3 });
+      if (k === 'A' && p > 0.1) for (let i = 0; i < Math.round(14 * p); i++) P.circle(x - 5 + ((i * 7) % 11), ny + 14 + ((i * 23) % 100), 5 + (i % 3), { fill: '#b5541c', alpha: 0.9 });
+      P.text(k, x, 104, { size: 26 });
+      const lab = { A: ['water', 'and air'], B: ['oil: no air', 'boiled water'], C: ['dry air', 'no water'], D: ['tin-plated nail', 'water and air'] }[k]; P.text(lab[0], x, 424, { size: 15, color: C.mute }); P.text(lab[1], x, 442, { size: 15, color: C.mute });
+      if (p >= 1) P.tag(k === 'A' ? 'RUST' : 'no rust', x, 60, { bg: k === 'A' ? '#b5541c' : C.green, size: 17 });
+    });
+    P.tag('Day ' + Math.round(p * 3), 60, 40, { bg: C.ink, size: 20 });
+  },
+  inquiry: [{
+    q: 'What does an iron nail need before it will rust?',
+    guess: ['Both air and water', 'Only water', 'Only air'], guessAns: 0,
+    change: 'tube', measure: ['w', 'a', 'rust'], dv: 'whether the nail rusts',
+    same: ['the same time (3 days)', 'the same size of test tube', 'the same room'],
+    found: ['Iron rusts only when it touches both ', ['air and water', 'oil and tin'], '. Tin-plating slows down rusting because the tin keeps air and water ', ['away from', 'close to'], ' the iron.'], foundAns: [0, 0],
+    why: 'Rusting is a chemical reaction: a new substance (rust) is formed. Food cans are made of iron coated with tin to slow down rusting.',
+  }],
+});
+})();
+</script>

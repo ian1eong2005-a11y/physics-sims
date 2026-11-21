@@ -1,0 +1,52 @@
+<title>Swinging bottle</title>
+<div id="nt"></div>
+<script>
+(() => {
+const L = 300, PX = 470, PY = 40, CM = 1.8;                      // string length, pivot, pixels per cm
+const H = { low: 20, mid: 40, high: 60 };
+const ang = cm => Math.acos(1 - (cm * CM) / L);
+const back = s => H[s.h] + (s.push === 'yes' ? 15 : 0);
+NT.sim({
+  title: 'Swinging bottle', emoji: '🧴',
+  idea: 'Energy cannot be created or destroyed. It only changes form: potential ⇄ kinetic.',
+  controls: [
+    { id: 'h', label: 'Let go from', noun: 'the height I let go from', value: 'mid', options: [['low', 'Low (20 cm)'], ['mid', 'Middle (40 cm)'], ['high', 'High (60 cm)']] },
+    { id: 'push', label: 'How?', value: 'no', options: [['no', 'Just let go', '✋'], ['yes', 'Give it a push', '👊']] },
+  ],
+  go: { label: 'Let go', time: 4.5 },
+  readings: [
+    { id: 'start', label: 'Start height', unit: 'cm', always: true, get: s => H[s.h] },
+    { id: 'back', label: 'Height when it comes back', noun: 'the height when it comes back', unit: 'cm', get: s => back(s) },
+  ],
+  say: (s, done) => !done ? '' : s.push === 'yes' ? 'The push gave it extra energy, so it comes back higher. Ouch!' : 'It comes back to the same height. It does not hit the face!',
+  draw(P, s, p) {
+    const C = P.C, a0 = ang(H[s.h]), a1 = ang(back(s)), a = -(a0 + (a1 - a0) * p) * Math.cos(2 * Math.PI * p);
+    const bx = PX + L * Math.sin(a), by = PY + L * Math.cos(a), sx = PX - L * Math.sin(a0), sy = PY + L * Math.cos(a0), floor = 440, low = PY + L;
+    P.rect(0, floor, 900, 40, { fill: '#e9edf1' }); P.rect(250, 20, 440, 14, { fill: C.dark, r: 6 });
+    // start height line and ruler
+    P.line(60, sy, 640, sy, { color: C.orange, lw: 3, dash: [10, 8] }); P.tag('start: ' + H[s.h] + ' cm', 596, sy - 22, { bg: C.orange, size: 17 });
+    P.line(60, low, 640, low, { color: C.line, lw: 2 }); P.text('0 cm', 96, low + 16, { size: 15, color: C.mute });
+    // face on a stand, right behind the start position
+    const hit = s.push === 'yes' && p > 0.93;
+    P.line(sx - 62, sy + 26, sx - 62, floor, { color: C.grey, lw: 8 }); P.emoji(hit ? '😵' : p > 0.7 && p < 1 ? '😬' : '🙂', sx - 62, sy, 54);
+    // string and bottle
+    P.line(PX, PY, bx, by, { color: C.dark, lw: 3 });
+    P.ctx.save(); P.ctx.translate(bx, by); P.ctx.rotate(-a);
+    P.rect(-17, -26, 34, 52, { fill: '#8fd0ff', stroke: C.blue, lw: 3, r: 9 }); P.rect(-8, -38, 16, 14, { fill: C.blue, r: 3 }); P.ctx.restore();
+    // energy bars
+    const hNow = (L * (1 - Math.cos(a))) / CM, tot = H[s.h] + (s.push === 'yes' ? 15 : 0), pe = Math.min(hNow, tot), ke = Math.max(0, tot - pe);
+    P.text('Energy of the bottle', 780, 66, { size: 19 });
+    P.bar(712, 100, 54, 250, pe / 80, { color: C.blue, label: 'Potential' }); P.bar(796, 100, 54, 250, ke / 80, { color: C.red, label: 'Kinetic' });
+    P.text('(height)', 739, 392, { size: 15, color: C.mute, bold: false }); P.text('(moving)', 823, 392, { size: 15, color: C.mute, bold: false });
+  },
+  inquiry: [{
+    q: 'You let go of the bottle. Can it swing back higher than where it started?',
+    guess: ['Yes. It comes back higher.', 'No. It comes back to the same height.'], guessAns: 1,
+    change: 'h', measure: 'back', fix: { push: 'no' },
+    same: ['the same bottle', 'the same string', 'just let go (no push)'],
+    found: ['The bottle comes back to ', ['a higher height', 'the same height'], '. The bottle ', ['can', 'cannot'], ' make extra energy by itself.'], foundAns: [1, 1],
+    why: 'Energy cannot be created or destroyed. Potential energy changes to kinetic energy and back again. (In real life it comes back a tiny bit lower: some energy becomes thermal energy in the air.)',
+  }],
+});
+})();
+</script>

@@ -1,0 +1,41 @@
+<title>Adding resistors</title>
+<div id="nt"></div>
+<script>
+(() => {
+const total = s => (s.join === 'series' ? 10 * s.n : Math.round((10 / s.n) * 10) / 10);
+const same = ['the same kind of resistor (10 Ω each)', 'the same multimeter'];
+NT.sim({
+  title: 'Adding resistors', emoji: '🎚️',
+  idea: 'More resistors in series: resistance goes up. More resistors in parallel: resistance goes down.',
+  controls: [
+    { id: 'join', label: 'Joined in', value: 'series', options: [['series', 'Series'], ['parallel', 'Parallel']] },
+    { id: 'n', label: 'Number of resistors', noun: 'the number of resistors', value: 1, options: [[1, '1'], [2, '2'], [3, '3']] },
+  ],
+  readings: [{ id: 'r', label: 'Total (effective) resistance', noun: 'the total resistance', unit: 'Ω', always: true, get: total }],
+  say: s => s.n === 1 ? 'One 10 Ω resistor.' : s.join === 'series' ? 'The current must go through every resistor, one after another. It is harder to flow.' : 'The current has ' + s.n + ' paths to choose from. It is easier to flow.',
+  draw(P, s) {
+    const C = P.C, n = s.n, sr = s.join === 'series', W = { color: C.dark, lw: 5 };
+    const res = (x, y) => { P.rect(x - 50, y - 20, 100, 40, { fill: '#ffe9a8', stroke: C.dark, lw: 4, r: 4 }); P.text('10 Ω', x, y + 1, { size: 20 }); };
+    if (sr) { P.line(150, 150, 750, 150, W); const xs = n === 1 ? [450] : n === 2 ? [350, 550] : [290, 450, 610]; xs.forEach(x => res(x, 150)); }
+    else { const ys = n === 1 ? [150] : n === 2 ? [110, 190] : [70, 150, 230]; P.line(150, 150, 300, 150, W); P.line(600, 150, 750, 150, W); P.line(300, ys[0], 300, ys[n - 1], W); P.line(600, ys[0], 600, ys[n - 1], W); ys.forEach(y => { P.line(300, y, 600, y, W); res(450, y); }); }
+    // multimeter with two leads
+    P.line(150, 150, 150, 360, { color: C.red, lw: 5 }); P.line(750, 150, 750, 360, { color: C.dark, lw: 5 }); P.line(150, 360, 360, 360, { color: C.red, lw: 5 }); P.line(540, 360, 750, 360, { color: C.dark, lw: 5 });
+    P.circle(150, 150, 9, { fill: C.red }); P.circle(750, 150, 9, { fill: C.dark });
+    P.rect(350, 300, 200, 130, { fill: C.yellow, stroke: C.dark, lw: 5, r: 16 }); P.rect(370, 318, 160, 56, { fill: '#e8f0e0', stroke: C.dark, lw: 3, r: 6 }); P.text(total(s) + ' Ω', 450, 348, { size: 34 }); P.text('multimeter (Ω)', 450, 402, { size: 17 });
+    P.tag(sr ? 'SERIES' : 'PARALLEL', 800, 60, { bg: sr ? C.blue : C.purple, size: 18 });
+  },
+  inquiry: [
+    { name: 'In series', q: 'What happens to the total resistance when you add resistors in series?',
+      guess: ['It goes up', 'It goes down', 'It stays the same'], guessAns: 0,
+      change: 'n', measure: 'r', fix: { join: 'series' }, same,
+      found: ['When more resistors are connected in series, the total resistance ', ['increases', 'decreases'], '.'], foundAns: [0],
+      why: 'In series the current has to pass through every resistor, so the effective resistance increases.' },
+    { name: 'In parallel', q: 'What happens to the total resistance when you add resistors in parallel?',
+      guess: ['It goes up', 'It goes down', 'It stays the same'], guessAns: 1,
+      change: 'n', measure: 'r', fix: { join: 'parallel' }, same,
+      found: ['When more resistors are connected in parallel, the total resistance ', ['increases', 'decreases'], '.'], foundAns: [1],
+      why: 'In parallel there are more paths for the current, so the effective resistance decreases.' },
+  ],
+});
+})();
+</script>

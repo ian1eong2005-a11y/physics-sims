@@ -1,0 +1,63 @@
+<title>From power station to home</title>
+<div id="nt"></div>
+<script>
+(() => {
+const LOST = { high: 4, low: 40 };
+NT.sim({
+  title: 'From power station to home', emoji: '🏭',
+  idea: 'Chemical → thermal → kinetic → electrical. High voltage lines waste less energy as heat.',
+  controls: [{ id: 'v', label: 'Voltage in the power lines', noun: 'the voltage in the power lines', value: 'high', options: [['low', 'Low (no step-up transformer)'], ['high', 'Very high (step-up transformer)']] }],
+  readings: [{ id: 'lost', label: 'Energy wasted as heat in the lines (of every 100 J)', noun: 'the energy wasted in the lines', unit: 'J', always: true, get: s => LOST[s.v] }],
+  say: s => s.v === 'high' ? 'Very high voltage: only a little energy is wasted as heat. The home gets most of the energy.' : 'Low voltage: the lines get hot and waste a lot of energy. The lamp at home is dim.',
+  spots: [
+    { id: 'fuel', x: 70, y: 150, name: 'Fossil fuel', emoji: '🛢️', info: 'Coal, oil or natural gas. It stores <b>chemical potential energy</b>.' },
+    { id: 'boiler', x: 180, y: 150, name: 'Boiler', emoji: '🔥', info: 'The fuel is burnt. Chemical energy → <b>thermal energy</b>. Water boils into steam.' },
+    { id: 'turbine', x: 300, y: 150, name: 'Turbine', emoji: '🌀', info: 'The steam pushes the turbine and makes it spin. Thermal energy → <b>kinetic energy</b>.' },
+    { id: 'gen', x: 410, y: 150, name: 'Generator', emoji: '⚡', info: 'The spinning turbine turns the generator. Kinetic energy → <b>electrical energy</b>.' },
+    { id: 'up', x: 515, y: 150, name: 'Step-up transformer', emoji: '⬆️', info: 'It makes the voltage <b>higher</b> before the electricity goes into the power lines.' },
+    { id: 'lines', x: 655, y: 100, name: 'Power lines (the grid)', emoji: '🗼', info: 'A grid of high voltage lines carries electricity far away. High voltage means <b>less energy is wasted as heat</b>.' },
+    { id: 'down', x: 790, y: 150, name: 'Step-down transformer', emoji: '⬇️', info: 'It makes the voltage <b>lower</b> (230 V), so it is safer to use at home.' },
+    { id: 'home', x: 860, y: 215, name: 'Home', emoji: '🏠', info: 'Appliances change electrical energy into light, sound, thermal and kinetic energy.' },
+  ],
+  draw(P, s, p, t) {
+    const C = P.C, hi = s.v === 'high', y = 300;
+    P.rect(0, 380, 900, 100, { fill: '#e6f3e6' });
+    // fuel
+    P.emoji('🛢️', 70, 330, 64);
+    // boiler
+    P.rect(140, 230, 80, 130, { fill: '#cfe6ff', stroke: C.dark, lw: 4, r: 8 }); P.bubbles(146, 240, 68, 110, 8, t, { color: '#fff', r: 3 }); P.emoji('🔥', 180, 372, 40 + 4 * Math.sin(t * 9));
+    P.line(220, 250, 262, 250, { color: C.grey, lw: 12 }); for (let i = 0; i < 3; i++) P.circle(226 + ((t * 40 + i * 14) % 38), 250, 4, { fill: '#fff' });
+    // turbine
+    P.circle(300, 290, 40, { fill: '#fff', stroke: C.dark, lw: 4 }); for (let i = 0; i < 6; i++) { const a = t * 5 + (i * Math.PI) / 3; P.line(300, 290, 300 + 34 * Math.cos(a), 290 + 34 * Math.sin(a), { color: C.blue, lw: 7 }); }
+    P.line(340, 290, 372, 290, { color: C.dark, lw: 8 });
+    // generator
+    P.rect(372, 250, 78, 80, { fill: '#ffe9a8', stroke: C.dark, lw: 4, r: 10 }); P.emoji('⚡', 411, 290, 40);
+    // step-up transformer
+    P.rect(492, 268, 18, 44, { fill: hi ? C.orange : C.line, stroke: C.dark, lw: 3 }); P.rect(516, 240, 22, 72, { fill: hi ? C.orange : C.line, stroke: C.dark, lw: 3 });
+    if (!hi) { P.line(486, 232, 544, 320, { color: C.red, lw: 6 }); P.line(544, 232, 486, 320, { color: C.red, lw: 6 }); }
+    // pylons and lines
+    [600, 710].forEach(px => { P.poly([[px - 22, 360], [px, 190], [px + 22, 360]], { stroke: C.dark, lw: 4, close: false }); P.line(px - 30, 215, px + 30, 215, { color: C.dark, lw: 4 }); P.line(px - 14, 290, px + 14, 290, { color: C.dark, lw: 3 }); });
+    const wire = [[450, 290], [492, 290]], top = [[538, 262], [570, 215], [740, 215], [770, 262]];
+    P.curve(wire, { color: C.dark, lw: 4 }); P.curve(top, { color: C.dark, lw: 4 }); P.curve([[810, 290], [836, 290]], { color: C.dark, lw: 4 });
+    for (let i = 0; i < 6; i++) P.circle(575 + ((t * 70 + i * 28) % 165), 215, 5, { fill: C.yellow, stroke: C.dark, lw: 1 });
+    // wasted heat above the lines
+    const n = hi ? 1 : 6; for (let i = 0; i < n; i++) { const hx = hi ? 655 : 585 + i * 28, hy = 180 - ((t * 30 + i * 9) % 26); P.curve([[hx - 8, hy], [hx - 2, hy - 8], [hx + 4, hy], [hx + 10, hy - 8]], { color: C.red, lw: 4, alpha: 0.85 }); }
+    P.tag(hi ? 'little heat wasted' : 'a lot of heat wasted', 655, 58, { bg: hi ? C.green : C.red, size: 17 });
+    // step-down transformer
+    P.rect(770, 240, 22, 72, { fill: C.orange, stroke: C.dark, lw: 3 }); P.rect(796, 268, 18, 44, { fill: C.orange, stroke: C.dark, lw: 3 });
+    // home
+    P.emoji('🏠', 860, 316, 70); P.lamp(860, 262, 12, hi ? 1 : 0.3);
+    // energy forms
+    if (!s._test) { [['chemical', 70, C.brown], ['thermal', 180, C.red], ['kinetic', 300, C.blue], ['electrical', 411, C.orange]].forEach((q, i) => { P.tag(q[0], q[1], 420, { bg: q[2], size: 16 }); if (i) P.text('→', (q[1] + [70, 180, 300][i - 1]) / 2, 420, { size: 26 }); }); P.text('energy changes', 250, 456, { size: 16, color: C.mute }); }
+  },
+  inquiry: [{
+    q: 'Why is electricity sent through the power lines at a very high voltage?',
+    guess: ['High voltage wastes less energy', 'High voltage wastes more energy', 'The voltage makes no difference'], guessAns: 0,
+    change: 'v', measure: 'lost',
+    same: ['the same power station', 'the same power lines', 'the same distance to the home'],
+    found: ['At a very high voltage, ', ['less', 'more'], ' energy is wasted as heat in the lines. A step-', ['up', 'down'], ' transformer raises the voltage. A step-', ['up', 'down'], ' transformer lowers it for homes.'], foundAns: [0, 0, 1],
+    why: 'Electricity is transmitted at high voltage so that less energy is lost as heat in the lines. Step-down transformers then lower the voltage so it is safer to use.',
+  }],
+});
+})();
+</script>

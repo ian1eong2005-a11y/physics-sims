@@ -1,0 +1,38 @@
+<title>Paper chromatography</title>
+<div id="nt"></div>
+<script>
+(() => {
+const DYE = { blue: ['#2a7de1', 0.5], red: ['#e4572e', 0.28], yellow: ['#f4b400', 0.8] };          // colour, how far it travels
+const MIX = { yellow: ['yellow'], green: ['blue', 'yellow'], purple: ['red', 'blue'], black: ['red', 'blue', 'yellow'] };
+const START = { yellow: '#f4b400', green: '#3aa655', purple: '#7b5ea7', black: '#222222' };
+NT.sim({
+  title: 'One dye or a mixture?', emoji: '🎨',
+  idea: 'Paper chromatography separates the dyes in a food colouring.',
+  controls: [{ id: 'c', label: 'Food colouring', noun: 'the food colouring', value: 'green', options: [['yellow', 'Yellow', '🟡'], ['green', 'Green', '🟢'], ['purple', 'Purple', '🟣'], ['black', 'Black', '⚫']] }],
+  go: { label: 'Dip the paper in water', time: 5 },
+  readings: [
+    { id: 'n', label: 'Number of coloured spots', noun: 'the number of coloured spots', get: s => MIX[s.c].length },
+    { id: 'mix', label: 'So the colouring is', get: s => (MIX[s.c].length > 1 ? 'a mixture of ' + MIX[s.c].join(' + ') : 'a single dye') },
+  ],
+  draw(P, s, p) {
+    const C = P.C, y0 = 370, rise = 270 * p;
+    P.rect(0, 430, 900, 50, { fill: '#e9edf1' }); P.line(250, 60, 650, 60, { color: C.brown, lw: 8 });
+    P.beaker(330, 270, 240, 160, { level: 0.2, color: '#bfe3ff' });
+    P.rect(400, 60, 100, 348, { fill: '#fffdf2', stroke: '#b8ad8a', lw: 3 }); P.rect(401, y0 + 26 - rise - 26, 98, 408 - (y0 - rise), { fill: 'rgba(120,190,240,0.25)' });
+    P.line(400, y0, 500, y0, { color: C.grey, lw: 2 }); P.text('start line (pencil)', 590, y0, { size: 15, color: C.mute, align: 'left' }); P.line(505, y0, 580, y0, { color: C.grey, lw: 2 });
+    if (p < 0.1) P.circle(450, y0, 13, { fill: START[s.c] });
+    else MIX[s.c].forEach(d => { P.oval(450, y0 - rise * DYE[d][1], 15, 11, { fill: DYE[d][0], alpha: 0.9 }); if (p >= 1) { P.line(470, y0 - rise * DYE[d][1], 560, y0 - rise * DYE[d][1], { color: DYE[d][0], lw: 2 }); P.text(d + ' dye', 568, y0 - rise * DYE[d][1], { size: 18, color: DYE[d][0], align: 'left' }); } });
+    if (p > 0 && p < 1) P.tag('water moves up', 250, y0 - rise, { bg: C.blue, size: 16 });
+    P.circle(180, 200, 46, { fill: START[s.c], stroke: C.dark, lw: 4 }); P.text(s.c + ' food colouring', 180, 270, { size: 17, color: C.mute });
+  },
+  inquiry: [{
+    q: 'Which food colourings are mixtures of more than one dye?',
+    guess: ['Some are mixtures, some are single dyes', 'They are all single dyes', 'They are all mixtures'], guessAns: 0,
+    change: 'c', measure: ['n', 'mix'], dv: 'the number of coloured spots',
+    same: ['the same kind of paper', 'the same liquid (water)', 'the same size of spot'],
+    found: ['A colouring that separates into more than one spot is a ', ['mixture', 'single dye'], '. Yellow gives only one spot, so it is ', ['a single dye', 'a mixture'], '.'], foundAns: [0, 0],
+    why: 'Paper chromatography separates the substances in a mixture. Different dyes travel different distances up the paper.',
+  }],
+});
+})();
+</script>

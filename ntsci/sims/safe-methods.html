@@ -1,0 +1,28 @@
+<title>Food preservation methods</title>
+<div id="nt"></div>
+<script>
+NT.match({
+  title: 'How is the food preserved?', emoji: '🥫',
+  intro: 'Each way of preserving food stops microbes from growing. Match each food to how it works.',
+  ask: 'How does this stop the microbes? Tap a box.',
+  bins: [
+    { id: 'ph', label: 'Lowering the pH', emoji: '🍋', sub: 'too acidic for microbes' },
+    { id: 'ox', label: 'Reducing oxygen', emoji: '🚫', sub: 'no air' },
+    { id: 'water', label: 'Reducing water', emoji: '🏜️', sub: 'too dry' },
+    { id: 'hot', label: 'High temperature', emoji: '🔥', sub: 'kills microbes' },
+    { id: 'cold', label: 'Low temperature', emoji: '❄️', sub: 'too cold to grow' },
+  ],
+  cards: [
+    { t: 'Pickled vegetables (achar) in vinegar', emoji: '🥒', bin: 'ph', why: 'Pickling lowers the pH.' },
+    { t: 'Jam sealed in a bottle', emoji: '🍯', bin: 'ox', why: 'Bottling keeps air out.' },
+    { t: 'Vacuum-packed sausages', emoji: '🌭', bin: 'ox', why: 'Vacuum packaging removes the air.' },
+    { t: 'Freeze-dried instant coffee', emoji: '☕', bin: 'water', why: 'Freeze-drying removes water.' },
+    { t: 'Dried fruit such as raisins', emoji: '🍇', bin: 'water', why: 'Dehydration removes water.' },
+    { t: 'Salted fish', emoji: '🐟', bin: 'water', why: 'Salt is a chemical preservative: it draws water out.' },
+    { t: 'Pasteurised milk', emoji: '🥛', bin: 'hot', why: 'Pasteurisation heats the milk to kill most microbes.' },
+    { t: 'Canned sardines', emoji: '🥫', bin: 'hot', why: 'Canning heats the food in a sealed can.' },
+    { t: 'Sterilised (UHT) milk in a carton', emoji: '🧃', bin: 'hot', why: 'Sterilisation uses a very high temperature.' },
+    { t: 'Frozen chicken', emoji: '🍗', bin: 'cold', why: 'Freezing: too cold for microbes to grow.' },
+  ],
+});
+</script>

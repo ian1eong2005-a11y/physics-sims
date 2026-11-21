@@ -1,0 +1,70 @@
+<title>Current and voltage</title>
+<div id="nt"></div>
+<script>
+(() => {
+// 6 V battery, lamp A = 10 ohm, lamp B = 20 ohm
+const I = { series: { P: 0.2, Q: 0.2, R: 0.2 }, parallel: { P: 0.9, Q: 0.6, R: 0.3 } };
+const V = { series: { batt: 6, A: 2, B: 4 }, parallel: { batt: 6, A: 6, B: 6 } };
+const PT = { series: { P: [240, 120], Q: [520, 120], R: [750, 250] }, parallel: { P: [300, 120], Q: [480, 185], R: [680, 185] } };
+const value = s => (s.meter === 'A' ? I[s.circuit][s.pt] : V[s.circuit][s.across]);
+const same = ['the same battery', 'the same two lamps', 'the same circuit'];
+NT.sim({
+  title: 'Current and voltage in circuits', emoji: '🔋',
+  idea: 'Series: one path, same current everywhere. Parallel: the current splits, each branch gets the full voltage.',
+  controls: [
+    { id: 'circuit', label: 'Circuit', value: 'series', options: [['series', 'Series'], ['parallel', 'Parallel']] },
+    { id: 'meter', label: 'Multimeter measures', value: 'A', options: [['A', 'Current (A)'], ['V', 'Voltage (V)']] },
+    { id: 'pt', label: 'Put the meter at', noun: 'where the meter is', value: 'P', options: [['P', 'P'], ['Q', 'Q'], ['R', 'R']], show: s => s.meter === 'A' },
+    { id: 'across', label: 'Connect the meter across', noun: 'what the meter is across', value: 'batt', options: [['batt', 'the battery'], ['A', 'lamp A'], ['B', 'lamp B']], show: s => s.meter === 'V' },
+  ],
+  readings: [{ id: 'val', label: 'Meter reading', noun: 'the meter reading', always: true, get: value, unit: s => (s.meter === 'A' ? 'A' : 'V') }],
+  draw(P, s, p, t) {
+    const C = P.C, ser = s.circuit === 'series', W = { color: C.dark, lw: 5 };
+    const lampA = ser ? [400, 120] : [480, 270], lampB = ser ? [640, 120] : [680, 270];
+    // wires
+    if (ser) P.poly([[150, 120], [750, 120], [750, 380], [150, 380]], { stroke: C.dark, lw: 5 });
+    else { P.poly([[150, 120], [680, 120], [680, 380], [150, 380]], { stroke: C.dark, lw: 5 }); P.line(480, 120, 480, 380, W); }
+    // moving charge: speed shows the size of the current
+    const sp = c => t * 260 * c;
+    if (ser) P.flow([[150, 215], [150, 120], [750, 120], [750, 380], [150, 380], [150, 285]], sp(0.2), 46);
+    else { P.flow([[150, 215], [150, 120], [480, 120]], sp(0.9), 46); P.flow([[480, 120], [480, 380]], sp(0.6), 46); P.flow([[480, 120], [680, 120], [680, 380], [480, 380]], sp(0.3), 46); P.flow([[480, 380], [150, 380], [150, 285]], sp(0.9), 46); }
+    // battery
+    P.rect(128, 215, 44, 70, { fill: '#fff' }); P.line(124, 236, 176, 236, { color: C.dark, lw: 5 }); P.line(138, 262, 162, 262, { color: C.dark, lw: 11 }); P.text('+', 104, 232, { size: 24 }); P.text('battery 6 V', 70, 320, { size: 17, color: C.mute });
+    // lamps (brightness from their power)
+    const pw = ser ? [0.4, 0.8] : [3.6, 1.8];
+    [[lampA, 'A', pw[0]], [lampB, 'B', pw[1]]].forEach(q => { P.lamp(q[0][0], q[0][1], 26, 0.25 + 0.75 * Math.sqrt(q[2] / 3.6)); P.text('lamp ' + q[1], q[0][0] + (ser ? 0 : 68), q[0][1] + (ser ? 52 : 0), { size: 19 }); });
+    // points P, Q, R
+    Object.entries(PT[s.circuit]).forEach(([k, q]) => { const on = s.meter === 'A' && s.pt === k; if (!on) { P.circle(q[0], q[1], 9, { fill: C.orange, stroke: '#fff', lw: 2 }); P.text(k, q[0] + (k === 'R' && ser ? 26 : 0), q[1] - (k === 'R' && ser ? 0 : 26), { size: 22, color: C.orange }); } });
+    // the meter
+    if (s.meter === 'A') { const q = PT[s.circuit][s.pt]; P.meter(q[0], q[1], value(s).toFixed(1) + ' A', { label: 'current at ' + s.pt, w: 130 }); }
+    else { const q = s.across === 'batt' ? [150, 250] : s.across === 'A' ? lampA : lampB, vert = s.across === 'batt' || !ser, mx = q[0] + (vert ? (s.across === 'batt' ? 150 : -130) : 0), my = q[1] + (vert ? 0 : 130);
+      if (vert) { P.line(q[0], q[1] - 62, mx, my - 30, { color: C.red, lw: 4 }); P.line(q[0], q[1] + 62, mx, my + 30, { color: C.blue, lw: 4 }); P.circle(q[0], q[1] - 62, 7, { fill: C.red }); P.circle(q[0], q[1] + 62, 7, { fill: C.blue }); }
+      else { P.line(q[0] - 62, q[1], mx - 40, my - 30, { color: C.red, lw: 4 }); P.line(q[0] + 62, q[1], mx + 40, my - 30, { color: C.blue, lw: 4 }); P.circle(q[0] - 62, q[1], 7, { fill: C.red }); P.circle(q[0] + 62, q[1], 7, { fill: C.blue }); }
+      P.meter(mx, my, value(s) + ' V', { label: 'voltage across' }); }
+    P.tag(ser ? 'SERIES: one path' : 'PARALLEL: two branches', 450, 440, { bg: ser ? C.blue : C.purple, size: 18 });
+  },
+  inquiry: [
+    { name: 'Series: current', q: 'Series circuit: is the current the same at P, Q and R?',
+      guess: ['The same at every point', 'Biggest near the battery (P)', 'Smallest after the lamps (R)'], guessAns: 0,
+      change: 'pt', measure: 'val', fix: { circuit: 'series', meter: 'A' }, same,
+      found: ['In a series circuit, the current is ', ['the same', 'different'], ' at every point.'], foundAns: [0],
+      why: 'A series circuit has only one path, so the same current flows through every part.' },
+    { name: 'Parallel: current', q: 'Parallel circuit: how are the currents at P, Q and R linked?',
+      guess: ['P = Q + R', 'P, Q and R are all the same', 'P is the smallest'], guessAns: 0,
+      change: 'pt', measure: 'val', fix: { circuit: 'parallel', meter: 'A' }, same,
+      found: ['In a parallel circuit, the current from the battery (P) is the ', ['sum of', 'same as each of'], ' the currents in the branches (Q and R).'], foundAns: [0],
+      why: 'The current from the battery splits into the branches: 0.9 A = 0.6 A + 0.3 A.' },
+    { name: 'Series: voltage', q: 'Series circuit: how are the voltages across the battery and the lamps linked?',
+      guess: ['Battery = lamp A + lamp B', 'All three are the same'], guessAns: 0,
+      change: 'across', measure: 'val', fix: { circuit: 'series', meter: 'V' }, same,
+      found: ['In a series circuit, the voltage across the battery is the ', ['sum of', 'same as each of'], ' the voltages across the lamps.'], foundAns: [0],
+      why: 'The battery voltage is shared between the lamps: 6 V = 2 V + 4 V.' },
+    { name: 'Parallel: voltage', q: 'Parallel circuit: how are the voltages across the battery and the lamps linked?',
+      guess: ['All three are the same', 'Battery = lamp A + lamp B'], guessAns: 0,
+      change: 'across', measure: 'val', fix: { circuit: 'parallel', meter: 'V' }, same,
+      found: ['In a parallel circuit, the voltage across each branch is ', ['the same as', 'smaller than'], ' the voltage of the battery.'], foundAns: [0],
+      why: 'Each branch is joined straight across the battery, so each gets the full 6 V.' },
+  ],
+});
+})();
+</script>

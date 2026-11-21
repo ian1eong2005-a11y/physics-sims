@@ -1,0 +1,35 @@
+<title>Finish the course</title>
+<div id="nt"></div>
+<script>
+(() => {
+// bacteria (millions) on each day, for 0, 3 or 7 days of antibiotic
+const N = (d, day) => d === 0 ? 100 : d === 3 ? (day <= 3 ? 100 - (80 * day) / 3 : 20 + (60 * (day - 3)) / 7) : Math.max(0, 100 - (100 * day) / 7);
+NT.sim({
+  title: 'Finish the antibiotic course', emoji: '💊',
+  idea: 'Antibiotics kill bacteria. If you stop early, the bacteria left behind multiply again.',
+  controls: [{ id: 'd', label: 'Antibiotic taken for', noun: 'the number of days the antibiotic is taken', value: 3, options: [[0, '0 days (none)'], [3, '3 days (stop when I feel better)'], [7, '7 days (the full course)']] }],
+  go: { label: 'Watch for 10 days', time: 6 },
+  readings: [{ id: 'left', label: 'Bacteria left on day 10 (millions)', noun: 'the bacteria left on day 10', get: s => N(s.d, 10) }],
+  say: (s, done) => done ? (s.d === 7 ? 'The full course killed all the bacteria. You are well.' : s.d === 3 ? 'Some bacteria were still alive on day 3. They multiplied again, and you are sick again.' : 'No antibiotic: the bacteria were not killed.') : '',
+  draw(P, s, p) {
+    const C = P.C, day = p * 10, now = N(s.d, day);
+    const g = P.graph(110, 70, 480, 300, { xmax: 10, ymax: 100, nx: 10, xl: 'day', yl: 'bacteria / millions' });
+    for (let k = 1; k <= s.d; k++) P.emoji('💊', g.X(k - 0.5), 392 + 44, 22, { alpha: day >= k - 1 ? 1 : 0.25 });
+    if (s.d) { P.line(g.X(s.d), 70, g.X(s.d), 370, { color: C.purple, lw: 2, dash: [6, 6] }); P.text('antibiotic stops', g.X(s.d), 56, { size: 15, color: C.purple }); }
+    const pts = []; for (let i = 0; i <= Math.round(p * 100); i++) pts.push([g.X(i / 10), g.Y(N(s.d, i / 10))]); if (pts.length > 1) P.curve(pts, { color: C.red, lw: 6 }); P.circle(g.X(day), g.Y(now), 9, { fill: C.red });
+    // the person and the bacteria inside
+    P.emoji(now > 60 ? '🤒' : now > 15 ? '😐' : '😀', 760, 130, 110); P.circle(760, 310, 84, { fill: '#fff4f1', stroke: C.dark, lw: 5 });
+    const n = Math.round(now * 0.4); for (let i = 0; i < n; i++) { const a = i * 2.4, r = 8 + ((i * 29) % 66); P.oval(760 + r * Math.cos(a), 310 + r * Math.sin(a), 8, 4, { fill: C.purple, rot: i }); }
+    P.text(Math.round(now) + ' million bacteria', 760, 418, { size: 18 }); P.tag('Day ' + Math.round(day), 760, 40, { bg: C.ink, size: 20 });
+  },
+  inquiry: [{
+    q: 'Does it matter if you stop taking an antibiotic early?',
+    guess: ['Yes. The bacteria come back.', 'No. Stopping early works just as well.', 'More days means more bacteria.'], guessAns: 0,
+    change: 'd', measure: 'left',
+    same: ['the same person', 'the same illness (same bacteria)', 'the same antibiotic'],
+    found: ['Stopping early leaves ', ['some', 'no'], ' bacteria alive. They ', ['multiply again', 'disappear'], '. So we must ', ['finish the whole course', 'stop when we feel better'], '.'], foundAns: [0, 0, 0],
+    why: 'Always complete the prescribed course of antibiotics. Antibiotics work on diseases caused by bacteria, not on viruses.',
+  }],
+});
+})();
+</script>

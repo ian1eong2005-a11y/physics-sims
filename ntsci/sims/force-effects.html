@@ -1,0 +1,28 @@
+<title>Effects of a force</title>
+<div id="nt"></div>
+<script>
+NT.match({
+  title: 'What does the force do?', emoji: '💪',
+  intro: 'A force is a push or a pull. Sort each card: what is the main thing the force does?',
+  ask: 'What does the force do? Tap a box.',
+  bins: [
+    { id: 'shape', label: 'Changes the shape or size', emoji: '🧽' },
+    { id: 'speed', label: 'Changes the speed', emoji: '⏩', sub: 'starts it, speeds it up, slows it or stops it' },
+    { id: 'dir', label: 'Changes the direction', emoji: '↩️' },
+    { id: 'turn', label: 'Makes it turn', emoji: '🔄', sub: 'turning effect' },
+  ],
+  cards: [
+    { t: 'Squeezing a sponge', emoji: '🧽', bin: 'shape' },
+    { t: 'Stretching a rubber band', emoji: '➰', bin: 'shape' },
+    { t: 'Crushing an empty can', emoji: '🥫', bin: 'shape' },
+    { t: 'Kicking a ball that was at rest', emoji: '⚽', bin: 'speed', why: 'The ball starts to move: its speed changes.' },
+    { t: 'Braking a bicycle to a stop', emoji: '🚲', bin: 'speed', why: 'The bicycle slows down: its speed changes.' },
+    { t: 'Pushing a trolley to make it go faster', emoji: '🛒', bin: 'speed' },
+    { t: 'Hitting a tennis ball back', emoji: '🎾', bin: 'dir', why: 'The ball now moves the other way.' },
+    { t: 'A ball bouncing off a wall', emoji: '🏀', bin: 'dir', why: 'The wall pushes the ball back the other way.' },
+    { t: 'Pushing a door open', emoji: '🚪', bin: 'turn', why: 'The door turns about its hinges.' },
+    { t: 'Using a spanner on a nut', emoji: '🔧', bin: 'turn', why: 'The spanner turns about the nut.' },
+    { t: 'Sitting on one end of a see-saw', emoji: '⚖️', bin: 'turn', why: 'The see-saw turns about its pivot.' },
+  ],
+});
+</script>

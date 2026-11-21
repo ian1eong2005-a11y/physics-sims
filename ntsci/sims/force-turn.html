@@ -1,0 +1,37 @@
+<title>Turning effect</title>
+<div id="nt"></div>
+<script>
+(() => {
+const D = { near: 10, mid: 20, far: 30 }, force = s => 600 / D[s.where];      // the nut needs the same turning effect each time
+NT.sim({
+  title: 'Turn the nut', emoji: '🔧',
+  idea: 'A force can make things turn. The turning effect is bigger when you push further from the pivot.',
+  controls: [{ id: 'where', label: 'Push the spanner', noun: 'the distance from the nut', value: 'mid', options: [['near', 'Near the nut (10 cm)'], ['mid', 'In the middle (20 cm)'], ['far', 'Far from the nut (30 cm)']] }],
+  go: { label: 'Push', time: 2.2 },
+  readings: [
+    { id: 'd', label: 'Distance from the nut', unit: 'cm', always: true, get: s => D[s.where] },
+    { id: 'f', label: 'Force needed to turn the nut', noun: 'the force needed', unit: 'N', get: force },
+  ],
+  say: (s, done) => done ? (s.where === 'far' ? 'Far from the nut: a small force is enough.' : s.where === 'near' ? 'Near the nut: you need a big force.' : 'In the middle: a medium force.') : '',
+  draw(P, s, p) {
+    const C = P.C, x = P.ctx, k = 14, nx = 200, ny = 250, d = D[s.where] * k, F = force(s), ang = -0.22 + 0.4 * p;
+    P.rect(60, 110, 120, 220, { fill: '#e9edf1', r: 10 }); P.text('pivot (the nut)', 150, 356, { size: 17, color: C.mute });
+    x.save(); x.translate(nx, ny); x.rotate(ang);
+    P.rect(-10, -16, 470, 32, { fill: '#b9c4cf', stroke: C.dark, lw: 4, r: 14 });
+    for (let c = 10; c <= 30; c += 10) { P.line(c * k, 16, c * k, 30, { color: C.dark, lw: 3 }); P.text(c + ' cm', c * k, 46, { size: 16, color: C.mute }); }
+    const len = 30 + F * 1.6; P.arrow(d, -16 - len - 8, d, -20, { color: C.red, lw: 8 }); P.emoji('✊', d, -16 - len - 40, 54); P.tag(p >= 1 ? F + ' N' : '? N', d + 70, -16 - len / 2 - 14, { bg: C.red, size: 20 });
+    x.restore();
+    const hex = []; for (let i = 0; i < 6; i++) hex.push([nx + 34 * Math.cos(ang + (i * Math.PI) / 3), ny + 34 * Math.sin(ang + (i * Math.PI) / 3)]); P.poly(hex, { fill: C.yellow, stroke: C.dark, lw: 4 }); P.circle(nx, ny, 12, { fill: '#fff', stroke: C.dark, lw: 3 });
+    P.text('door: the handle is far from the hinges', 700, 440, { size: 15, color: C.mute, bold: false }); P.emoji('🚪', 530, 436, 40);
+  },
+  inquiry: [{
+    q: 'Where should you push the spanner so that you need the smallest force?',
+    guess: ['Far from the nut', 'Near the nut', 'It makes no difference'], guessAns: 0,
+    change: 'where', measure: 'f',
+    same: ['the same spanner', 'the same nut (just as tight)'],
+    found: ['Pushing further from the nut needs a ', ['smaller', 'bigger'], ' force. The turning effect of a force is called its ', ['moment', 'speed'], '.'], foundAns: [0, 0],
+    why: 'The moment (turning effect) of a force is bigger when the force is further from the pivot. That is why a door handle is far from the hinges.',
+  }],
+});
+})();
+</script>

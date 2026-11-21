@@ -1,0 +1,43 @@
+<title>Heat and milk</title>
+<div id="nt"></div>
+<script>
+(() => {
+// heated to (°C), bacteria seen, pH after 5 days, how the milk is
+const H = { none: [null, 100, 4.5, 'sour and lumpy (spoilt)'], past: [72, 10, 6.5, 'still fresh'], ster: [135, 0, 6.7, 'still fresh'] };
+NT.sim({
+  title: 'Can heat keep milk fresh?', emoji: '🥛',
+  idea: 'High temperature kills microbes. With fewer microbes, food spoils more slowly.',
+  controls: [{ id: 'h', label: 'Before storing, the milk is', noun: 'how hot the milk is heated', value: 'none', options: [['none', 'Not heated'], ['past', 'Pasteurised (72 °C)', '🔥'], ['ster', 'Sterilised (135 °C)', '🔥']] }],
+  go: { label: 'Heat, then keep in the fridge for 5 days', time: 6 },
+  readings: [
+    { id: 'bac', label: 'Bacteria seen under the microscope', noun: 'the number of bacteria', get: s => H[s.h][1] },
+    { id: 'ph', label: 'pH of the milk', noun: 'the pH of the milk', get: s => H[s.h][2] },
+    { id: 'look', label: 'The milk is', get: s => H[s.h][3] },
+  ],
+  say: (s, done) => done ? (s.h === 'none' ? 'Bacteria multiplied and made acid. The milk is sour: its pH has dropped.' : 'The heat killed ' + (s.h === 'ster' ? 'all' : 'most of') + ' the bacteria, so the milk stayed fresh.') : '',
+  draw(P, s, p, t) {
+    const C = P.C, h = H[s.h], heating = h[0] && p > 0 && p < 0.3, st = Math.max(0, (p - 0.3) / 0.7), day = Math.round(st * 5);
+    P.rect(0, 420, 900, 60, { fill: '#e9edf1' });
+    const sour = s.h === 'none' ? st : 0;
+    P.beaker(120, 170, 200, 250, { level: 0.75, color: 'rgb(' + Math.round(252 - 12 * sour) + ',' + Math.round(250 - 14 * sour) + ',' + Math.round(244 - 50 * sour) + ')' });
+    if (sour > 0.5) for (let i = 0; i < 9; i++) P.circle(150 + ((i * 47) % 150), 260 + ((i * 31) % 140), 9 + (i % 3) * 3, { fill: '#f1ecc8', stroke: '#d8cf9a', lw: 2 });
+    if (heating) { P.emoji('🔥', 220, 448, 56 + 5 * Math.sin(t * 9)); P.bubbles(130, 250, 180, 160, 14, t * 1.5, { color: C.grey, r: 3 }); P.tag('heating to ' + h[0] + ' °C', 220, 130, { bg: C.red, size: 17 }); }
+    else P.tag(p === 0 ? 'milk' : p < 0.3 ? 'not heated' : 'Day ' + day + ' in the fridge', 220, 130, { bg: p < 0.3 ? C.grey : C.blue, size: 17 });
+    // microscope view
+    P.circle(520, 280, 120, { fill: '#f7fbff', stroke: C.dark, lw: 8 }); P.text('under the microscope', 520, 130, { size: 17, color: C.mute });
+    const start = heating || p >= 0.3 ? (h[0] ? (s.h === 'ster' ? 0 : 3) : 12) : 12, n = Math.round(start + (h[1] * 0.5 - start) * st);
+    for (let i = 0; i < n; i++) { const a = i * 2.4, r = 12 + ((i * 37) % 95); P.oval(520 + r * Math.cos(a) + 3 * Math.sin(t * 3 + i), 280 + r * Math.sin(a) + 3 * Math.cos(t * 2 + i), 9, 5, { fill: '#7b5ea7', rot: i }); }
+    if (p >= 1) P.tag(h[1] + ' bacteria', 520, 428, { bg: h[1] > 50 ? C.red : C.green, size: 18 });
+    P.meter(760, 250, 'pH ' + (6.7 + (h[2] - 6.7) * st).toFixed(1), { label: 'pH meter', w: 160 }); P.text('fresh milk: about pH 6.7', 760, 310, { size: 15, color: C.mute, bold: false }); P.text('sour milk: lower pH', 760, 332, { size: 15, color: C.mute, bold: false });
+  },
+  inquiry: [{
+    q: 'Does heating milk first help it to stay fresh?',
+    guess: ['Heated milk has fewer bacteria', 'Heated milk has more bacteria', 'Heating makes no difference'], guessAns: 0,
+    change: 'h', measure: ['bac', 'ph'], dv: 'the number of bacteria and the pH of the milk',
+    same: ['the same kind of milk', 'the same fridge', 'the same number of days (5)'],
+    found: ['A high temperature ', ['kills', 'feeds'], ' microbes, so the milk spoils ', ['more slowly', 'faster'], '. Spoilt milk is sour: its pH is ', ['lower', 'higher'], '.'], foundAns: [0, 0, 0],
+    why: 'Pasteurisation, sterilisation and canning use high temperature to reduce microbial activity. Bacteria in milk make acid, which turns the milk sour.',
+  }],
+});
+})();
+</script>

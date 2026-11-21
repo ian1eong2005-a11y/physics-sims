@@ -1,0 +1,43 @@
+<title>Acid or alkali?</title>
+<div id="nt"></div>
+<script>
+(() => {
+const PHC = ['#d7191c', '#dd2f1c', '#e4501e', '#ec7422', '#f39a1f', '#f4c20d', '#c4d02f', '#3aa655', '#2e9e8a', '#2a7de1', '#2a5fd0', '#4a4ac0', '#5b3fb0', '#6a2f9e', '#5a1f80'];
+const L = { lemon: ['Lemon juice', '🍋', 2], vinegar: ['Vinegar', '🫙', 3], coffee: ['Black coffee', '☕', 5], water: ['Pure water', '💧', 7], soda: ['Baking soda in water', '🧁', 9], soap: ['Soap solution', '🧼', 10], cleaner: ['Oven cleaner', '🧴', 13] };
+const ph = s => L[s.liq][2], type = s => (ph(s) < 7 ? 'acidic' : ph(s) > 7 ? 'alkaline' : 'neutral');
+NT.sim({
+  title: 'Acid, neutral or alkali?', emoji: '🌈',
+  idea: 'pH below 7: acidic. pH 7: neutral. pH above 7: alkaline.',
+  controls: [{ id: 'liq', label: 'Test this liquid', noun: 'the liquid', value: 'lemon', options: Object.entries(L).map(([k, v]) => [k, v[0], v[1]]) }],
+  readings: [
+    { id: 'ph', label: 'pH', noun: 'the pH', always: true, get: ph },
+    { id: 'type', label: 'The liquid is', noun: 'acidic, neutral or alkaline', always: true, get: type },
+    { id: 'lit', label: 'Litmus paper', always: true, get: s => (ph(s) < 7 ? 'blue litmus turns red' : ph(s) > 7 ? 'red litmus turns blue' : 'no change') },
+  ],
+  draw(P, s) {
+    const C = P.C, v = ph(s), col = PHC[v];
+    P.rect(0, 400, 900, 80, { fill: '#e9edf1' });
+    // beaker with universal indicator
+    P.beaker(110, 170, 200, 230, { level: 0.7, color: col, alpha: 0.85 }); P.emoji(L[s.liq][1], 210, 110, 70); P.text(L[s.liq][0], 210, 428, { size: 19 }); P.text('+ universal indicator', 210, 452, { size: 15, color: C.mute, bold: false });
+    // pH meter
+    P.line(270, 120, 270, 330, { color: C.dark, lw: 8 }); P.line(270, 120, 400, 120, { color: C.dark, lw: 4 }); P.meter(450, 120, 'pH ' + v, { label: 'pH meter', w: 140 });
+    // litmus papers
+    const strip = (x, start, end, name) => { P.rect(x, 190, 46, 150, { fill: start, stroke: C.dark, lw: 3, r: 4 }); P.rect(x, 280, 46, 60, { fill: end, stroke: C.dark, lw: 3, r: 4 }); P.text(name, x + 23, 362, { size: 15, color: C.mute }); P.text(end === start ? 'no change' : 'changed!', x + 23, 382, { size: 15, color: end === start ? C.mute : C.red }); };
+    strip(390, '#3d6fd6', v < 7 ? '#e0483a' : '#3d6fd6', 'blue litmus'); strip(480, '#e0483a', v > 7 ? '#3d6fd6' : '#e0483a', 'red litmus');
+    // pH scale
+    const x0 = 590, w = 19; for (let i = 0; i <= 14; i++) { P.rect(x0 + i * w, 210, w, 60, { fill: PHC[i] }); if (i % 2 === 0 || i === 7) P.text(String(i), x0 + i * w + w / 2, 288, { size: 14, color: C.mute }); }
+    P.rect(x0, 210, 15 * w, 60, { stroke: C.dark, lw: 3 }); P.poly([[x0 + v * w + w / 2, 206], [x0 + v * w - 8, 184], [x0 + v * w + w + 8, 184]], { fill: C.ink });
+    P.text('acidic', x0 + 60, 320, { size: 17, color: PHC[2] }); P.text('neutral', x0 + 7.5 * w, 340, { size: 17, color: PHC[7] }); P.text('alkaline', x0 + 225, 320, { size: 17, color: PHC[11] });
+    P.text('pH scale', x0 + 7.5 * w, 160, { size: 18 }); P.tag(type(s), x0 + 7.5 * w, 110, { bg: col, size: 22 });
+  },
+  inquiry: [{
+    q: 'Which liquids are acidic, which are neutral and which are alkaline?',
+    guess: ['Sour things like lemon juice are acidic', 'Lemon juice is alkaline', 'All the liquids are neutral'], guessAns: 0,
+    change: 'liq', measure: ['ph', 'type'], dv: 'the pH', tests: ['lemon', 'vinegar', 'water', 'soda', 'cleaner'],
+    same: ['the same indicator (universal indicator)', 'the same amount of liquid'],
+    found: ['Acids have a pH ', ['below 7', 'above 7'], '. Alkalis have a pH ', ['below 7', 'above 7'], '. A neutral liquid has a pH of ', ['7', '0'], '.'], foundAns: [0, 1, 0],
+    why: 'Universal indicator and a pH meter measure pH. Acids turn blue litmus paper red. Alkalis turn red litmus paper blue.',
+  }],
+});
+})();
+</script>

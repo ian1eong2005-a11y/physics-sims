@@ -1,0 +1,46 @@
+<title>Protect my bread</title>
+<div id="nt"></div>
+<script>
+(() => {
+// mould after 7 days (% of the slice), has water, has oxygen, is warm, note
+const M = {
+  table: [60, 1, 1, 1, 'On the table the mould has water, oxygen and warmth. It grows fast.'],
+  freezer: [0, 1, 1, 0, 'Freezing: it is too cold for the microbes to grow.'],
+  vacuum: [0, 1, 0, 1, 'Vacuum packaging: there is no oxygen for the microbes.'],
+  dry: [0, 0, 1, 1, 'Dehydration: there is no water for the microbes.'],
+  pres: [5, 1, 1, 1, 'A preservative slows down the microbes, so only a little mould grows.'],
+};
+NT.sim({
+  title: 'Protect my bread!', emoji: '🍞',
+  idea: 'Mould is a microbe. Stop the microbes from growing and the food does not spoil.',
+  controls: [{ id: 'keep', label: 'How the bread is kept', noun: 'how the bread is kept', value: 'table', options: [['table', 'On the table', '🍽️'], ['freezer', 'In the freezer', '❄️'], ['vacuum', 'Vacuum-packed', '📦'], ['dry', 'Dried', '🌬️'], ['pres', 'With preservative', '🧂']] }],
+  go: { label: 'Wait 7 days', time: 5 },
+  readings: [{ id: 'mould', label: 'Bread covered with mould after 7 days', noun: 'the amount of mould', unit: '%', get: s => M[s.keep][0] }],
+  say: (s, done) => done ? M[s.keep][4] : '',
+  draw(P, s, p) {
+    const C = P.C, m = M[s.keep], day = Math.round(p * 7), grow = Math.max(0, (p - 0.2) / 0.8);
+    P.rect(0, 420, 900, 60, { fill: '#e9edf1' });
+    if (s.keep === 'freezer') { P.rect(300, 60, 380, 370, { fill: '#dff1ff', stroke: C.blue, lw: 6, r: 18 }); P.emoji('❄️', 340, 100, 40); P.emoji('❄️', 640, 100, 40); P.text('−18 °C', 490, 96, { size: 22, color: C.blue }); }
+    // the slice
+    const dry = s.keep === 'dry'; P.rect(380, 150, 220, 230, { fill: dry ? '#c79a5b' : '#f3deb0', stroke: '#a8733a', lw: 10, r: 46 });
+    if (s.keep === 'vacuum') { P.rect(352, 122, 276, 286, { stroke: '#7fb2d9', lw: 4, r: 30, fill: 'rgba(160,210,255,0.22)' }); P.text('air taken out', 490, 104, { size: 17, color: C.blue }); }
+    if (s.keep === 'pres') P.tag('preservative added', 490, 104, { bg: C.purple, size: 16 });
+    if (dry) P.text('dried: no water left', 490, 104, { size: 17, color: C.brown });
+    const n = Math.round((m[0] / 60) * 26 * grow); for (let i = 0; i < n; i++) { const x = 410 + ((i * 67) % 160), y = 180 + ((i * 41) % 170), r = 9 + ((i * 5) % 12); P.circle(x, y, r, { fill: i % 3 ? '#6f9a6a' : '#4f7a55', alpha: 0.9 }); P.circle(x, y, r * 0.4, { fill: '#dfe9d8', alpha: 0.8 }); }
+    if (p >= 1) P.tag(m[0] ? m[0] + '% mould' : 'no mould', 490, 400, { bg: m[0] > 20 ? '#4f7a55' : C.green, size: 18 });
+    // what microbes need
+    P.text('Microbes need', 150, 120, { size: 19 });
+    [['💧', 'water', m[1]], ['🌬️', 'oxygen', m[2]], ['🌡️', 'warmth', m[3]]].forEach((q, i) => { const y = 180 + i * 74, off = !q[2]; P.rect(50, y - 30, 200, 60, { fill: off ? '#fdecea' : '#e6f6ec', stroke: off ? C.red : C.green, lw: 3, r: 12 }); P.emoji(q[0], 84, y, 34, { alpha: off ? 0.35 : 1 }); P.text(q[1], 114, y, { size: 19, align: 'left', color: off ? C.red : C.ink }); P.text(off ? '✖' : '✔', 228, y, { size: 24, color: off ? C.red : C.green }); });
+    P.tag('Day ' + day, 800, 50, { bg: C.ink, size: 22 });
+  },
+  inquiry: [{
+    q: 'Which ways of keeping bread stop mould from growing?',
+    guess: ['Bread on the table gets the most mould', 'Bread in the freezer gets the most mould', 'They all get the same mould'], guessAns: 0,
+    change: 'keep', measure: 'mould',
+    same: ['the same kind of bread', 'the same size of slice', 'the same number of days (7)'],
+    found: ['Mould grows fastest when it has water, oxygen and a ', ['warm', 'freezing'], ' temperature. Taking one of these away ', ['slows down or stops', 'speeds up'], ' food spoilage.'], foundAns: [0, 0],
+    why: 'Food is preserved by lowering pH (pickling), reducing oxygen (vacuum packaging, bottling), reducing water (dehydration, freeze-drying), high temperature (pasteurisation, sterilisation, canning) or low temperature (freezing).',
+  }],
+});
+})();
+</script>

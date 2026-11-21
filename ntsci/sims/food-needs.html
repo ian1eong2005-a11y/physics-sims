@@ -1,0 +1,46 @@
+<title>What plants need</title>
+<div id="nt"></div>
+<script>
+(() => {
+// height in cm after 14 days, leaf colour, droop, leaf size, what it looks like, why
+const R = {
+  none: [20, '#3aa655', 0, 1, 'healthy and green', 'It has everything it needs.'],
+  light: [12, '#e3dc7a', 0.15, 0.6, 'thin and pale yellow', 'No light: it cannot make food by photosynthesis.'],
+  water: [6, '#a98d54', 0.9, 0.6, 'wilted and dry', 'No water: it wilts and dies.'],
+  air: [8, '#cfd070', 0.3, 0.7, 'small and yellow', 'No air: it has no carbon dioxide to make food.'],
+  nutr: [11, '#b9cf5a', 0.05, 0.75, 'small, with yellow leaves', 'No nutrients: it cannot grow well.'],
+  ph: [10, '#a9c95f', 0.1, 0.8, 'small and weak', 'Wrong pH: the soil is too acidic for this plant.'],
+};
+const NEED = [['light', '☀️', 'light'], ['water', '💧', 'water'], ['air', '🌬️', 'air'], ['nutr', '🧪', 'nutrients'], ['ph', '🎚️', 'right pH']];
+NT.sim({
+  title: 'What does a plant need?', emoji: '🪴',
+  idea: 'Plants need air, light, water, nutrients and the right pH for photosynthesis and growth.',
+  controls: [{ id: 'take', label: 'Take away', noun: 'the thing I take away', value: 'none', options: [['none', 'Nothing'], ['light', 'Light', '☀️'], ['water', 'Water', '💧'], ['air', 'Air', '🌬️'], ['nutr', 'Nutrients', '🧪'], ['ph', 'Right pH', '🎚️']] }],
+  go: { label: 'Grow for 14 days', time: 5 },
+  readings: [
+    { id: 'h', label: 'Height after 14 days', noun: 'the height of the plant', unit: 'cm', get: s => R[s.take][0] },
+    { id: 'look', label: 'The plant looks', get: s => R[s.take][4] },
+  ],
+  say: (s, done) => done ? R[s.take][5] : '',
+  draw(P, s, p) {
+    const C = P.C, r = R[s.take], k = 12, base = 380, h = (3 + (r[0] - 3) * p) * k, dark = s.take === 'light';
+    P.rect(0, 0, 900, 430, { fill: dark ? '#4a5563' : '#eaf6ff' }); P.rect(0, 426, 900, 54, { fill: '#d9c7a8' });
+    if (dark) { P.rect(300, 60, 300, 372, { fill: '#2b333d', stroke: C.dark, lw: 4, r: 10 }); P.text('dark cupboard', 450, 86, { size: 17, color: '#fff' }); }
+    if (s.take === 'air') { P.rect(330, 70, 240, 362, { stroke: C.blue, lw: 5, r: 40, fill: 'rgba(160,210,255,0.25)' }); P.text('sealed jar: no fresh air', 450, 52, { size: 17, color: C.blue }); }
+    P.plant(450, base, h, { color: p > 0.3 ? r[1] : '#3aa655', droop: r[2] * p, leaf: 1 - (1 - r[3]) * p });
+    // the five needs: tick or cross
+    NEED.forEach((n, i) => { const y = 70 + i * 68, off = s.take === n[0]; P.rect(40, y - 28, 210, 56, { fill: off ? '#fdecea' : '#e6f6ec', stroke: off ? C.red : C.green, lw: 3, r: 12 }); P.emoji(n[1], 74, y, 34, { alpha: off ? 0.35 : 1 }); P.text(n[2], 104, y, { size: 19, align: 'left', color: off ? C.red : C.ink }); P.text(off ? '✖' : '✔', 228, y, { size: 24, color: off ? C.red : C.green }); });
+    P.rect(700, base - 22 * k, 30, 22 * k, { fill: '#fff8d6', stroke: C.dark, lw: 3 }); for (let c = 0; c <= 20; c += 5) { P.line(700, base - c * k, 714, base - c * k, { color: C.dark, lw: 2 }); P.text(c + ' cm', 742, base - c * k, { size: 15, color: dark ? '#fff' : C.mute, align: 'left' }); }
+    P.tag('Day ' + Math.round(p * 14), 800, 50, { bg: C.ink, size: 22 });
+  },
+  inquiry: [{
+    q: 'What happens to a plant when you take away one thing it needs?',
+    guess: ['It grows best when it has everything', 'It grows just as well without light', 'It grows best with no water'], guessAns: 0,
+    change: 'take', measure: ['h', 'look'], dv: 'the height of the plant and how it looks',
+    same: ['the same kind of plant', 'the same pot and soil', 'the same number of days (14)'],
+    found: ['A plant grows best when it has air, light, water, nutrients and the right ', ['pH', 'colour'], '. Without light, a plant cannot make food by ', ['photosynthesis', 'digestion'], '.'], foundAns: [0, 0],
+    why: 'Plants need air, light, water, nutrients and an appropriate pH for photosynthesis and growth. Farmers must provide all of these to grow food well.',
+  }],
+});
+})();
+</script>

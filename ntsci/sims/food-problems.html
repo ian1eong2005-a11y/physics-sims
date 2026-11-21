@@ -1,0 +1,27 @@
+<title>Farming methods</title>
+<div id="nt"></div>
+<script>
+NT.match({
+  title: 'Farming methods: good and bad', emoji: '🌾',
+  intro: 'Farmers use different methods to grow more food. Match each card to the method.',
+  ask: 'Which method is this about? Tap a box.',
+  bins: [
+    { id: 'fert', label: 'Fertilisers', emoji: '🧪' },
+    { id: 'pest', label: 'Pesticides and herbicides', emoji: '☠️' },
+    { id: 'burn', label: 'Slash-and-burn', emoji: '🔥' },
+    { id: 'bio', label: 'Biological control', emoji: '🐞' },
+  ],
+  cards: [
+    { t: 'Adds nutrients to the soil so crops grow better', emoji: '🌱', bin: 'fert' },
+    { t: 'Algae and water weeds grow too much in rivers and ponds', emoji: '🟢', bin: 'fert', why: 'Fertiliser washed into the water makes algae and water weeds grow.' },
+    { t: 'Kills insects that eat the crops', emoji: '🐛', bin: 'pest', why: 'Pesticides kill pests.' },
+    { t: 'Kills weeds that grow among the crops', emoji: '🌿', bin: 'pest', why: 'Herbicides kill weeds.' },
+    { t: 'Harmful substances pass along the food chain', emoji: '🐦', bin: 'pest', why: 'Pesticides contaminate soil and water, then pass from one living thing to the next.' },
+    { t: 'Trees are cut and burnt to clear land for farming', emoji: '🪓', bin: 'burn' },
+    { t: 'Haze makes it hard to breathe', emoji: '😷', bin: 'burn', why: 'Burning forests causes haze.' },
+    { t: 'With no trees, the soil is washed away (soil erosion)', emoji: '🏜️', bin: 'burn', why: 'Deforestation leads to soil erosion.' },
+    { t: 'A predator is used to eat the pests', emoji: '🐞', bin: 'bio' },
+    { t: 'Less pesticide is needed', emoji: '👍', bin: 'bio', why: 'Predators control the pests, so fewer chemicals are needed.' },
+  ],
+});
+</script>

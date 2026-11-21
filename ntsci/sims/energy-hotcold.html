@@ -1,0 +1,46 @@
+<title>Hot meets cold</title>
+<div id="nt"></div>
+<script>
+(() => {
+const COLD = 20, fin = s => (s.hot + COLD) / 2;      // equal "heat capacity" model: both end at the middle temperature
+const now = (s, p) => { const k = 1 - Math.exp(-5 * p), f = fin(s); return [s.hot + (f - s.hot) * (p >= 1 ? 1 : k), COLD + (f - COLD) * (p >= 1 ? 1 : k)]; };
+const heat = c => 'rgb(' + Math.round(70 + 185 * c) + ',' + Math.round(140 - 60 * c) + ',' + Math.round(235 - 190 * c) + ')';
+NT.sim({
+  title: 'Hot meets cold', emoji: '🌡️',
+  idea: 'Thermal energy moves from the hotter place to the colder place, until both are at the same temperature.',
+  controls: [{ id: 'hot', label: 'Hot block starts at', noun: 'the starting temperature of the hot block', value: 80, options: [[60, '60 °C'], [80, '80 °C'], [100, '100 °C']] }],
+  go: { label: 'Put the block in the water', time: 7 },
+  readings: [
+    { id: 'fb', label: 'Block at the end', noun: 'the final temperature of the block', unit: '°C', get: s => fin(s) },
+    { id: 'fw', label: 'Water at the end', noun: 'the final temperature of the water', unit: '°C', get: s => fin(s) },
+  ],
+  say: (s, done) => done ? 'Both are now at ' + fin(s) + ' °C. No more thermal energy moves.' : '',
+  draw(P, s, p, t) {
+    const C = P.C, [tb, tw] = now(s, p), inWater = p > 0;
+    P.rect(0, 430, 900, 50, { fill: '#e9edf1' });
+    P.beaker(90, 190, 300, 240, { level: 0.75, color: heat((tw - 10) / 100), alpha: 0.75 });
+    const by = inWater ? 330 : 110;
+    P.rect(190, by, 100, 70, { fill: heat((tb - 10) / 100), stroke: C.dark, lw: 4, r: 6 }); P.text(Math.round(tb) + ' °C', 240, by + 36, { size: 24, color: '#fff' });
+    P.text('water: ' + Math.round(tw) + ' °C', 240, 252, { size: 24 });
+    if (!inWater) P.text('hot metal block', 240, 92, { size: 18, color: C.mute });
+    if (inWater && p < 1 && tb - tw > 1.5) { const w = 16 + 10 * Math.sin(t * 6); [[180, 365, 130, 365], [300, 365, 350, 365], [240, 322, 240, 285]].forEach(q => P.arrow(q[0], q[1], q[2] + (q[2] - q[0]) * w / 60, q[3] + (q[3] - q[1]) * w / 60, { color: C.red, lw: 7 })); P.tag('thermal energy', 240, 170, { bg: C.red, size: 18 }); }
+    if (p >= 1) P.tag('same temperature: no more energy moves', 240, 170, { bg: C.green, size: 16 });
+    // graph of the two temperatures
+    const g = P.graph(500, 70, 350, 300, { xmax: 10, ymax: 100, xl: 'time / min', yl: 'temperature / °C' });
+    const n = Math.round(p * 60), hotPts = [], coldPts = [];
+    for (let i = 0; i <= n; i++) { const q = now(s, i / 60); hotPts.push([g.X(i / 6), g.Y(q[0])]); coldPts.push([g.X(i / 6), g.Y(q[1])]); }
+    if (n > 0) { P.curve(hotPts, { color: C.red, lw: 5 }); P.curve(coldPts, { color: C.blue, lw: 5 }); }
+    P.circle(g.X(p * 10), g.Y(tb), 8, { fill: C.red }); P.circle(g.X(p * 10), g.Y(tw), 8, { fill: C.blue });
+    P.text('block', 800, g.Y(s.hot) - 4, { size: 17, color: C.red }); P.text('water', 800, g.Y(COLD) - 18, { size: 17, color: C.blue });
+  },
+  inquiry: [{
+    q: 'A hot block is put into cold water. What happens to the two temperatures?',
+    guess: ['Both end at the same temperature', 'The block stays hotter than the water', 'The water ends hotter than the block'], guessAns: 0,
+    change: 'hot', measure: ['fb', 'fw'],
+    same: ['the amount of water', 'the starting temperature of the water (20 °C)', 'the same block'],
+    found: ['Thermal energy moves from the ', ['hotter', 'colder'], ' object to the ', ['hotter', 'colder'], ' one. It stops when both are at ', ['the same temperature', 'different temperatures'], '.'], foundAns: [0, 1, 0],
+    why: 'Thermal energy is transferred from a region of higher temperature to a region of lower temperature, until both reach the same temperature.',
+  }],
+});
+})();
+</script>

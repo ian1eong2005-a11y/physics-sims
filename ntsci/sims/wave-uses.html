@@ -1,0 +1,31 @@
+<title>Uses of waves</title>
+<div id="nt"></div>
+<script>
+NT.match({
+  title: 'Which wave does the job?', emoji: '📡',
+  intro: 'There are seven types of these waves. Each one has its own uses. Match each use to its wave.',
+  ask: 'Which wave is used? Tap a box.',
+  bins: [
+    { id: 'radio', label: 'Radio waves', emoji: '📻' },
+    { id: 'micro', label: 'Microwaves', emoji: '🛰️' },
+    { id: 'ir', label: 'Infrared', emoji: '🔴' },
+    { id: 'light', label: 'Light', emoji: '🌈' },
+    { id: 'uv', label: 'Ultraviolet', emoji: '🕶️' },
+    { id: 'x', label: 'X-rays', emoji: '🦴' },
+    { id: 'gamma', label: 'Gamma rays', emoji: '☢️' },
+  ],
+  cards: [
+    { t: 'Radio broadcasts', emoji: '📻', bin: 'radio', why: 'Radio waves carry radio and television signals.' },
+    { t: 'Television broadcasts', emoji: '📺', bin: 'radio', why: 'Radio waves carry radio and television signals.' },
+    { t: 'Heating food quickly in an oven', emoji: '🍲', bin: 'micro', why: 'A microwave oven uses microwaves.' },
+    { t: 'Sending signals to and from satellites', emoji: '🛰️', bin: 'micro', why: 'Satellite communication uses microwaves.' },
+    { t: 'TV remote control', emoji: '🎮', bin: 'ir', why: 'Remote-controlled devices use infrared.' },
+    { t: 'Optical fibres for fast internet', emoji: '🌐', bin: 'light', why: 'Optical fibres carry signals as light.' },
+    { t: 'Sunbeds for tanning', emoji: '🛏️', bin: 'uv', why: 'Sunbeds use ultraviolet.' },
+    { t: 'A lamp that sterilises (kills germs on) things', emoji: '🧴', bin: 'uv', why: 'Ultraviolet is used for sterilisation.' },
+    { t: 'Checking for a broken bone', emoji: '🦴', bin: 'x', why: 'X-rays pass through flesh but not bone.' },
+    { t: 'Checking for cracks inside metal parts', emoji: '🔩', bin: 'x', why: 'Engineers use X-rays to look inside objects.' },
+    { t: 'Medical treatment for cancer', emoji: '🏥', bin: 'gamma', why: 'Gamma rays are used in medical treatment.' },
+  ],
+});
+</script>

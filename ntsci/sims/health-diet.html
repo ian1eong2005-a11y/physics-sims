@@ -1,0 +1,27 @@
+<title>Balanced diet</title>
+<div id="nt"></div>
+<script>
+NT.match({
+  title: 'What is each nutrient for?', emoji: '🥗',
+  intro: 'A balanced diet has the right amounts of all these. Match each job to the nutrient.',
+  ask: 'Which nutrient does this job? Tap a box.',
+  bins: [
+    { id: 'carb', label: 'Carbohydrates', emoji: '🍚', sub: 'rice, bread, noodles' },
+    { id: 'prot', label: 'Proteins', emoji: '🍗', sub: 'meat, fish, eggs, beans' },
+    { id: 'fat', label: 'Fats', emoji: '🧈', sub: 'oil, butter, nuts' },
+    { id: 'fibre', label: 'Dietary fibre', emoji: '🥦', sub: 'vegetables, fruit, wholegrains' },
+    { id: 'ca', label: 'Calcium (a mineral)', emoji: '🥛', sub: 'milk, cheese, tofu' },
+    { id: 'vd', label: 'Vitamin D', emoji: '☀️', sub: 'sunlight, eggs, oily fish' },
+    { id: 'water', label: 'Water', emoji: '💧' },
+  ],
+  cards: [
+    { t: 'The main source of energy', emoji: '⚡', bin: 'carb' },
+    { t: 'Growth and repair of the body', emoji: '🩹', bin: 'prot' },
+    { t: 'Stores energy and keeps the body warm', emoji: '🧥', bin: 'fat' },
+    { t: 'Helps food move along the gut and prevents constipation', emoji: '🚽', bin: 'fibre' },
+    { t: 'Builds strong bones and teeth', emoji: '🦴', bin: 'ca' },
+    { t: 'Helps the body take in calcium', emoji: '🦷', bin: 'vd', why: 'Vitamin D helps the body absorb calcium for strong bones.' },
+    { t: 'Replaces what we lose in sweat and urine', emoji: '🥵', bin: 'water' },
+  ],
+});
+</script>

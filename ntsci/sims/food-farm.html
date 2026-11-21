@@ -1,0 +1,53 @@
+<title>Farm and pond</title>
+<div id="nt"></div>
+<script>
+(() => {
+// crop in kg, crop height px, pests left, what happens nearby
+const R = {
+  none: [40, 70, 6, 'pond is clean; animals are healthy', 'No help: poor soil and pests. The crop is small.'],
+  fert: [70, 120, 6, 'algae cover the pond; the fish die', 'Rain washes fertiliser into the pond. Algae and water weeds grow too much, and the fish die.'],
+  pest: [70, 110, 0, 'water is polluted; the bird is poisoned', 'The pests are dead. But the pesticide gets into the water and passes along the food chain.'],
+  bio: [65, 105, 1, 'pond is clean; animals are healthy', 'Ladybirds (predators) eat the pests. No chemicals are needed.'],
+};
+NT.sim({
+  title: 'More food from the farm', emoji: '🚜',
+  idea: 'Fertilisers and pesticides give more crops, but they can harm the environment.',
+  controls: [{ id: 'm', label: 'The farmer uses', noun: 'what the farmer uses', value: 'none', options: [['none', 'Nothing'], ['fert', 'Fertiliser', '🧪'], ['pest', 'Pesticide', '☠️'], ['bio', 'Ladybirds (biological control)', '🐞']] }],
+  go: { label: 'Grow the crop', time: 5 },
+  readings: [
+    { id: 'crop', label: 'Crop harvested', noun: 'the amount of crop harvested', unit: 'kg', get: s => R[s.m][0] },
+    { id: 'pond', label: 'Pond and animals', noun: 'what happens to the pond and animals', get: s => R[s.m][3] },
+  ],
+  say: (s, done) => done ? R[s.m][4] : '',
+  draw(P, s, p, t) {
+    const C = P.C, r = R[s.m], late = Math.max(0, (p - 0.5) * 2);
+    P.rect(0, 0, 900, 250, { fill: '#dff1ff' }); P.rect(0, 250, 900, 230, { fill: '#b9dc9a' }); P.rect(30, 270, 520, 170, { fill: '#c9a878', r: 12 }); P.emoji('☀️', 80, 60, 60);
+    // crops
+    for (let i = 0; i < 6; i++) P.plant(80 + i * 86, 420 - (i % 2) * 34, 24 + (r[1] - 24) * p, { pot: false, color: s.m === 'none' ? '#b9cf5a' : '#3aa655' });
+    // pests: eaten or killed as time goes
+    const pests = Math.round(6 - (6 - r[2]) * Math.min(1, p * 1.6)); for (let i = 0; i < 6; i++) { const x = 110 + i * 82, y = 340 - (i % 3) * 30; if (i < pests) P.emoji('🐛', x, y + 3 * Math.sin(t * 4 + i), 26); else if (s.m === 'pest') P.emoji('💀', x, y, 18, { alpha: 0.6 }); }
+    if (s.m === 'bio') for (let i = 0; i < 3; i++) P.emoji('🐞', 150 + i * 150 + 20 * Math.sin(t * 2 + i), 300 + (i % 2) * 40, 28);
+    if (s.m === 'pest' && p > 0 && p < 0.5) for (let i = 0; i < 8; i++) P.circle(70 + i * 62, 250 + ((t * 80 + i * 20) % 90), 4, { fill: C.purple, alpha: 0.7 });
+    // rain washes chemicals to the pond
+    if ((s.m === 'fert' || s.m === 'pest') && p > 0.35) { P.emoji('🌧️', 520, 90, 70); P.arrow(540, 400, 630, 400, { color: s.m === 'fert' ? C.green : C.purple, lw: 7 }); P.text(s.m === 'fert' ? 'fertiliser' : 'pesticide', 585, 428, { size: 15, color: C.ink }); }
+    // pond
+    const bad = (s.m === 'fert' || s.m === 'pest') ? late : 0;
+    P.oval(745, 370, 130, 70, { fill: s.m === 'pest' ? 'rgb(' + Math.round(110 + 50 * bad) + ',' + Math.round(190 - 50 * bad) + ',235)' : '#6ebeeb', stroke: '#3c7fa8', lw: 4 });
+    if (s.m === 'fert') P.oval(745, 370, 126 * bad, 66 * bad, { fill: '#4c9a2a', alpha: 0.85 });
+    const dead = bad > 0.7 && s.m === 'fert'; [[700, 380], [760, 350], [790, 392]].forEach((f, i) => P.emoji(dead ? '☠️' : '🐟', f[0] + (dead ? 0 : 10 * Math.sin(t * 1.5 + i)), f[1], dead ? 24 : 30, { alpha: s.m === 'fert' ? 1 - bad * 0.3 : 1 }));
+    if (s.m === 'fert' && bad > 0.3) P.tag('algae', 745, 300, { bg: '#4c9a2a', size: 16 });
+    // bird on a post: it eats the pests
+    P.line(600, 250, 600, 190, { color: C.brown, lw: 8 }); P.emoji(s.m === 'pest' && late > 0.6 ? '🤢' : '🐦', 600, 165, 44); if (s.m === 'pest' && late > 0.6) P.text('poisoned by eating the pests', 650, 122, { size: 15, color: C.red });
+    P.tag('crop: ' + Math.round(r[0] * p) + ' kg', 290, 240, { bg: C.ink, size: 18 });
+  },
+  inquiry: [{
+    q: 'Which way of farming gives a good crop without harming the environment?',
+    guess: ['Chemicals give more crops but can harm the environment', 'Chemicals give fewer crops', 'Every way gives the same result'], guessAns: 0,
+    change: 'm', measure: ['crop', 'pond'], dv: 'the crop harvested, and what happens to the pond and animals',
+    same: ['the same field', 'the same kind of crop', 'the same weather'],
+    found: ['Fertilisers and pesticides give ', ['more', 'fewer'], ' crops, but they can ', ['pollute', 'clean'], ' the water. Biological control uses a ', ['predator', 'chemical'], ' to eat the pests.'], foundAns: [0, 0, 0],
+    why: 'Biological control uses predators to control pests, so farmers need less pesticide. Pesticides can contaminate soil and water, and harmful substances pass along the food chain.',
+  }],
+});
+})();
+</script>

@@ -1,0 +1,47 @@
+<title>Cost of electricity</title>
+<div id="nt"></div>
+<script>
+(() => {
+const APP = { led: ['LED lamp', '💡', 10], fan: ['Fan', '🌀', 50], tv: ['TV', '📺', 100], ac: ['Air-con', '❄️', 1000], kettle: ['Kettle', '🫖', 2000] };
+const PRICE = 0.30;                                   // dollars for 1 kWh
+const kw = s => APP[s.app][2] / 1000, kwh = s => Math.round(kw(s) * s.hrs * 1000) / 1000, cost = s => kwh(s) * PRICE;
+let spin = 0;
+NT.sim({
+  title: 'What does it cost to run?', emoji: '💰',
+  idea: 'Energy (kWh) = power (kW) × time (h). Cost = energy (kWh) × price of 1 kWh.',
+  controls: [
+    { id: 'app', label: 'Appliance', noun: 'the appliance (its power)', value: 'fan', options: Object.entries(APP).map(([k, a]) => [k, a[0] + ' ' + a[2] + ' W', a[1]]) },
+    { id: 'hrs', label: 'Hours switched on', type: 'range', min: 1, max: 10, step: 1, value: 10, unit: 'h' },
+  ],
+  readings: [
+    { id: 'kw', label: 'Power', unit: 'kW', always: true, get: kw },
+    { id: 'kwh', label: 'Energy used', noun: 'the energy used', unit: 'kWh', always: true, get: kwh },
+    { id: 'cost', label: 'Cost (at $0.30 for 1 kWh)', noun: 'the cost', always: true, get: cost, text: s => '$' + cost(s).toFixed(2) },
+  ],
+  say: s => 'Energy = ' + kw(s) + ' kW × ' + s.hrs + ' h = ' + kwh(s) + ' kWh.  Cost = ' + kwh(s) + ' × $0.30 = $' + cost(s).toFixed(2) + '.  Current = power ÷ voltage = ' + APP[s.app][2] + ' W ÷ 230 V = ' + (APP[s.app][2] / 230).toFixed(2) + ' A.',
+  tick(s, dt) { spin += dt * (0.4 + kw(s) * 5); },
+  draw(P, s) {
+    const C = P.C, a = APP[s.app];
+    P.rect(0, 400, 900, 80, { fill: '#e9edf1' });
+    // appliance and its label
+    P.emoji(a[1], 170, 210, 150); P.rect(70, 320, 200, 70, { fill: '#fff', stroke: C.dark, lw: 3, r: 8 }); P.text('LABEL', 170, 336, { size: 13, color: C.mute }); P.text('230 V   ' + a[2] + ' W', 170, 364, { size: 24 });
+    P.text('voltage', 118, 408, { size: 14, color: C.mute, bold: false }); P.text('power', 222, 408, { size: 14, color: C.mute, bold: false });
+    // electricity meter
+    P.rect(360, 120, 200, 220, { fill: '#fff', stroke: C.dark, lw: 5, r: 14 }); P.text('electricity meter', 460, 146, { size: 16, color: C.mute });
+    P.rect(385, 170, 150, 50, { fill: '#16222e', r: 6 }); P.text(kwh(s).toFixed(2) + ' kWh', 460, 196, { size: 24, color: '#9cff9c' });
+    P.circle(460, 280, 38, { fill: C.soft, stroke: C.dark, lw: 3 }); P.line(460, 280, 460 + 34 * Math.cos(spin), 280 + 34 * Math.sin(spin), { color: C.red, lw: 6 });
+    // clock and bill
+    P.emoji('⏰', 660, 160, 64); P.text(s.hrs + ' h', 730, 164, { size: 30 });
+    P.rect(620, 230, 220, 130, { fill: '#fffdf2', stroke: C.dark, lw: 3, r: 8 }); P.text('BILL', 730, 254, { size: 18, color: C.mute }); P.text('$' + cost(s).toFixed(2), 730, 300, { size: 46, color: C.green }); P.text('$0.30 for 1 kWh', 730, 340, { size: 15, color: C.mute, bold: false });
+  },
+  inquiry: [{
+    q: 'Each appliance is on for 10 hours. Which one costs the most to run?',
+    guess: ['The one with the highest power (W)', 'The one with the lowest power (W)', 'They all cost the same'], guessAns: 0,
+    change: 'app', measure: ['kwh', 'cost'], fix: { hrs: 10 }, tests: ['led', 'fan', 'tv', 'ac'],
+    same: ['the time they are on (10 hours)', 'the price of 1 kWh ($0.30)'],
+    found: ['An appliance with a higher power uses ', ['more', 'less'], ' energy in the same time, so it costs ', ['more', 'less'], '. Energy (kWh) = power (kW) × ', ['time (h)', 'voltage (V)'], '.'], foundAns: [0, 0, 0],
+    why: 'To save electricity: use energy-efficient appliances (like LED lamps) and switch things off when you are not using them.',
+  }],
+});
+})();
+</script>

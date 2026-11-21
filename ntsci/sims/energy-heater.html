@@ -1,0 +1,45 @@
+<title>Water heater</title>
+<div id="nt"></div>
+<script>
+(() => {
+const E = 100000;                                   // energy to heat the cup of water from 20 °C to 100 °C, in J
+const secs = s => E / s.pw;
+NT.sim({
+  title: 'Which heater is faster?', emoji: '♨️',
+  idea: 'Power = energy ÷ time. More power means the same energy is changed in less time.',
+  controls: [{ id: 'pw', label: 'Power of heater', noun: 'the power of the heater', value: 1000, options: [[500, '500 W'], [1000, '1000 W'], [2000, '2000 W']] }],
+  go: { label: 'Switch on', time: s => secs(s) / 25 },
+  readings: [
+    { id: 'time', label: 'Time to reach 100 °C', noun: 'the time taken', unit: 's', get: s => secs(s) },
+    { id: 'en', label: 'Energy used', unit: 'J', get: () => E },
+  ],
+  say: (s, done) => done ? 'Power = energy ÷ time = 100 000 J ÷ ' + secs(s) + ' s = ' + s.pw + ' W' : '',
+  draw(P, s, p, t) {
+    const C = P.C, temp = 20 + 80 * p, glow = p > 0 && p < 1 ? 1 : 0, k = s.pw / 2000;
+    P.rect(0, 420, 900, 60, { fill: '#e9edf1' });
+    // cup of water and heater
+    P.beaker(250, 170, 230, 250, { level: 0.78, color: 'rgb(' + Math.round(150 + 90 * p) + ',' + Math.round(210 - 40 * p) + ',' + Math.round(255 - 110 * p) + ')' });
+    P.line(365, 110, 365, 330, { color: C.dark, lw: 8 });
+    P.curve([[325, 330], [345, 370], [365, 330], [385, 370], [405, 330]], { color: glow ? 'rgb(255,' + Math.round(150 - 90 * k) + ',40)' : C.grey, lw: 9 });
+    if (glow) P.bubbles(262, 230, 206, 180, Math.round(6 + 26 * k), t * (0.6 + k), { r: 3 });
+    if (p >= 1) { P.emoji('💨', 300, 130, 44); P.emoji('💨', 430, 120, 44); }
+    P.tag(s.pw + ' W heater', 365, 92, { bg: C.red });
+    P.text('cup of water', 365, 446, { size: 18, color: C.mute });
+    // thermometer
+    P.rect(560, 120, 22, 260, { fill: '#fff', stroke: C.dark, lw: 3, r: 11 }); P.rect(565, 375 - 250 * (temp / 110), 12, 250 * (temp / 110), { fill: C.red, r: 6 }); P.circle(571, 392, 20, { fill: C.red, stroke: C.dark, lw: 3 });
+    P.text(Math.round(temp) + ' °C', 571, 96, { size: 26 });
+    // stopwatch
+    P.circle(750, 220, 86, { fill: '#fff', stroke: C.dark, lw: 6 }); P.rect(738, 118, 24, 20, { fill: C.dark, r: 4 });
+    P.text(Math.round(secs(s) * p) + ' s', 750, 220, { size: 44 }); P.text('stopwatch', 750, 330, { size: 18, color: C.mute });
+  },
+  inquiry: [{
+    q: 'Does a heater with more power heat the water faster?',
+    guess: ['More power → less time', 'More power → more time', 'Power makes no difference'], guessAns: 0,
+    change: 'pw', measure: 'time',
+    same: ['the amount of water', 'the starting temperature (20 °C)', 'the final temperature (100 °C)'],
+    found: ['The higher the power, the ', ['shorter', 'longer'], ' the time taken. Power is the energy changed every ', ['second', 'hour'], '.'], foundAns: [0, 0],
+    why: 'Power = energy ÷ time. A 2000 W heater changes 2000 J of electrical energy to thermal energy every second.',
+  }],
+});
+})();
+</script>
