@@ -4,7 +4,7 @@ from core.page import chapter_page
 from quizzes.kinematics import QUESTIONS
 
 APPLETS = [
-    dict(name="Kinematics Graph Matcher", file="kinematics-graphs", height=800,
+    dict(name="Kinematics Graph Matcher", file="kinematics-graphs", height=800, opts={"start": "simple"},
          blurb="Pick a type of motion or drag your own speed–time graph. The car drives it while the distance–time graph draws itself. Hide the distance–time graph to make a prediction first.",
          tasks=[
              "**Predict:** choose 'Uniform acceleration' and hide the distance–time graph. Sketch what it will look like, then show it. Were you right? Why is it not a straight line?",

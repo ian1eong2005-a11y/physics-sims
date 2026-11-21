@@ -4,7 +4,7 @@ from core.page import chapter_page
 from quizzes.waves import QUESTIONS
 
 APPLETS = [
-    dict(name="Wave Graph Mapper", file="wave-graphs", height=760,
+    dict(name="Wave Graph Mapper", file="wave-graphs", height=760, opts={"start": "simple"},
          blurb="A wave on a rope with its two graphs. The **displacement–distance** graph is a photo of the whole rope now; the **displacement–time** graph is the diary of the one particle you choose. Click any particle to follow it.",
          tasks=[
              "**Frozen time axis:** choose 'trace moves →'. The pen only moves up and down. Why does the trace look like the wave on the rope?",

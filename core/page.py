@@ -30,10 +30,13 @@ def _view_opts(a, tab):
 
     Explore and Quiz: the page's own opts (e.g. {"preset": "simple"} or {"show": ["field", "compass"]}), then any
     URL settings such as ?applet=magnetism&show=lines,compass or &preset=simple (they apply to the ?applet= applet,
-    or to every applet on the page when there is no ?applet=).
+    or to every applet on the page when there is no ?applet=). {"start": "simple"} opens Explore on Simple unless
+    the viewer has saved choices of their own (used for the busiest applets).
     Guided and Inquiry: always the applet's normal view (every part a guide step or investigation might mention),
     whatever the page, the URL or the viewer chose; students can still use Show / hide during the step."""
     o = dict(a.get("opts") or {})
+    if tab != "explore":
+        o.pop("start", None)  # a page's soft start={"simple"} is for Explore only
     if tab in ("guided", "inquiry"):
         for k in VIEW_KEYS:
             o.pop(k, None)

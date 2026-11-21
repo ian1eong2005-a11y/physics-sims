@@ -4,7 +4,7 @@ from core.page import chapter_page
 from quizzes.practical_electricity import QUESTIONS
 
 APPLETS = [
-    dict(name="Home Electricity", file="home-electricity", height=820,
+    dict(name="Home Electricity", file="home-electricity", height=820, opts={"start": "simple"},
          blurb="**Toaster fault**: a real toaster (or its circuit diagram) with the current drawn as moving dots. Make the live wire touch the metal case and follow where the current goes, with and without the earth wire and the fuse, and with someone touching the case. Also: **wiring a plug**; **switch & fuse: live or neutral?**, where you choose which wire each goes in, make a fault, and see what happens when someone touches the metal case or the parts inside; and **appliances & cost**.",
          tasks=[
              "Toaster fault: follow the dots in normal use. Then make the fault happen. Where does the current go? What happens to the fuse?",

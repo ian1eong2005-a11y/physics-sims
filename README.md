@@ -12,7 +12,7 @@ Every applet has a **Show / hide** button next to the zoom buttons. It lists the
 
 A teacher can open an applet already focused:
 
-- **In a page** (`pages/*.py`, `lowersec/*.py`): add to the applet dict `opts={"preset": "simple"}`, or `opts={"show": ["lines", "compasses"]}` (only these parts), `opts={"hide": ["notice"]}`, `opts={"mode": "force"}` (start in that mode). These combine with other opts such as `{"sec2": True}`.
+- **In a page** (`pages/*.py`, `lowersec/*.py`): add to the applet dict `opts={"preset": "simple"}`, or `opts={"show": ["lines", "compasses"]}` (only these parts), `opts={"hide": ["notice"]}`, `opts={"mode": "force"}` (start in that mode). These combine with other opts such as `{"sec2": True}`. `opts={"start": "simple"}` is softer: Explore opens on Simple only for viewers who have not made their own choices (used for Wave Graph Mapper, Kinematics Graph Matcher and Home Electricity; delete it to go back to the full view).
 - **In a link or QR code**: add the same settings to the page URL, e.g. `…/Magnetism?show=lines&mode=bar` or `…/forces-energy?applet=energy-coaster&preset=simple`. With `?applet=` they apply to that applet only; without it, to every applet on the page. A URL view replaces the page's own view.
 
 Layer ids for each applet are declared at the top of its script in `sims/<name>.html` (`window.SIM_LAYERS`). Page and URL settings win over a viewer's saved choices. The **Guided** and **Inquiry** tabs always open in the applet's normal view (so every part a step mentions is visible), though students can still use Show / hide there.

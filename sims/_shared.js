@@ -13,6 +13,7 @@
 // Canvas code asks layer('lines') before drawing that part. HTML parts carry data-layer="id".
 // A "What to notice" box (.notice) gets a layer of its own automatically.
 // Start view (page opts or URL): show=[ids] (only these), hide=[ids], preset='simple'|'all'|'default', mode='<data-v>'.
+// start='simple' (page opts): open on Simple unless this viewer has saved choices of their own.
 // Each viewer's own choices are kept in localStorage per applet and mode; page or URL settings win over them.
 (() => {
   const OPTS = () => {
@@ -56,7 +57,8 @@
       hide.forEach(id => { if (id in st) st[id] = false; });
     } else {
       const saved = load(m);
-      if (saved) for (const k in saved) if (k in st) st[k] = !!saved[k];
+      if (saved) { for (const k in saved) if (k in st) st[k] = !!saved[k]; }
+      else if (o.start === 'simple') st = presetState('simple', m); // a soft starting view: the viewer's own saved choice wins
     }
     return st;
   }
