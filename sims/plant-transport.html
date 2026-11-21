@@ -42,7 +42,7 @@
         <label class="check"><input type="checkbox" id="potato" checked> Show the potato strip results</label>
         <label class="check"><input type="checkbox" id="minerals" checked> Show mineral salts diffusing in</label>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Water moves</small><span id="rDir" style="font-size:.85rem">–</span></div>
         <div><small>Cell</small><span id="rCell" style="font-size:.85rem">–</span></div>
       </div>
@@ -56,7 +56,7 @@
       <div class="ctl">
         <label class="check"><input type="checkbox" id="lstomata" checked> Stomata open</label>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>CO₂ inside the leaf</small><span id="rCO2">–</span></div>
         <div><small>O₂ inside the leaf</small><span id="rO2">–</span></div>
       </div>
@@ -70,6 +70,23 @@
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'xylem',label:'Xylem and moving water',modes:['plant'],simple:true,input:'xylem'},
+  {id:'phloem',label:'Phloem and moving food (sugars)',modes:['plant'],simple:true,input:'phloem'},
+  {id:'vapour',label:'Water vapour leaving the stomata',modes:['plant']},
+  {id:'xs',label:'Cut across the stem',modes:['plant'],input:'xs'},
+  {id:'labels',label:'Labels',modes:['plant'],input:'plabels'},
+  {id:'water',label:'Moving water particles',modes:['root'],simple:true},
+  {id:'result',label:'Which way water moves (heading)',modes:['root'],simple:true},
+  {id:'labels',label:'Labels on the root hair cell',modes:['root']},
+  {id:'minerals',label:'Mineral salts diffusing in',modes:['root'],input:'minerals'},
+  {id:'potato',label:'Potato strip results (graph)',modes:['root'],input:'potato'},
+  {id:'key',label:'Colour key (carbon dioxide / oxygen)',modes:['leaf'],simple:true},
+  {id:'labels',label:'Labels on the leaf',modes:['leaf'],simple:true},
+  {id:'readout',label:'Readouts (panel)',modes:['root','leaf']},
+  {id:'text',label:'Explanations on the diagram'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -125,7 +142,7 @@ function drawPlant(dt){
   // moving water
   if ($('xylem').checked && open){ W_ROUTES.forEach((r,ri)=>{ const L=WL[ri], tot=L[L.length-1]; for (let k=0;k<5;k++){ const d=((t*60+k*tot/5+ri*37)%tot); const [x,y]=at(r,L,d); const last=d>tot-25; ctx.fillStyle=dye?DYE:WATER; ctx.globalAlpha=last?0.4:1; ctx.beginPath(); ctx.arc(x,y,3.2,0,7); ctx.fill(); ctx.globalAlpha=1; } }); }
   // water vapour leaving the stomata
-  if (open){ ctx.fillStyle=WATER; for (const [x,y] of [[185,236],[230,240],[405,290],[350,290]]){ for (let k=0;k<3;k++){ const f=((t*0.8+k/3+x*0.01)%1); ctx.globalAlpha=0.6*(1-f); ctx.beginPath(); ctx.arc(x+Math.sin(f*6+k)*4,y+f*40,2.6,0,7); ctx.fill(); } } ctx.globalAlpha=1; }
+  if (open && layer('vapour')){ ctx.fillStyle=WATER; for (const [x,y] of [[185,236],[230,240],[405,290],[350,290]]){ for (let k=0;k<3;k++){ const f=((t*0.8+k/3+x*0.01)%1); ctx.globalAlpha=0.6*(1-f); ctx.beginPath(); ctx.arc(x+Math.sin(f*6+k)*4,y+f*40,2.6,0,7); ctx.fill(); } } ctx.globalAlpha=1; }
   // moving sugar (only made in the light)
   if ($('phloem').checked){ const rate = lightOn ? 1 : 0.15; S_ROUTES.forEach((r,ri)=>{ const L=SL[ri], tot=L[L.length-1]; for (let k=0;k<4;k++){ const d=((t*45*rate+k*tot/4+ri*29)%tot); const [x,y]=at(r,L,d); ctx.fillStyle=SUGAR; ctx.globalAlpha=lightOn?1:0.35; ctx.fillRect(x-3,y-3,6,6); ctx.globalAlpha=1; } }); }
   // labels
@@ -145,13 +162,13 @@ function drawPlant(dt){
     ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('Cut across the stem', cx, cy-R-12);
     ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillStyle=dyed?DYE:WATER; ctx.fillText(dyed?'■ xylem (stained red by the dye)':'■ xylem (inner side): water and mineral salts', cx-R, cy+R+24); ctx.fillStyle=SUGAR; ctx.fillText('■ phloem (outer side): food (sugars)', cx-R, cy+R+40);
     if (dye && !dyed){ ctx.fillStyle=muted; ctx.fillText('the dye has not reached this height yet', cx-R, cy+R+56); } }
-  // explanation
-  ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  // explanation (moves up into the space when the stem cut is hidden)
+  if (layer('text')){ ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
   const msg = !open ? 'Stomata closed: water vapour cannot escape from the leaves, so water stops moving up the xylem.'
             : dye ? 'The red dye travels up with the water. Only the xylem turns red, because only the xylem carries water.'
             : lightOn ? 'Water and mineral salts go UP in the xylem, from the roots to the leaves. Food made in the leaves goes in the phloem to every part that needs it: up to the fruit and down to the roots.'
             : 'In the dark the leaves cannot make food, so much less food moves in the phloem. Water still moves up the xylem.';
-  wrap(msg, 560, 420, 320, 17);
+  wrap(msg, 560, $('xs').checked?420:120, 320, 17); }
 }
 
 // ===================== ROOT HAIR AND OSMOSIS =====================
@@ -180,14 +197,16 @@ function drawRoot(dt){
   // water particles: drift across the membrane in the direction of osmosis
   if ($('minerals').checked){ ctx.fillStyle='#2e9e5b'; for (let i=0;i<10;i++){ const ph=((t*0.18+i/10)%1); const x=560-ph*360, y=150+((i*29)%110); ctx.beginPath(); ctx.rect(x-3,y-3,6,6); ctx.fill(); } ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('■ mineral salts: more concentrated in the soil water, so they diffuse into the root hair', 28, 352); }
   const dir=Math.tanh(diff/2); ctx.fillStyle=WATER;
-  for (let i=0;i<24;i++){ const ph=((t*0.25+i/24)%1); const fx = dir>=0 ? 600-ph*420 : 180+ph*420; const y=60+((i*37)%290); if (Math.abs(dir)<0.05){ ctx.globalAlpha=.6; ctx.beginPath(); ctx.arc(250+((i*71)%330)+Math.sin(t*2+i)*8,y,2.6,0,7); ctx.fill(); ctx.globalAlpha=1; continue; } ctx.beginPath(); ctx.arc(fx,y+Math.sin(t*3+i)*4,2.6,0,7); ctx.fill(); }
+  if (layer('water')) for (let i=0;i<24;i++){ const ph=((t*0.25+i/24)%1); const fx = dir>=0 ? 600-ph*420 : 180+ph*420; const y=60+((i*37)%290); if (Math.abs(dir)<0.05){ ctx.globalAlpha=.6; ctx.beginPath(); ctx.arc(250+((i*71)%330)+Math.sin(t*2+i)*8,y,2.6,0,7); ctx.fill(); ctx.globalAlpha=1; continue; } ctx.beginPath(); ctx.arc(fx,y+Math.sin(t*3+i)*4,2.6,0,7); ctx.fill(); }
   // labels
-  ctx.fillStyle=fg; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.fillText('root hair cell', 60, 300); ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('the long, thin hair gives a large surface area for taking in water', 60, 314);
-  ctx.fillText('cell sap (more concentrated)', 70, 130); ctx.fillText('partially permeable membrane: lets water through, not salt', 60, 328);
+  if (layer('labels')){ ctx.fillStyle=fg; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('root hair cell', 60, 300); ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('the long, thin hair gives a large surface area for taking in water', 60, 314);
+  ctx.fillText('cell sap (more concentrated)', 70, 130); ctx.fillText('partially permeable membrane: lets water through, not salt', 60, 328); }
   // explanation
-  const px=620; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText(diff>0.25?'WATER MOVES INTO THE CELL':diff<-0.25?'WATER MOVES OUT OF THE CELL':'NO NET MOVEMENT', px, 70);
-  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted;
-  wrap(diff>0.25?'The soil water is more dilute than the cell sap, so it has a higher water concentration. Water moves into the root hair by osmosis: from higher to lower water concentration, through the partially permeable membrane. The cell swells and becomes firm.':diff<-0.25?'The soil water is more concentrated than the cell sap (salty soil). Water moves OUT of the root hair by osmosis. The plant cannot take in water and wilts.':'The soil water and the cell sap have about the same concentration, so there is no net movement of water.', px, 94, 260, 17);
+  const px=620; ctx.textAlign='left';
+  if (layer('result')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText(diff>0.25?'WATER MOVES INTO THE CELL':diff<-0.25?'WATER MOVES OUT OF THE CELL':'NO NET MOVEMENT', px, 70);
+  }
+  if (layer('text')){ ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted;
+  wrap(diff>0.25?'The soil water is more dilute than the cell sap, so it has a higher water concentration. Water moves into the root hair by osmosis: from higher to lower water concentration, through the partially permeable membrane. The cell swells and becomes firm.':diff<-0.25?'The soil water is more concentrated than the cell sap (salty soil). Water moves OUT of the root hair by osmosis. The plant cannot take in water and wilts.':'The soil water and the cell sap have about the same concentration, so there is no net movement of water.', px, layer('result')?94:70, 260, 17); }
   // potato strip graph
   if ($('potato').checked){ const gx=80, gy=380, gw=440, gh=130, X=c=>gx+c/10*gw, Y=p=>gy+gh/2-p/25*gh/2;
     ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.moveTo(gx,gy+gh/2); ctx.lineTo(gx+gw,gy+gh/2); ctx.stroke();
@@ -234,12 +253,13 @@ function drawLeaf(dt){
   // gases
   for (const g of G){ ctx.fillStyle=g.k==='CO2'?'#6b7280':'#e4572e'; ctx.beginPath(); ctx.arc(g.x,g.y,3.4,0,7); ctx.fill(); }
   ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.fillStyle=fg; ctx.textAlign='left';
-  ctx.fillText('upper epidermis', 40, 145); ctx.fillText('cells that make food (in light)', 40, 182); ctx.fillText('air spaces', 40, 300); ctx.fillText('lower epidermis with stomata', 40, 384); ctx.fillText('outside air', 40, 520);
-  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(open?'stomata open':'stomata closed', STOMA[0][0]-30, 384);
+  if (layer('labels')){ ctx.fillText('upper epidermis', 40, 145); ctx.fillText('cells that make food (in light)', 40, 182); ctx.fillText('air spaces', 40, 300); ctx.fillText('lower epidermis with stomata', 40, 384); ctx.fillText('outside air', 40, 520);
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(open?'stomata open':'stomata closed', STOMA[0][0]-30, 384); }
   const inside=G.filter(g=>g.y<356), co2=inside.filter(g=>g.k==='CO2').length, o2=inside.length-co2;
-  const px=200; ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('● carbon dioxide   ', px, 30); ctx.fillStyle='#6b7280'; ctx.fillText('●', px, 30); ctx.fillStyle='#e4572e'; ctx.fillText('●', px+130, 30); ctx.fillStyle=fg; ctx.fillText('oxygen', px+142, 30);
-  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted;
-  wrap(!open ? 'Stomata closed: gases cannot diffuse in or out of the leaf.' : day ? 'In light the leaf uses carbon dioxide to make food and gives out oxygen. CO₂ inside falls, so CO₂ diffuses IN through the stomata; O₂ builds up and diffuses OUT.' : 'In the dark the leaf only respires: it uses oxygen and gives out carbon dioxide. Now O₂ diffuses in and CO₂ diffuses out.', px, 54, 640, 16);
+  const px=200; ctx.textAlign='left';
+  if (layer('key')){ ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('● carbon dioxide   ', px, 30); ctx.fillStyle='#6b7280'; ctx.fillText('●', px, 30); ctx.fillStyle='#e4572e'; ctx.fillText('●', px+130, 30); ctx.fillStyle=fg; ctx.fillText('oxygen', px+142, 30); }
+  if (layer('text')){ ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted;
+  wrap(!open ? 'Stomata closed: gases cannot diffuse in or out of the leaf.' : day ? 'In light the leaf uses carbon dioxide to make food and gives out oxygen. CO₂ inside falls, so CO₂ diffuses IN through the stomata; O₂ builds up and diffuses OUT.' : 'In the dark the leaf only respires: it uses oxygen and gives out carbon dioxide. Now O₂ diffuses in and CO₂ diffuses out.', px, layer('key')?54:30, 640, 16); }
   $('rCO2').textContent=co2; $('rO2').textContent=o2;
 }
 

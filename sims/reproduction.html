@@ -31,7 +31,7 @@
         <label class="check"><input type="checkbox" id="names" checked> Show names of the parts</label>
         <label class="check"><input type="checkbox" id="path" checked> Show the path of the egg / sperm</label>
       </div>
-      <div class="fb" id="pFb">Click a part to see what it does.</div>
+      <div class="fb" id="pFb" data-layer="fb">Click a part to see what it does.</div>
     </div>
 
     <div id="cCtl" class="hide" style="flex-direction:column;gap:12px">
@@ -43,7 +43,7 @@
         <label class="check"><input type="checkbox" id="preg"> The egg is fertilised this month</label>
         <label class="check"><input type="checkbox" id="fertBar" checked> Show the fertile period</label>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Stage</small><span id="rStage" style="font-size:.85rem">–</span></div>
         <div><small>Uterus lining</small><span id="rLining">–</span></div>
       </div>
@@ -64,17 +64,17 @@
         <label class="check"><input type="checkbox" id="bcLig"> Ligation (oviducts cut and tied)</label>
         <label class="check"><input type="checkbox" id="bcVas"> Vasectomy (partner's sperm ducts cut and tied)</label>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Day</small><span id="rDay">–</span></div>
         <div><small>Pregnant?</small><span id="rPreg">–</span></div>
       </div>
-      <div class="fb" id="fFb"></div>
+      <div class="fb" id="fFb" data-layer="fb"></div>
     </div>
 
     <div id="hCtl" class="hide" style="flex-direction:column;gap:12px">
       <div class="buttons"><button class="btn primary" id="kid">Make a child</button></div>
       <label class="check"><input type="checkbox" id="trace" checked> Colour-code where each block came from</label>
-      <div class="fb">Each coloured block stands for a piece of genetic information. Make several children and compare them with each other and with the parents.</div>
+      <div class="fb" data-layer="fb">Each coloured block stands for a piece of genetic information. Make several children and compare them with each other and with the parents.</div>
     </div>
 
     <div class="buttons">
@@ -85,6 +85,27 @@
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'names',label:'Names of the parts (off = ? to test yourself)',modes:['parts'],simple:true,input:'names'},
+  {id:'path',label:'Path of the egg / sperm',modes:['parts'],input:'path'},
+  {id:'title',label:'Title on the diagram',modes:['parts']},
+  {id:'labels',label:'Names of the parts',modes:['cycle','fert']},
+  {id:'stage',label:'Day and stage (top right)',modes:['cycle'],simple:true},
+  {id:'graph',label:'Graph of lining thickness',modes:['cycle']},
+  {id:'bar',label:'Cycle bar (days 1 to 28)',modes:['cycle'],simple:true},
+  {id:'fert',label:'Fertile period on the bar',modes:['cycle'],input:'fertBar'},
+  {id:'outcome',label:'Day and outcome (top right)',modes:['fert'],simple:true},
+  {id:'facts',label:'Key facts list',modes:['fert']},
+  {id:'methods',label:'"Birth control in use" line',modes:['fert']},
+  {id:'bar',label:'Timeline bar (days 1 to 28)',modes:['fert'],simple:true},
+  {id:'text',label:'Extra notes on the diagram',modes:['cycle','fert']},
+  {id:'labels',label:'Captions (mother, father, egg, sperm, fertilised egg)',modes:['hered'],simple:true},
+  {id:'kids',label:'Row of children made so far',modes:['hered'],simple:true},
+  {id:'key',label:'Colour key (pink / blue)',modes:['hered']},
+  {id:'readout',label:'Readouts (panel)',modes:['cycle','fert']},
+  {id:'fb',label:'Feedback / explanation box (panel)',modes:['parts','fert','hered'],simple:['parts']},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -127,7 +148,7 @@ function drawFemale(opts={}){
   if (opts.iud){ ctx.strokeStyle=BLUE_D; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(450,300); ctx.lineTo(450,240); ctx.moveTo(425,244); ctx.quadraticCurveTo(450,232,475,244); ctx.stroke(); ctx.lineWidth=1; }
 }
 const F_LABELS={ovary:[[230,330],'ovary'],oviduct:[[200,170],'oviduct'],uterus:[[560,240],'uterus'],cervix:[[500,352],'cervix'],vagina:[[500,440],'vagina']};
-function smallLabels(){ ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=css('--muted'); ctx.textAlign='left'; for (const [[x,y],n] of Object.values(F_LABELS)) ctx.fillText(n, x+10, y); }
+function smallLabels(){ if (!layer('labels')) return; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=css('--muted'); ctx.textAlign='left'; for (const [[x,y],n] of Object.values(F_LABELS)) ctx.fillText(n, x+10, y); }
 const F_INFO={ ovary:'Ovaries make eggs and release one egg about every 28 days (ovulation). They also make female sex hormones.',
   oviduct:'The oviduct (Fallopian tube) carries the egg from the ovary to the uterus. Fertilisation happens here.',
   uterus:'The uterus has a thick lining that builds up every month. A fertilised egg (embryo) implants in the lining and grows into a baby here.',
@@ -171,7 +192,7 @@ function drawParts(dt){
   if ($('path').checked){ const f=(t*0.25)%1;
     if (F){ const [x,y]=along(EGG_PATH,f); ctx.fillStyle='#fff'; ctx.strokeStyle=fg; ctx.beginPath(); ctx.arc(x,y,7,0,7); ctx.fill(); ctx.stroke(); ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('egg', x+10, y-8); }
     else { const path=DUCT_L.concat(URETHRA.slice(1)); for (let i=0;i<6;i++){ const [x,y]=along(path,(f+i*0.05)%1); sperm(x,y,t*8+i); } } }
-  ctx.fillStyle=fg; ctx.font='600 15px Bricolage Grotesque, sans-serif'; ctx.textAlign='left'; ctx.fillText(F?'Female reproductive system (front view)':'Male reproductive system (front view, simplified)', 20, 30);
+  if (layer('title')){ ctx.fillStyle=fg; ctx.font='600 15px Bricolage Grotesque, sans-serif'; ctx.textAlign='left'; ctx.fillText(F?'Female reproductive system (front view)':'Male reproductive system (front view, simplified)', 20, 30); }
   $('pFb').textContent = selected ? info[selected] : 'Click a part to see what it does.' + ($('names').checked?'':' Names are hidden: say the name before you click.');
 }
 function sperm(x,y,ph){ ctx.strokeStyle=css('--muted'); ctx.beginPath(); ctx.moveTo(x,y); for(let i=1;i<6;i++) ctx.lineTo(x-i*2, y+i*2+Math.sin(ph+i)*2); ctx.stroke(); ctx.fillStyle='#fff'; ctx.strokeStyle=css('--fg'); ctx.beginPath(); ctx.ellipse(x,y,3.5,2.5,0.6,0,7); ctx.fill(); ctx.stroke(); }
@@ -192,24 +213,26 @@ function drawCycle(dt){
   ctx.restore();
   // stage text on the right
   const stage = d<=5 ? (preg?'menstruation (this cycle began before pregnancy)':'menstruation: the lining breaks down and leaves the body as blood') : d<14 ? 'the lining is rebuilt; an egg ripens in an ovary' : d===14 ? 'OVULATION: an ovary releases an egg' : (preg && d>=21) ? 'the embryo has implanted in the thick lining: pregnancy' : (preg && d>=15) ? 'the fertilised egg divides and moves to the uterus' : d<=17 ? 'the egg travels along the oviduct' : 'the lining stays thick, ready for an embryo';
-  const px=530; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('DAY '+d, px, 40);
-  ctx.font='14px IBM Plex Sans, sans-serif'; wrap(stage.charAt(0).toUpperCase()+stage.slice(1)+'.', px, 64, 350, 19);
-  if (!preg && d>=24){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; wrap('No egg was fertilised, so on day 1 of the next cycle the lining will break down again.', px, 130, 350, 16); }
-  if (preg && d>=21){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; wrap('Because she is pregnant, the lining is NOT shed: menstruation stops.', px, 130, 350, 16); }
+  const px=530, ny=layer('stage')?130:40; ctx.textAlign='left';
+  if (layer('stage')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('DAY '+d, px, 40);
+  ctx.font='14px IBM Plex Sans, sans-serif'; wrap(stage.charAt(0).toUpperCase()+stage.slice(1)+'.', px, 64, 350, 19); }
+  if (layer('text') && !preg && d>=24){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; wrap('No egg was fertilised, so on day 1 of the next cycle the lining will break down again.', px, ny, 350, 16); }
+  if (layer('text') && preg && d>=21){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; wrap('Because she is pregnant, the lining is NOT shed: menstruation stops.', px, ny, 350, 16); }
   // graph of lining thickness with the cycle bar
   const gx=60, gy=380, gw=800, gh=100; const X=dd=>gx+(dd-1)/27*gw;
-  ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.lineTo(gx+gw,gy+gh); ctx.stroke();
+  if (layer('graph')){ ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.lineTo(gx+gw,gy+gh); ctx.stroke();
   ctx.strokeStyle=LINING; ctx.lineWidth=2.5; ctx.beginPath(); for (let dd=1;dd<=28;dd+=0.25){ const x=X(dd), y=gy+gh-liningAt(dd,preg)*gh*0.9; dd===1?ctx.moveTo(x,y):ctx.lineTo(x,y); } ctx.stroke(); ctx.lineWidth=1;
-  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.save(); ctx.translate(gx-14,gy+gh/2); ctx.rotate(-Math.PI/2); ctx.textAlign='center'; ctx.fillText('lining thickness',0,0); ctx.restore();
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.save(); ctx.translate(gx-14,gy+gh/2); ctx.rotate(-Math.PI/2); ctx.textAlign='center'; ctx.fillText('lining thickness',0,0); ctx.restore(); }
   // bar
-  const by=gy+gh+10; ctx.fillStyle=line; ctx.fillRect(gx,by,gw,16);
+  const by=layer('graph')?gy+gh+10:gy+10;
+  if (layer('bar')){ ctx.fillStyle=line; ctx.fillRect(gx,by,gw,16);
   if (!preg || d<21){ ctx.fillStyle=LINING; ctx.fillRect(X(1),by,X(5.9)-X(1),16); } else { ctx.fillStyle=LINING; ctx.fillRect(X(1),by,X(5.9)-X(1),16); }
   if ($('fertBar').checked){ ctx.fillStyle=good; ctx.globalAlpha=.7; ctx.fillRect(X(10),by,X(15.99)-X(10),16); ctx.globalAlpha=1; }
   ctx.fillStyle=fg; ctx.beginPath(); ctx.moveTo(X(14),by-2); ctx.lineTo(X(14)-6,by-12); ctx.lineTo(X(14)+6,by-12); ctx.fill();
   ctx.font='10px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.fillStyle=muted; for (const dd of [1,5,10,14,20,28]) ctx.fillText(dd, X(dd), by+28);
-  ctx.textAlign='left'; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=LINING; ctx.fillText('■ menstruation', gx, by+44); ctx.fillStyle=css('--good'); if ($('fertBar').checked) ctx.fillText('■ fertile period (an egg could be fertilised)', gx+120, by+44); ctx.fillStyle=fg; ctx.fillText('▼ ovulation (day 14)', gx+420, by+44);
+  ctx.textAlign='left'; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=LINING; ctx.fillText('■ menstruation', gx, by+44); ctx.fillStyle=css('--good'); if ($('fertBar').checked) ctx.fillText('■ fertile period (an egg could be fertilised)', gx+120, by+44); ctx.fillStyle=fg; ctx.fillText('▼ ovulation (day 14)', gx+420, by+44); }
   // cursor
-  ctx.strokeStyle=css('--accent'); ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(X(cday),gy); ctx.lineTo(X(cday),by+16); ctx.stroke(); ctx.lineWidth=1;
+  if (layer('graph')||layer('bar')){ ctx.strokeStyle=css('--accent'); ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(X(cday),layer('graph')?gy:by); ctx.lineTo(X(cday),layer('bar')?by+16:gy+gh); ctx.stroke(); ctx.lineWidth=1; }
   $('dayV').textContent=d; $('rStage').textContent = d<=5?'menstruation':d<14?'lining rebuilds':d===14?'ovulation':(preg&&d>=21)?'pregnant':'lining thick'; $('rLining').textContent = liningAt(d,preg)>0.7?'thick':liningAt(d,preg)>0.35?'medium':'thin';
 }
 
@@ -240,7 +263,7 @@ function drawFert(dt){
     for (let i=0;i<n;i++){ let f=Math.min(1,age*2.2+i*0.02); let path=SPERM_PATH; if (i%2) path=SPERM_PATH.map(([x,y])=>[x<450?900-x:x===450?450:x,y]);
       let stopAt = !spermEnter? 0 : !pastCervix ? 0.2 : !reachTube ? 0.78 : 1; if (!spermEnter){ continue; }
       f=Math.min(f,stopAt); const [x,y]=along(path,f); sperm(x+Math.sin(t*3+i)*3,y+Math.cos(t*2+i)*3,t*10+i); } }
-  if (B.condom && spermAlive && spermMade){ ctx.fillStyle=BLUE_D; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('sperm trapped in the condom', 450, 510); }
+  if (B.condom && spermAlive && spermMade && layer('text')){ ctx.fillStyle=BLUE_D; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('sperm trapped in the condom', 450, 510); }
   ctx.restore();
   t+=dt;
   // outcome
@@ -258,21 +281,23 @@ function drawFert(dt){
   else if (sd<10) why=`The sperm died before the egg was released (sperm live about 3 days; ovulation is on day 14).`;
   else if (sd>15) why='The egg had already died (an egg lives about 1 day after ovulation).';
   else why='No egg and sperm met this time.';
-  const px=560; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('DAY '+Math.floor(d)+' OF THE CYCLE', px, 40);
-  ctx.font='13px IBM Plex Sans, sans-serif'; wrap(why, px, 64, 320, 18);
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif';
-  ['• An egg is released on about day 14 and lives about 1 day.', '• Sperm can live about 3 days inside the female.', '• So the fertile period is about days 10–15.', '• Fertilisation happens in the oviduct.', '• The embryo implants in the uterus lining about a week later.'].forEach((s,i)=>ctx.fillText(s, px, 190+i*20));
+  const px=560; let fy=layer('outcome')?190:40; ctx.textAlign='left'; // the lines below move up when a part above is hidden
+  if (layer('outcome')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('DAY '+Math.floor(d)+' OF THE CYCLE', px, 40);
+  ctx.font='13px IBM Plex Sans, sans-serif'; wrap(why, px, 64, 320, 18); }
+  if (layer('facts')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif';
+  ['• An egg is released on about day 14 and lives about 1 day.', '• Sperm can live about 3 days inside the female.', '• So the fertile period is about days 10–15.', '• Fertilisation happens in the oviduct.', '• The embryo implants in the uterus lining about a week later.'].forEach((s,i)=>ctx.fillText(s, px, fy+i*20)); fy+=120; }
   // timeline
-  const gx=60, gy=470, gw=800; const X=dd=>gx+(dd-1)/27*gw; ctx.fillStyle=line; ctx.fillRect(gx,gy,gw,12);
+  const gx=60, gy=470, gw=800; const X=dd=>gx+(dd-1)/27*gw;
+  if (layer('bar')){ ctx.fillStyle=line; ctx.fillRect(gx,gy,gw,12);
   ctx.fillStyle=good; ctx.globalAlpha=.7; ctx.fillRect(X(10),gy,X(15.99)-X(10),12); ctx.globalAlpha=1;
   ctx.fillStyle=css('--accent'); ctx.globalAlpha=.6; ctx.fillRect(X(sd),gy-8,X(Math.min(28,sd+4))-X(sd),6); ctx.globalAlpha=1;
   ctx.fillStyle=fg; ctx.beginPath(); ctx.moveTo(X(14),gy-2); ctx.lineTo(X(14)-6,gy-12); ctx.lineTo(X(14)+6,gy-12); ctx.fill();
   ctx.strokeStyle=hot; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(X(d),gy-14); ctx.lineTo(X(d),gy+14); ctx.stroke(); ctx.lineWidth=1;
-  ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.textAlign='left'; ctx.fillText('blue bar: sperm alive   green: fertile period   ▼ ovulation', gx, gy+30);
+  ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.textAlign='left'; ctx.fillText('blue bar: sperm alive   green: fertile period   ▼ ovulation', gx, gy+30); }
   const used=[['condom',B.condom],['spermicide',B.spermicide],['diaphragm',B.diaphragm],['contraceptive pill',B.pill],['IUD',B.iud],['ligation',B.lig],['vasectomy',B.vas]].filter(x=>x[1]).map(x=>x[0]);
-  ctx.fillStyle=css('--accent'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Birth control in use: '+(used.length?used.join(', '):'none'), px, 310);
+  if (layer('methods')){ ctx.fillStyle=css('--accent'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Birth control in use: '+(used.length?used.join(', '):'none'), px, fy); }
   $('rDay').textContent=Math.floor(d); $('rPreg').textContent=preg?'yes':sim.fertilised?'fertilised…':'no';
-  $('fFb').className='fb'+(preg?' bad':''); $('fFb').textContent=why;
+  $('fFb').classList.toggle('bad',!!preg); $('fFb').textContent=why;
 }
 
 // ---------------- heredity and variation (G3) ----------------
@@ -285,22 +310,23 @@ function drawHered(){
   const fg=css('--fg'), muted=css('--muted'), line=css('--line'), acc=css('--accent');
   ctx.clearRect(0,0,cv.width,cv.height);
   ctx.font='48px system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText('👩', 190, 70); ctx.fillText('👨', 710, 70);
-  ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('mother: two sets of genetic information', 190, 96); ctx.fillText('father: two sets of genetic information', 710, 96);
+  if (layer('labels')){ ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('mother: two sets of genetic information', 190, 96); ctx.fillText('father: two sets of genetic information', 710, 96); }
   strip(118,108,MUM[0]); strip(118,128,MUM[1]); strip(638,108,DAD[0]); strip(638,128,DAD[1]);
   const k=kids[0];
   ctx.fillStyle='#fff'; ctx.strokeStyle=fg; ctx.beginPath(); ctx.arc(190,220,40,0,7); ctx.fill(); ctx.stroke();
   ctx.beginPath(); ctx.ellipse(710,220,22,15,0,0,7); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(732,220); ctx.quadraticCurveTo(760,206,790,226); ctx.stroke();
-  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('egg: ONE set, a mix from mother', 190, 278); ctx.fillText('sperm: ONE set, a mix from father', 710, 260);
+  if (layer('labels')){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('egg: ONE set, a mix from mother', 190, 278); ctx.fillText('sperm: ONE set, a mix from father', 710, 260); }
   if (k){ strip(154,214,k.egg,12,12); strip(638,240,k.sperm,24,12);
     ctx.strokeStyle=acc; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(240,240); ctx.lineTo(400,320); ctx.moveTo(660,250); ctx.lineTo(500,320); ctx.stroke(); ctx.lineWidth=1;
     ctx.fillStyle='#ffd'; ctx.strokeStyle=fg; ctx.beginPath(); ctx.arc(450,340,48,0,7); ctx.fill(); ctx.stroke();
     strip(378,322,k.egg); strip(378,342,k.sperm);
-    ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('fertilised egg: the nuclei join', 450, 404); ctx.fillText('half from the mother, half from the father', 450, 420); }
+    if (layer('labels')){ ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('fertilised egg: the nuclei join', 450, 404); ctx.fillText('half from the mother, half from the father', 450, 420); } }
   else { ctx.fillStyle=muted; ctx.font='13px IBM Plex Sans, sans-serif'; ctx.fillText('Press "Make a child".', 450, 340); }
   // siblings
-  ctx.textAlign='left'; ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('Children made so far (newest first): siblings are not identical', 20, 452);
-  kids.forEach((c,i)=>{ const x=20+i*220; ctx.font='26px system-ui, sans-serif'; ctx.fillText('🧒', x, 490); strip(x+36,470,c.egg,22,12); strip(x+36,484,c.sperm,22,12); });
-  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('pink blocks came from the mother (via the egg), blue blocks from the father (via the sperm)', 20, 516);
+  ctx.textAlign='left';
+  if (layer('kids')){ ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText('Children made so far (newest first): siblings are not identical', 20, 452);
+  kids.forEach((c,i)=>{ const x=20+i*220; ctx.font='26px system-ui, sans-serif'; ctx.fillText('🧒', x, 490); strip(x+36,470,c.egg,22,12); strip(x+36,484,c.sperm,22,12); }); }
+  if (layer('key')){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('pink blocks came from the mother (via the egg), blue blocks from the father (via the sperm)', 20, 516); }
 }
 function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (mode==='parts') drawParts(dt); else if (mode==='cycle') drawCycle(dt); else if (mode==='fert') drawFert(dt); else drawHered(); requestAnimationFrame(frame); }
 function notice(){ $('notice').innerHTML = {

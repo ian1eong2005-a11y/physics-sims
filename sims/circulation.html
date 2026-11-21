@@ -36,7 +36,7 @@
         <label class="check"><input type="checkbox" id="follow" checked> Follow one blood cell (close-up)</label>
         <label class="check"><input type="checkbox" id="xsec"> Show vessel cross-sections (extra: not required)</label>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Pulse (count in 15 s)</small><span id="rPulse">–</span></div>
         <div><small>Beats per minute</small><span id="rBpm">–</span></div>
       </div>
@@ -51,7 +51,7 @@
         <label class="check"><input type="checkbox" id="hard"> Muscle working hard (uses oxygen and glucose faster)</label>
         <label class="check"><input type="checkbox" id="flow" checked> Blood keeps flowing</label>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small id="cTopL">Top</small><span id="cTop">–</span></div>
         <div><small id="cBotL">Blood</small><span id="cBot">–</span></div>
       </div>
@@ -62,7 +62,7 @@
         <div class="row"><label for="side">Size of the cube (side)</label><span class="val" id="sideV">1 cm</span></div>
         <input type="range" id="side" min="1" max="6" step="1" value="1">
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Surface area</small><span id="rSA">–</span></div>
         <div><small>Volume</small><span id="rV">–</span></div>
         <div><small>SA ÷ volume</small><span id="rRatio">–</span></div>
@@ -78,6 +78,25 @@
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'cells',label:'Moving blood cells',modes:['circ'],simple:true},
+  {id:'labels',label:'Labels: artery, vein, capillaries',modes:['circ'],simple:true,input:'vlabels'},
+  {id:'defs',label:'What arteries, veins and capillaries are (top left)',modes:['circ']},
+  {id:'key',label:'Colour key (red / blue)',modes:['circ']},
+  {id:'o2',label:'Oxygen',modes:['circ'],input:'showO2'},
+  {id:'co2',label:'Carbon dioxide',modes:['circ'],on:false,input:'showCO2'},
+  {id:'food',label:'Digested food',modes:['circ'],on:false,input:'showFood'},
+  {id:'follow',label:'Follow one blood cell (close-up box)',modes:['circ'],input:'follow'},
+  {id:'xsec',label:'Vessel cross-sections',modes:['circ'],on:false,input:'xsec'},
+  {id:'labels',label:'Labels: air sac / cells, blood, capillary wall',modes:['diff'],simple:true},
+  {id:'rbc',label:'Red blood cells in the capillary',modes:['diff']},
+  {id:'counts',label:'Particle counts and net movement',modes:['diff'],simple:true},
+  {id:'labels',label:'Labels on the cube',modes:['size'],simple:true},
+  {id:'table',label:'"Compare cubes" table',modes:['size'],simple:true},
+  {id:'readout',label:'Readouts (panel)'},
+  {id:'text',label:'Explanations on the diagram'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -131,7 +150,7 @@ function drawCirc(dt){
   ctx.fillStyle='#fff'; ctx.font='700 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('HEART', 450, 262); ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('the pump', 450, 276);
   // blood cells flowing
   for (const [loop,pts,L,n] of [['lung',LUNG_LOOP,LL,22],['body',BODY_LOOP,BL,46]]){ const tot=L[L.length-1];
-    for (let i=0;i<n;i++){ const d=((i/n)*tot + t*bpm*1.6)%tot; const [x,y]=at(pts,L,d); const o=oxy(loop,d);
+    if (layer('cells')) for (let i=0;i<n;i++){ const d=((i/n)*tot + t*bpm*1.6)%tot; const [x,y]=at(pts,L,d); const o=oxy(loop,d);
       ctx.fillStyle=mix(BLUE,RED,o); ctx.strokeStyle='#fff'; ctx.beginPath(); ctx.ellipse(x,y,5,3.5,0,0,7); ctx.fill(); ctx.stroke();
       if ($('showO2').checked && o>0.2){ ctx.fillStyle=O2C; ctx.beginPath(); ctx.arc(x+5,y-5,2.2,0,7); ctx.fill(); }
       if ($('showCO2').checked && o<0.7){ ctx.fillStyle=CO2C; ctx.beginPath(); ctx.arc(x-5,y-5,2.2,0,7); ctx.fill(); }
@@ -167,10 +186,10 @@ function drawCirc(dt){
   if ($('vlabels').checked){ ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillStyle=fg;
     ctx.fillText('artery', 566, 160); ctx.fillText('vein', 300, 160); ctx.fillText('capillaries', 600, 70);
     ctx.fillText('artery', 706, 360); ctx.fillText('vein', 160, 360); ctx.fillText('capillaries', 720, 452);
-    ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText('arteries: blood AWAY from the heart', 20, 30); ctx.fillText('veins: blood back TO the heart', 20, 46); ctx.fillText('capillaries: tiny vessels where substances are exchanged', 20, 62); ctx.fillStyle=css('--accent'); ctx.fillText('A vessel is named by the direction of blood flow, not by how much oxygen it carries.', 20, 78); }
-  ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillStyle=RED; ctx.fillText('red = rich in oxygen', 880, 30); ctx.fillStyle=BLUE; ctx.fillText('blue = low in oxygen', 880, 46);
-  if ($('exercise').checked){ ctx.fillStyle=css('--hot'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('Exercising: muscles use oxygen and digested food faster, so the heart beats faster', 450, 526); }
-  if (drugs){ ctx.fillStyle=css('--hot'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('Drug abuse: faster, irregular heartbeat; narrowed arteries (yellow deposits) and high blood pressure: higher risk of heart attack and stroke', 450, $('exercise').checked?510:526); }
+    if (layer('defs')){ ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText('arteries: blood AWAY from the heart', 20, 30); ctx.fillText('veins: blood back TO the heart', 20, 46); ctx.fillText('capillaries: tiny vessels where substances are exchanged', 20, 62); ctx.fillStyle=css('--accent'); ctx.fillText('A vessel is named by the direction of blood flow, not by how much oxygen it carries.', 20, 78); } }
+  if (layer('key')){ ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillStyle=RED; ctx.fillText('red = rich in oxygen', 880, 30); ctx.fillStyle=BLUE; ctx.fillText('blue = low in oxygen', 880, 46); }
+  if ($('exercise').checked && layer('text')){ ctx.fillStyle=css('--hot'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('Exercising: muscles use oxygen and digested food faster, so the heart beats faster', 450, 526); }
+  if (drugs && layer('text')){ ctx.fillStyle=css('--hot'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('Drug abuse: faster, irregular heartbeat; narrowed arteries (yellow deposits) and high blood pressure: higher risk of heart attack and stroke', 450, $('exercise').checked?510:526); }
   // cross-sections
   if ($('xsec').checked){ const bx=610, by=150; ctx.fillStyle=panel; ctx.strokeStyle=line; ctx.fillRect(bx,by,280,250); ctx.strokeRect(bx,by,280,250);
     const ring=(cx,cy,R,wall,lab,sub)=>{ ctx.fillStyle='#c9686f'; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.fill(); ctx.fillStyle='#f8e0e0'; ctx.beginPath(); ctx.arc(cx,cy,R-wall,0,7); ctx.fill(); ctx.fillStyle=fg; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(lab, cx+R+10, cy-4); ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; wrap(sub, cx+R+10, cy+10, 190, 12); };
@@ -212,19 +231,19 @@ function drawDiff(dt){
   ctx.fillStyle='rgba(212,63,58,.12)'; ctx.fillRect(BX,BOT0,BW,BOT1-BOT0);
   // capillary wall: one cell thick, drawn as a row of thin cells
   ctx.fillStyle='#e9b3b3'; for (let x=BX;x<BX+BW;x+=40){ ctx.beginPath(); ctx.roundRect(x+1,TOP1+1,38,BOT0-TOP1-2,6); ctx.fill(); }
-  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(S.top.toUpperCase(), BX, TOP0-10);
+  if (layer('labels')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(S.top.toUpperCase(), BX, TOP0-10);
   ctx.fillText('BLOOD IN A CAPILLARY', BX, BOT1+20); ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText($('flow').checked?'blood flows → (fresh blood keeps arriving)':'blood flow stopped', BX+190, BOT1+20);
-  ctx.fillText('↓ capillary wall: only one cell thick', BX+BW-200, TOP1-6);
+  ctx.fillText('↓ capillary wall: only one cell thick', BX+BW-200, TOP1-6); }
   // red cells drifting
-  for (let i=0;i<8;i++){ const x=BX+((i*72+t*60*($('flow').checked?1:0))%BW), y=BOT0+40+(i%3)*40; ctx.fillStyle='rgba(212,63,58,.35)'; ctx.beginPath(); ctx.ellipse(x,y,16,9,0,0,7); ctx.fill(); }
+  if (layer('rbc')) for (let i=0;i<8;i++){ const x=BX+((i*72+t*60*($('flow').checked?1:0))%BW), y=BOT0+40+(i%3)*40; ctx.fillStyle='rgba(212,63,58,.35)'; ctx.beginPath(); ctx.ellipse(x,y,16,9,0,0,7); ctx.fill(); }
   for (const p of P){ ctx.fillStyle=p.col; ctx.beginPath(); ctx.arc(p.x,p.y,4,0,7); ctx.fill(); }
   // counts and net arrows
   const px=650; let y=80; ctx.textAlign='left';
-  for (const [k,col,name] of S.types){ const top=P.filter(p=>p.k===k&&p.y<WALL).length, bot=P.filter(p=>p.k===k&&p.y>WALL).length;
+  if (layer('counts')) for (const [k,col,name] of S.types){ const top=P.filter(p=>p.k===k&&p.y<WALL).length, bot=P.filter(p=>p.k===k&&p.y>WALL).length;
     ctx.fillStyle=col; ctx.beginPath(); ctx.arc(px+6,y-4,5,0,7); ctx.fill(); ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText(name, px+18, y);
     ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText(`top: ${top}   blood: ${bot}`, px+18, y+16);
     const down=top>bot; ctx.fillStyle=col; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.fillText(Math.abs(top-bot)<3?'about equal: little net movement':down?'net movement INTO the blood ↓':'net movement OUT of the blood ↑', px+18, y+32); y+=62; }
-  ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; wrap('Particles move randomly in all directions, but more move from where they are concentrated to where they are less concentrated: diffusion.', px, y+10, 230, 16);
+  if (layer('text')){ ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; wrap('Particles move randomly in all directions, but more move from where they are concentrated to where they are less concentrated: diffusion.', px, y+10, 230, 16); }
   const t0=S.types[0]; $('cTopL').textContent=t0[2]+' (top)'; $('cTop').textContent=P.filter(p=>p.k===t0[0]&&p.y<WALL).length; $('cBotL').textContent=t0[2]+' (blood)'; $('cBot').textContent=P.filter(p=>p.k===t0[0]&&p.y>WALL).length;
 }
 
@@ -240,17 +259,19 @@ function drawSize(dt){
   ctx.fillStyle='#dfe9f7'; ctx.fillRect(x0,y0,w,w);
   const r=reach*scale; ctx.fillStyle='rgba(228,87,46,.55)'; ctx.fillRect(x0,y0,w,r); ctx.fillRect(x0,y0+w-r,w,r); ctx.fillRect(x0,y0,r,w); ctx.fillRect(x0+w-r,y0,r,w);
   ctx.strokeStyle=fg; ctx.lineWidth=2; ctx.strokeRect(x0,y0,w,w); ctx.lineWidth=1;
-  ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(x0+w/2,y0+w/2,4,0,7); ctx.fill(); ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('centre', x0+w/2+6, y0+w/2+4);
+  ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(x0+w/2,y0+w/2,4,0,7); ctx.fill(); ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  if (layer('labels')){ ctx.fillText('centre', x0+w/2+6, y0+w/2+4);
   ctx.fillStyle=muted; ctx.fillText(`a slice through a ${s} cm cube`, x0, y0-12);
-  ctx.fillText('orange: oxygen has diffused in from the surface', x0, y0+w+20);
+  ctx.fillText('orange: oxygen has diffused in from the surface', x0, y0+w+20); }
   // table
-  const tx=520; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Compare cubes', tx, 80);
+  const tx=520, ty=layer('table')?0:-200; // the explanation moves up when the table is hidden
+  if (layer('table')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Compare cubes', tx, 80);
   ctx.font='12px IBM Plex Mono, monospace'; ctx.fillText('side   SA    volume  SA÷V', tx, 104);
-  for (let k=1;k<=6;k++){ ctx.fillStyle=k===s?acc:muted; ctx.fillText(`${k} cm  ${String(6*k*k).padStart(4)}  ${String(k**3).padStart(6)}  ${(6/k).toFixed(1).padStart(5)}`, tx, 124+k*20); }
-  ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif';
+  for (let k=1;k<=6;k++){ ctx.fillStyle=k===s?acc:muted; ctx.fillText(`${k} cm  ${String(6*k*k).padStart(4)}  ${String(k**3).padStart(6)}  ${(6/k).toFixed(1).padStart(5)}`, tx, 124+k*20); } }
+  if (layer('text')){ ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
   const msg = s<=1 ? 'A tiny organism has a large surface compared with its volume, and no cell is far from the surface: diffusion alone can supply it.' : 'As the cube gets bigger, the volume grows faster than the surface area, and the centre is further from the surface. Diffusion becomes far too slow to supply the inner cells, so large organisms need a transport system (blood vessels, xylem and phloem) to carry substances to every cell.';
-  wrap(msg, tx, 290, 360, 17);
-  ctx.fillStyle=muted; wrap(`In this model diffusion reaches the centre after about ${tc.toFixed(0)} min (${reach>=s/2?'reached':'not yet'}).`, tx, 400, 360, 17);
+  wrap(msg, tx, 290+ty, 360, 17);
+  ctx.fillStyle=muted; wrap(`In this model diffusion reaches the centre after about ${tc.toFixed(0)} min (${reach>=s/2?'reached':'not yet'}).`, tx, 400+ty, 360, 17); }
   $('sideV').textContent=s+' cm'; $('rSA').textContent=SA+' cm²'; $('rV').textContent=V+' cm³'; $('rRatio').textContent=(SA/V).toFixed(1); $('rTc').textContent=tc.toFixed(0)+' min';
 }
 

@@ -35,7 +35,7 @@
         <label class="check"><input type="checkbox" id="roles" checked> Show producer / consumer levels</label>
         <button class="btn" id="chain">Trace the next food chain</button>
       </div>
-      <div class="fb" id="wFb">Click an organism to start.</div>
+      <div class="fb" id="wFb" data-layer="fb">Click an organism to start.</div>
     </div>
 
     <div id="eCtl" class="hide" style="flex-direction:column;gap:10px">
@@ -47,7 +47,7 @@
         <label class="check"><input type="checkbox" id="heat" checked> Show energy lost as heat</label>
         <label class="check"><input type="checkbox" id="decomp" checked> Decomposers present (G3)</label>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Soil nutrients</small><span id="rSoil">–</span></div>
         <div><small>Dead matter</small><span id="rDead">–</span></div>
       </div>
@@ -67,7 +67,7 @@
       <div class="ctl hide" id="parCtl">
         <label class="check"><input type="checkbox" id="treat"> Treat the dog with tick medicine</label>
       </div>
-      <div class="fb" id="rFb"></div>
+      <div class="fb" id="rFb" data-layer="fb"></div>
     </div>
 
     <div id="hCtl" class="hide" style="flex-direction:column;gap:10px">
@@ -91,7 +91,7 @@
       <div class="ctl">
         <label class="check"><input type="checkbox" id="logger" checked> Data logger probes (G3)</label>
       </div>
-      <div class="fb" id="hFb"></div>
+      <div class="fb" id="hFb" data-layer="fb"></div>
     </div>
 
     <div class="buttons">
@@ -102,6 +102,25 @@
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'labels',label:'Organism names',modes:['web'],simple:['web']},
+  {id:'levels',label:'Producer / consumer level bands',modes:['web'],input:'roles'},
+  {id:'info',label:'Food chain and feeding level text (top right)',modes:['web']},
+  {id:'energy',label:'Energy bars, kJ values and 10% labels',modes:['energy'],simple:['energy']},
+  {id:'heat',label:'Energy lost as heat',modes:['energy'],simple:['energy'],input:'heat'},
+  {id:'levels',label:'Feeding level under each organism',modes:['energy']},
+  {id:'cycle',label:'Nutrient cycle (G3)',modes:['energy']},
+  {id:'meters',label:'Meters (soil, dead matter, plants / health)',modes:['energy','rel'],simple:['rel']},
+  {id:'readout',label:'Readout boxes and counts',modes:['energy','rel']},
+  {id:'labels',label:'Labels in the picture',modes:['rel'],simple:['rel']},
+  {id:'logger',label:'Data logger probes (G3)',modes:['habitat'],input:'logger'},
+  {id:'graph',label:'Data logger graph',modes:['habitat']},
+  {id:'adapt',label:'List of adaptations',modes:['habitat'],simple:['habitat']},
+  {id:'verdict',label:'Survives? verdict',modes:['habitat'],simple:['habitat']},
+  {id:'text',label:'Explanations on the diagram'},
+  {id:'fb',label:'Feedback box',modes:['web','rel','habitat'],simple:['web']},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -147,14 +166,14 @@ function drawWeb(){
   for (const [k,o] of Object.entries(ORG)){ const e=effects[k];
     ctx.fillStyle=k===sel?'rgba(31,111,235,.15)':css('--panel'); ctx.strokeStyle=e?(e.d==='down'?hot:good):line; ctx.lineWidth=e?3:1.5; ctx.beginPath(); ctx.arc(o.x,o.y,28,0,7); ctx.fill(); ctx.stroke(); ctx.lineWidth=1;
     ctx.font='28px system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillStyle=fg; ctx.fillText(o.icon, o.x, o.y+10);
-    ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText(o.name, o.x, o.y+46);
+    if (layer('labels')){ ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText(o.name, o.x, o.y+46); }
     if (e){ ctx.fillStyle=e.d==='down'?hot:good; ctx.font='700 20px IBM Plex Sans, sans-serif'; ctx.fillText(e.d==='down'?'↓':'↑', o.x+34, o.y-14); } }
-  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Arrows point from the food to the feeder: the direction energy flows.', 16, 548);
+  if (layer('text')){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Arrows point from the food to the feeder: the direction energy flows.', 16, 548); }
   // right-hand log
   const px=800-0; ctx.textAlign='left';
   const lx=600, ly=40; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif';
-  if (chain){ ctx.fillText(`Food chain ${chainIdx+1} of ${CHAINS.length}`, lx, 30); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=acc; wrap(chain.map(k=>ORG[k].name).join(' → '), lx, 50, 290, 16); }
-  if (sel){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText(`${cap(ORG[sel].name)}: ${roleOf(sel)}`, 600, 100); }
+  if (chain && layer('info')){ ctx.fillText(`Food chain ${chainIdx+1} of ${CHAINS.length}`, lx, 30); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=acc; wrap(chain.map(k=>ORG[k].name).join(' → '), lx, 50, 290, 16); }
+  if (sel && layer('info')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText(`${cap(ORG[sel].name)}: ${roleOf(sel)}`, 600, 100); }
   $('wFb').innerHTML = sel ? log.map(s=>'• '+s).join('<br>') : (chain? 'Count every path from a producer to a top consumer. That is the number of food chains in the web.' : 'Click an organism to start. Each “next effect” follows only the arrows linked to the organisms that changed.');
 }
 
@@ -169,32 +188,37 @@ function drawEnergy(dt){
     if (dec){ const back=Math.min(dead, 0.12*dead*dt); dead-=back; soil+=back; }
     plants=Math.max(2,Math.min(100,plants)); }
   ctx.clearRect(0,0,cv.width,cv.height);
+  const lower=layer('cycle')||layer('meters')||layer('text'); // nothing below the food chain: centre it
+  ctx.save(); if (!lower) ctx.translate(0,150);
   const E0=+$('sun').value; const chain=[['grass','🌾','producer'],['grasshopper','🦗','primary consumer'],['frog','🐸','secondary consumer'],['snake','🐍','tertiary consumer']];
   // sun
   ctx.font='40px system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText('☀️', 60, 90); ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('the Sun', 60, 112);
   arrow(90,80,132,80,warn,3); ctx.fillStyle=warn; ctx.fillText('light energy', 60, 128);
   chain.forEach(([n,ic,role],i)=>{ const x=190+i*150, y=80, E=E0/Math.pow(10,i);
     ctx.fillStyle=css('--panel'); ctx.strokeStyle=line; ctx.beginPath(); ctx.roundRect(x-55,y-40,110,80,10); ctx.fill(); ctx.stroke();
-    ctx.font='28px system-ui, sans-serif'; ctx.fillStyle=fg; ctx.fillText(ic, x, y-2); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText(n, x, y+18); ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText(role, x, y+32);
+    ctx.font='28px system-ui, sans-serif'; ctx.fillStyle=fg; ctx.fillText(ic, x, y-2); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText(n, x, y+18); if (layer('levels')){ ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText(role, x, y+32); }
     // bar of energy held
-    const bw=Math.max(2, 100*E/E0); ctx.fillStyle=good; ctx.fillRect(x-50,y+50,bw,14); ctx.fillStyle=fg; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText(Math.round(E).toLocaleString()+' kJ', x, y+80);
-    if (i<chain.length-1){ arrow(x+58,y,x+92,y,acc,3); ctx.fillStyle=acc; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('10%', x+75, y-8); }
+    if (layer('energy')){ const bw=Math.max(2, 100*E/E0); ctx.fillStyle=good; ctx.fillRect(x-50,y+50,bw,14); ctx.fillStyle=fg; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText(Math.round(E).toLocaleString()+' kJ', x, y+80); }
+    if (i<chain.length-1){ arrow(x+58,y,x+92,y,acc,3); if (layer('energy')){ ctx.fillStyle=acc; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('10%', x+75, y-8); } }
     if ($('heat').checked){ const wob=Math.sin(t*3+i)*3; ctx.strokeStyle=hot; ctx.lineWidth=2; for (let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(x+k*14,y+92); ctx.bezierCurveTo(x+k*14+6+wob,y+104,x+k*14-6-wob,y+116,x+k*14,y+128); ctx.stroke(); } ctx.lineWidth=1; ctx.fillStyle=hot; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText(i<chain.length-1?`${Math.round(E*0.9).toLocaleString()} kJ lost as heat`:'lost as heat', x, y+142); } });
   ctx.textAlign='left'; ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif';
-  wrap('At each stage about 90% of the energy is lost to the surroundings as heat (mostly from respiration) and cannot be used again. Only about 10% is passed on, so the last organism gets the least energy. Energy flows ONE WAY: it never returns to the plants.', 30, 252, 840, 17);
+  if (layer('text')) wrap('At each stage about 90% of the energy is lost to the surroundings as heat (mostly from respiration) and cannot be used again. Only about 10% is passed on, so the last organism gets the least energy. Energy flows ONE WAY: it never returns to the plants.', 30, 252, 840, 17);
   // nutrient cycle (G3)
-  const cx=300, cy=420; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Nutrients go round in a cycle (G3)', 30, 318);
-  const nodes=[['plants take in nutrients',cx,cy-60,'🌱'],['animals eat plants',cx+170,cy,'🐇'],['dead organisms and faeces',cx,cy+60,'🍂'],['decomposers (bacteria, fungi)',cx-170,cy,'🍄']];
+  ctx.restore();
   const dec=$('decomp').checked;
+  const cx=300, cy=420;
+  if (layer('cycle')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Nutrients go round in a cycle (G3)', 30, 318);
+  const nodes=[['plants take in nutrients',cx,cy-60,'🌱'],['animals eat plants',cx+170,cy,'🐇'],['dead organisms and faeces',cx,cy+60,'🍂'],['decomposers (bacteria, fungi)',cx-170,cy,'🍄']];
   nodes.forEach(([l,x,y,ic],i)=>{ ctx.globalAlpha = (i===3 && !dec)?0.25:1; ctx.font='24px system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillStyle=fg; ctx.fillText(ic, x, y+4); ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText(l, x, y+22); ctx.globalAlpha=1; });
   arrow(cx+30,cy-50,cx+150,cy-14,good,2); arrow(cx+150,cy+16,cx+30,cy+52,good,2);
   ctx.globalAlpha=dec?1:0.2; arrow(cx-30,cy+52,cx-150,cy+16,good,2); arrow(cx-150,cy-14,cx-30,cy-50,good,2); ctx.globalAlpha=1;
-  if (!dec){ ctx.fillStyle=hot; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('✗ cycle broken', cx-110, cy-30); }
-  // meters
-  const mx=560, my=340; const bar=(i,v,max,col,lab)=>{ const y=my+i*46; ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(lab, mx, y); ctx.fillStyle=line; ctx.fillRect(mx,y+6,300,16); ctx.fillStyle=col; ctx.fillRect(mx,y+6,300*Math.min(1,v/max),16); };
-  bar(0,soil,100,'#8a6a3a','nutrients in the soil'); bar(1,dead,100,'#a88','dead matter piling up'); bar(2,plants,100,good,'plants growing');
+  if (!dec){ ctx.fillStyle=hot; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('✗ cycle broken', cx-110, cy-30); } }
+  // meters (the explanation moves up to their place when they are hidden)
+  const mx=layer('cycle')?560:300, my=340;
+  if (layer('meters')){ const bar=(i,v,max,col,lab)=>{ const y=my+i*46; ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(lab, mx, y); ctx.fillStyle=line; ctx.fillRect(mx,y+6,300,16); ctx.fillStyle=col; ctx.fillRect(mx,y+6,300*Math.min(1,v/max),16); };
+  bar(0,soil,100,'#8a6a3a','nutrients in the soil'); bar(1,dead,100,'#a88','dead matter piling up'); bar(2,plants,100,good,'plants growing'); }
   ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  wrap(dec?'Decomposers break down dead organisms and faeces and return the nutrients to the soil, so plants can use them again.':'Without decomposers, dead matter piles up and its nutrients are never returned. The soil runs out of nutrients and the plants stop growing.', mx, my+150, 320, 16);
+  if (layer('text')) wrap(dec?'Decomposers break down dead organisms and faeces and return the nutrients to the soil, so plants can use them again.':'Without decomposers, dead matter piles up and its nutrients are never returned. The soil runs out of nutrients and the plants stop growing.', mx, layer('meters')?my+150:my, 320, 16);
   $('sunV').textContent=E0.toLocaleString()+' kJ'; $('rSoil').textContent=Math.round(soil); $('rDead').textContent=Math.round(dead);
 }
 
@@ -209,7 +233,7 @@ function drawRel(dt){
       for (let i=0;i<steps;i++){ const P=noPred?0:pred; const dPrey=a*prey*(1-prey/K)-b*prey*P, dPred=noPred?0:(d*prey*pred-c*pred); prey=Math.max(0.5,prey+dPrey*h); pred=noPred?0:Math.max(0.2,pred+dPred*h); }
       t+=dt*0.6; hist.push([t,prey,pred]); if (hist.length>1200) hist.shift(); }
     ctx.font='48px system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText('🦅', 120, 90); ctx.fillText('🐇', 120, 190);
-    ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillStyle=fg; ctx.fillText(`hawks: ${Math.round(pred)}`, 120, 120); ctx.fillText(`rabbits: ${Math.round(prey)}`, 120, 220);
+    if (layer('readout')){ ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillStyle=fg; ctx.fillText(`hawks: ${Math.round(pred)}`, 120, 120); ctx.fillText(`rabbits: ${Math.round(prey)}`, 120, 220); }
     const gx=240, gy=40, gw=620, gh=300, tmax=Math.max(40,t), t0=Math.max(0,t-40); const X=tt=>gx+(tt-t0)/40*gw, Y=v=>gy+gh-v/320*gh;
     ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.lineTo(gx+gw,gy+gh); ctx.stroke();
     ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('time →', gx+gw/2, gy+gh+16); ctx.save(); ctx.translate(gx-14,gy+gh/2); ctx.rotate(-Math.PI/2); ctx.fillText('population',0,0); ctx.restore();
@@ -217,31 +241,33 @@ function drawRel(dt){
     plot(1,good,1); plot(2,hot,6);
     ctx.textAlign='left'; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.fillStyle=good; ctx.fillText('rabbits (prey)', gx+8, gy+12); ctx.fillStyle=hot; ctx.fillText('hawks (predator, scaled ×6)', gx+120, gy+12);
     $('rFb').textContent = $('noPred').checked ? 'No predators: the rabbit population rises until it is limited by food and space. Too many rabbits can then damage the plants they eat.' : 'More rabbits → more food for hawks → hawks increase → more rabbits eaten → rabbits decrease → hawks have less food → hawks decrease → rabbits recover. The two populations rise and fall, with the predator behind the prey.';
-    ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; wrap($('rFb').textContent, 40, 400, 820, 17);
+    if (layer('text')){ ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; wrap($('rFb').textContent, 40, 400, 820, 17); }
   } else if (rel==='mut'){
     const noA=$('noAnem').checked; if (running){ t+=dt; fish += ((noA?0.2:1)-fish)*dt*0.3; anemone += ((noA?0:1)-anemone)*dt*0.5; }
     // sea scene
     ctx.fillStyle='rgba(42,125,225,.12)'; ctx.fillRect(20,20,560,380);
-    if (!noA){ ctx.strokeStyle='#d96fa0'; ctx.lineWidth=5; for (let i=0;i<14;i++){ const x=220+i*12; ctx.beginPath(); ctx.moveTo(x,360); ctx.quadraticCurveTo(x+Math.sin(t*2+i)*16,300,x+Math.sin(t*2+i)*10,250); ctx.stroke(); } ctx.lineWidth=1; ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('sea anemone (stinging tentacles)', 300, 384); }
+    if (!noA){ ctx.strokeStyle='#d96fa0'; ctx.lineWidth=5; for (let i=0;i<14;i++){ const x=220+i*12; ctx.beginPath(); ctx.moveTo(x,360); ctx.quadraticCurveTo(x+Math.sin(t*2+i)*16,300,x+Math.sin(t*2+i)*10,250); ctx.stroke(); } ctx.lineWidth=1; if (layer('labels')){ ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('sea anemone (stinging tentacles)', 300, 384); } }
     const fx=300+Math.cos(t*0.8)*(noA?180:50), fy=(noA?150:280)+Math.sin(t*1.3)*20; ctx.font='34px system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText('🐠', fx, fy);
     if (noA){ ctx.fillText('🦈', 120+((t*60)%400), 90); }
     ctx.fillStyle=fg; ctx.textAlign='left'; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Mutualism: BOTH organisms benefit', 610, 50);
     ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted;
-    let y=wrap('The clownfish is protected from predators by the anemone\'s stinging tentacles (it is not stung).', 610, 78, 260, 16);
-    y=wrap('The anemone is cleaned by the clownfish, and the clownfish chases away fish that would eat the anemone.', 610, y+24, 260, 16);
+    let y=40; // meters sit under the heading when the explanation is hidden
+    if (layer('text')){ y=wrap('The clownfish is protected from predators by the anemone\'s stinging tentacles (it is not stung).', 610, 78, 260, 16);
+    y=wrap('The anemone is cleaned by the clownfish, and the clownfish chases away fish that would eat the anemone.', 610, y+24, 260, 16); }
     const meter=(yy,v,l)=>{ ctx.fillStyle=muted; ctx.fillText(l, 610, yy); ctx.fillStyle=line; ctx.fillRect(610,yy+6,240,14); ctx.fillStyle=v>0.5?good:hot; ctx.fillRect(610,yy+6,240*v,14); };
-    meter(y+40, fish, 'clownfish: chance of survival'); meter(y+80, anemone, 'sea anemone: health');
+    if (layer('meters')){ meter(y+40, fish, 'clownfish: chance of survival'); meter(y+80, anemone, 'sea anemone: health'); }
     $('rFb').textContent = noA ? 'Without the anemone the clownfish has nowhere to hide and is easily eaten. Remove one partner and the other suffers too.' : 'Both partners gain: that is what makes it mutualism.';
   } else {
     const tr=$('treat').checked; if (running){ t+=dt; ticks += (tr? -ticks*0.8 : (12-ticks)*0.3)*dt; dogH += ((1-ticks/16)-dogH)*dt*0.4; dogH=Math.max(0.25,dogH); }
     ctx.font='110px system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText('🐕', 250, 260);
     ctx.fillStyle='#5a3b2a'; for (let i=0;i<Math.round(ticks);i++){ const x=190+(i*37)%120, y=200+(i*23)%60; ctx.beginPath(); ctx.ellipse(x,y,5,4,0,0,7); ctx.fill(); }
-    ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText(`ticks on the dog: ${Math.round(ticks)}`, 250, 320);
-    ctx.textAlign='left'; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Parasitism: one benefits, the host is harmed', 520, 50);
+    if (layer('readout')){ ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText(`ticks on the dog: ${Math.round(ticks)}`, 250, 320); }
+    ctx.textAlign='left'; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Parasitism: one benefits, the host is harmed', 520, 50);
     ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted;
-    let y=wrap('The tick (parasite) feeds on the dog\'s blood: it benefits. The dog (host) is harmed: it loses blood, feels weak and can catch diseases. The parasite usually does not kill its host, because it depends on it.', 520, 78, 350, 16);
+    let y=40;
+    if (layer('text')) y=wrap('The tick (parasite) feeds on the dog\'s blood: it benefits. The dog (host) is harmed: it loses blood, feels weak and can catch diseases. The parasite usually does not kill its host, because it depends on it.', 520, 78, 350, 16);
     const meter=(yy,v,l)=>{ ctx.fillStyle=muted; ctx.fillText(l, 520, yy); ctx.fillStyle=line; ctx.fillRect(520,yy+6,300,14); ctx.fillStyle=v>0.6?good:hot; ctx.fillRect(520,yy+6,300*v,14); };
-    meter(y+40, dogH, 'dog (host): health'); meter(y+80, Math.min(1,ticks/12), 'ticks (parasites): well fed');
+    if (layer('meters')){ meter(y+40, dogH, 'dog (host): health'); meter(y+80, Math.min(1,ticks/12), 'ticks (parasites): well fed'); }
     $('rFb').textContent = tr ? 'Treatment removes the ticks, so the dog recovers.' : 'Another example: a tapeworm living in a human\'s intestine.';
   }
 }
@@ -276,21 +302,25 @@ function drawHabitat(dt){
   const hour=(t*1.5)%24, dayf=Math.max(0,Math.sin((hour-6)/12*Math.PI));
   const T=E.T[0]+(E.T[1]-E.T[0])*dayf+warm, light=Math.round(E.light*dayf), water=Math.max(0,E.water-(ek==='desert'||ek==='pond'?warm*4:0)), pH=E.pH;
   if ($('logger').checked){ logT.push([t,T,light]); if (logT.length>400) logT.shift();
+    const lg=layer('graph');
     const px=470, py=30; ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Data logger probes (G3)', px, py);
     const probe=(i,l,v,u)=>{ const x=px+i*104; ctx.fillStyle=css('--panel'); ctx.strokeStyle=line; ctx.beginPath(); ctx.roundRect(x,py+10,96,52,8); ctx.fill(); ctx.stroke(); ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText(l, x+8, py+26); ctx.fillStyle=fg; ctx.font='600 15px IBM Plex Mono, monospace'; ctx.fillText(v+' '+u, x+8, py+50); };
     probe(0,'temperature',T.toFixed(0),'°C'); probe(1,'light intensity',light,'%'); probe(2,'pH',pH.toFixed(1),''); probe(3,'water available',Math.round(water),'%');
-    const gx=px, gy=110, gw=400, gh=110; ctx.strokeStyle=line; ctx.strokeRect(gx,gy,gw,gh);
+    if (lg){ const gx=px, gy=110, gw=400, gh=110; ctx.strokeStyle=line; ctx.strokeRect(gx,gy,gw,gh);
     ctx.strokeStyle=hot; ctx.lineWidth=2; ctx.beginPath(); logT.forEach(([tt,TT],i)=>{ const x=gx+(i/400)*gw, y=gy+gh-((TT+45)/100)*gh; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
     ctx.strokeStyle=css('--warn'); ctx.beginPath(); logT.forEach(([tt,TT,L],i)=>{ const x=gx+(i/400)*gw, y=gy+gh-(L/100)*gh; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke(); ctx.lineWidth=1;
-    ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('readings recorded automatically through the day: red = temperature, yellow = light', gx, gy+gh+14); }
+    ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('readings recorded automatically through the day: red = temperature, yellow = light', gx, gy+gh+14); } }
+  // the verdict and its explanation move up into the space the logger leaves
+  const vy=$('logger').checked ? (layer('graph') ? 280 : 130) : 50;
   // survival check against the organism's tolerance
   const [lo,hi]=o[3], maxT=E.T[1]+warm, ok=maxT<=hi && E.T[0]+warm>=lo && water>=(ek==='desert'?0:20);
-  const sx=40, sy=360; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Adaptations', sx, sy);
+  const sx=40, sy=360; ctx.textAlign='left';
+  if (layer('adapt')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Adaptations', sx, sy);
   let y=sy+22; for (const [txt,type] of o[2]){ ctx.fillStyle=type==='structural'?acc:css('--good'); ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.fillText(type.toUpperCase(), sx, y); ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; y=wrap(txt, sx+100, y, 330, 15)+22; }
-  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('structural = a body feature · behavioural = something it does', sx, 548);
-  ctx.fillStyle=ok?good:hot; ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.fillText(ok?'✓ well adapted: it survives here':'✗ conditions are outside what it is adapted to', 470, 280);
+  if (layer('text')){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('structural = a body feature · behavioural = something it does', sx, 548); } }
+  if (layer('verdict')){ ctx.fillStyle=ok?good:hot; ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.fillText(ok?'✓ well adapted: it survives here':'✗ conditions are outside what it is adapted to', 470, vy); }
   ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif';
-  wrap(warm===0 ? 'Organisms survive where they are adapted to the physical factors: air, water, temperature, light, minerals and pH.' : (ok ? `With ${warm} °C of warming it can still survive, but conditions are closer to its limit.` : `With ${warm} °C of warming the conditions change faster than it can adapt. Organisms that are not adapted may die out.`), 470, 304, 400, 17);
+  if (layer('text')) wrap(warm===0 ? 'Organisms survive where they are adapted to the physical factors: air, water, temperature, light, minerals and pH.' : (ok ? `With ${warm} °C of warming it can still survive, but conditions are closer to its limit.` : `With ${warm} °C of warming the conditions change faster than it can adapt. Organisms that are not adapted may die out.`), 470, layer('verdict')?vy+24:vy, 400, 17);
   $('warmV').textContent='+'+warm+' °C';
   $('hFb').textContent=`${o[0]}: ${o[2].filter(a=>a[1]==='structural').length} structural and ${o[2].filter(a=>a[1]==='behavioural').length} behavioural adaptation(s) shown.`;
 }
