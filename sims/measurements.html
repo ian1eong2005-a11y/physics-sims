@@ -25,7 +25,7 @@
         <div class="row"><label for="exp">Size (powers of ten)</label><span class="val" id="expV">1 m</span></div>
         <input type="range" id="exp" min="-10" max="7" step="0.05" value="0">
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Standard form</small><span id="rStd">–</span></div>
         <div><small>With prefix</small><span id="rPre">–</span></div>
       </div>
@@ -43,12 +43,22 @@
         <span class="lbl">Pick an instrument</span>
         <div class="list" id="instList"></div>
       </div>
-      <div class="fb" id="fb">Choose an instrument to check its range and precision.</div>
+      <div class="fb" id="fb" data-layer="fb">Choose an instrument to check its range and precision.</div>
     </div>
   </div>
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'prefix',label:'Prefix names on the ladder',modes:['scale'],simple:['scale'],input:'showPrefix'},
+  {id:'objects',label:'Small objects along the ladder',modes:['scale']},
+  {id:'size',label:'Size of the object (standard form and prefix)',modes:['scale'],simple:['scale']},
+  {id:'readout',label:'Readout box',modes:['scale']},
+  {id:'labels',label:'"% of reading" and "out of range" labels',modes:['inst'],simple:['inst']},
+  {id:'fb',label:'Feedback box',modes:['inst'],simple:['inst']},
+  {id:'text',label:'Explanation at the top'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -76,14 +86,14 @@ function drawScale(){
     ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText('10^'+ee, xx, ly+22);
     const p=PREFIX.find(q=>q[0]===ee); if (p && $('showPrefix').checked){ ctx.fillStyle=acc; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.fillText(p[1]?`${p[1]} (${p[2]}m)`:'metre (m)', xx, ly+40); } }
   ctx.font='22px system-ui, sans-serif';
-  OBJECTS.forEach(([s,name,ic],i)=>{ const xx=X(Math.log10(s)); const up= i%2? 40:70; ctx.globalAlpha=.55; ctx.fillText(ic, xx, ly-up); ctx.globalAlpha=1; ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(xx,ly-up+6); ctx.lineTo(xx,ly-8); ctx.stroke(); });
+  if (layer('objects')) OBJECTS.forEach(([s,name,ic],i)=>{ const xx=X(Math.log10(s)); const up= i%2? 40:70; ctx.globalAlpha=.55; ctx.fillText(ic, xx, ly-up); ctx.globalAlpha=1; ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(xx,ly-up+6); ctx.lineTo(xx,ly-8); ctx.stroke(); });
   const cx=X(e); ctx.strokeStyle=acc; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx,ly-110); ctx.lineTo(cx,ly); ctx.stroke(); ctx.lineWidth=1;
   let best=OBJECTS[0]; OBJECTS.forEach(o=>{ if (Math.abs(Math.log10(o[0])-e)<Math.abs(Math.log10(best[0])-e)) best=o; });
   const near=Math.abs(Math.log10(best[0])-e)<0.5;
   ctx.textAlign='center'; ctx.font='120px system-ui, sans-serif'; ctx.fillStyle=fg; ctx.globalAlpha=near?1:.35; ctx.fillText(best[2], W/2, 190); ctx.globalAlpha=1;
   ctx.font='600 20px Bricolage Grotesque, sans-serif'; ctx.fillText(near? best[1] : 'nearest object: '+best[1], W/2, 240);
-  ctx.font='14px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText(`about ${fmtStd(best[0])}  ·  ${fmtPre(best[0])}`, W/2, 264);
-  ctx.textAlign='left'; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Each step to the right is 10 times bigger. The ladder covers 17 powers of ten, from an atom to the Earth.', 40, 30);
+  if (layer('size')){ ctx.font='14px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText(`about ${fmtStd(best[0])}  ·  ${fmtPre(best[0])}`, W/2, 264); }
+  ctx.textAlign='left'; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; if (layer('text')) ctx.fillText('Each step to the right is 10 times bigger. The ladder covers 17 powers of ten, from an atom to the Earth.', 40, 30);
   $('expV').textContent=fmtPre(x); $('rStd').textContent=fmtStd(x); $('rPre').textContent=fmtPre(x);
 }
 
@@ -121,7 +131,7 @@ function drawInst(){
   const lx=200, lw=W-260, minE= kind==='length'?-5:-3, maxE= kind==='length'?1:4;
   const X=v=>lx+(Math.log10(v)-minE)/(maxE-minE)*lw;
   ctx.fillStyle=fg; ctx.font='600 15px Bricolage Grotesque, sans-serif'; ctx.textAlign='left'; ctx.fillText(`Measuring: ${t.name}  (about ${fmt(t.v,kind)})`, 30, 30);
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('Each bar is the range of one instrument. The dark block shows its smallest division as a fraction of the reading.', 30, 50);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; if (layer('text')) ctx.fillText('Each bar is the range of one instrument. The dark block shows its smallest division as a fraction of the reading.', 30, 50);
   const rows=INST.filter(i=>i.kind===kind); const y0=90, dy=(H-150)/rows.length;
   ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(lx,H-40); ctx.lineTo(lx+lw,H-40); ctx.stroke(); ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.fillStyle=muted;
   for (let e=minE;e<=maxE;e++){ const xx=X(10**e); ctx.beginPath(); ctx.moveTo(xx,H-45); ctx.lineTo(xx,H-35); ctx.stroke(); ctx.fillText(fmt(10**e,kind), xx, H-20); }
@@ -130,8 +140,8 @@ function drawInst(){
     const inRange=t.v>=it.lo&&t.v<=it.hi, pct=it.prec/t.v*100;
     ctx.fillStyle=sel?(inRange&&pct<=1?good:hot):line; ctx.globalAlpha=sel?.9:.6; ctx.fillRect(X(Math.max(it.lo,10**minE)), y-12, X(Math.min(it.hi,10**maxE))-X(Math.max(it.lo,10**minE)), 24); ctx.globalAlpha=1;
     ctx.fillStyle=fg; ctx.textAlign='right'; ctx.font=(sel?'600 ':'')+'13px IBM Plex Sans, sans-serif'; ctx.fillText(it.name, lx-10, y+4);
-    if (inRange){ const w=Math.max(2, Math.min(220, pct/100*220)); ctx.fillStyle=fg; ctx.fillRect(tx-w/2, y-4, w, 8); ctx.textAlign='left'; ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText(`${pct<0.1?pct.toFixed(2):pct.toFixed(1)}% of reading`, Math.min(W-130,tx+w/2+6), y+4); }
-    else { ctx.textAlign='left'; ctx.fillStyle=hot; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('out of range', Math.min(W-90, X(Math.min(it.hi,10**maxE))+6), y+4); }
+    if (inRange){ const w=Math.max(2, Math.min(220, pct/100*220)); ctx.fillStyle=fg; ctx.fillRect(tx-w/2, y-4, w, 8); ctx.textAlign='left'; ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; if (layer('labels')) ctx.fillText(`${pct<0.1?pct.toFixed(2):pct.toFixed(1)}% of reading`, Math.min(W-130,tx+w/2+6), y+4); }
+    else if (layer('labels')){ ctx.textAlign='left'; ctx.fillStyle=hot; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('out of range', Math.min(W-90, X(Math.min(it.hi,10**maxE))+6), y+4); }
   });
 }
 
@@ -143,6 +153,7 @@ $('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); i
 $('exp').addEventListener('input',draw); $('showPrefix').addEventListener('change',draw);
 TASKS.forEach((t,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=t.name; $('task').appendChild(o); });
 $('task').addEventListener('change',()=>{ pick=null; fillInst(); $('fb').className='fb'; $('fb').textContent='Choose an instrument to check its range and precision.'; draw(); });
+window.addEventListener('simlayers', draw);
 fillInst(); notice(); draw();
 })();
 </script>

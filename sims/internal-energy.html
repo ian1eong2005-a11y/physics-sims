@@ -74,7 +74,7 @@ select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--lin
       <label class="check"><input type="checkbox" id="bars" checked> Show KE and PE bars</label>
       <label class="check"><input type="checkbox" id="graph" checked> Show temperature–time graph</label>
     </div>
-    <div class="read">
+    <div class="read" data-layer="readout">
       <div><small>Temperature</small><span id="rT">–</span></div>
       <div><small>State</small><span id="rS">–</span></div>
     </div>
@@ -86,6 +86,17 @@ select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--lin
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'graph',label:'Temperature–time graph',simple:true,input:'graph'},
+  {id:'labels',label:'State name above the box',simple:true},
+  {id:'bars',label:'KE and PE bars',input:'bars'},
+  {id:'msg',label:'Sentence under the bars (where the energy goes)'},
+  {id:'heater',label:'Heater label (heater on / cooling)'},
+  {id:'key',label:'Colour key (grey, blue, green)'},
+  {id:'counter',label:'Energy supplied counter'},
+  {id:'readout',label:'Temperature and state readouts'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -115,7 +126,7 @@ function draw(){
   const bx=40, by=40, bw=300, bh=300;
   ctx.strokeStyle=line; ctx.lineWidth=2; ctx.strokeRect(bx,by,bw,bh); ctx.lineWidth=1;
   // heater under the box
-  ctx.fillStyle=dir>0?hot:css('--pe'); ctx.globalAlpha=.3+.6*s.power; ctx.fillRect(bx,by+bh+6,bw,10); ctx.globalAlpha=1; ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(dir>0?'heater on':'cooling', bx+bw/2, by+bh+32);
+  ctx.fillStyle=dir>0?hot:css('--pe'); ctx.globalAlpha=.3+.6*s.power; ctx.fillRect(bx,by+bh+6,bw,10); ctx.globalAlpha=1; ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; if (layer('heater')) ctx.fillText(dir>0?'heater on':'cooling', bx+bw/2, by+bh+32);
   // which particles are free: melted fraction / boiled fraction
   const melted = k===0?0:k===1?frac:1, boiled = k<3?0:k===3?frac:1;
   const jit = 0.5+2.5*Math.max(0,keLevel());
@@ -133,16 +144,17 @@ function draw(){
     ctx.fillStyle=isGas?css('--gas'):isLiq?css('--liquid'):css('--solid'); ctx.beginPath(); ctx.arc(x,y,9,0,7); ctx.fill();
   });
   const state = k===0?'solid':k===1?'melting (solid + liquid)':k===2?'liquid':k===3?'boiling (liquid + gas)':'gas';
-  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(state, bx, by-12);
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (layer('labels')) ctx.fillText(state, bx, by-12);
   // energy bars
   if ($('bars').checked){ const ex=380, ey=60, ewidth=60, eh=260;
     const bar=(x,v,col,label,sub)=>{ ctx.fillStyle=line; ctx.fillRect(x,ey,ewidth,eh); ctx.fillStyle=col; const h=Math.min(1,v/2)*eh; ctx.fillRect(x,ey+eh-h,ewidth,h); ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(label,x+ewidth/2,ey+eh+18); ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(sub,x+ewidth/2,ey+eh+34); };
     bar(ex, keLevel()*2, ke, 'KE', 'average kinetic energy'); bar(ex+90, peLevel(), pe, 'PE', 'potential energy'); bar(ex+180, keLevel()+peLevel()/2*1, fg, 'internal', 'KE + PE total');
     ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Energy of the particles', ex, ey-14);
-    const msg = (k===1||k===3) ? 'Plateau: energy goes into PE (separating the particles), KE and temperature stay the same' : 'Energy goes into KE: particles move faster, temperature rises';
-    ctx.fillStyle=(k===1||k===3)?pe:ke; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText(msg, ex, ey+eh+58); }
+    if (layer('msg')){ const msg = (k===1||k===3) ? 'Plateau: energy goes into PE (separating the particles), KE and temperature stay the same' : 'Energy goes into KE: particles move faster, temperature rises';
+    ctx.fillStyle=(k===1||k===3)?pe:ke; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText(msg, ex, ey+eh+58); } }
   // heating curve
-  if ($('graph').checked){ const gx=680, gy=60, gw=190, gh=260, tmax=Math.max(60,t);
+  // with the bars hidden the graph moves left into their space and gets wider
+  if ($('graph').checked){ const wide=!$('bars').checked, gx=wide?440:680, gy=60, gw=wide?420:190, gh=260, tmax=Math.max(60,t);
     ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gx,gy); ctx.lineTo(gx,gy+gh); ctx.lineTo(gx+gw,gy+gh); ctx.stroke();
     const ty=T=>gy+gh-(T-s.sub.T0)/(s.sub.Tmax-s.sub.T0)*gh;
     ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='right';
@@ -152,8 +164,8 @@ function draw(){
     ctx.strokeStyle=hot; ctx.lineWidth=2.5; ctx.beginPath(); hist.forEach(([tt,TT],i)=>{ const x=gx+tt/tmax*gw, y=ty(TT); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke(); ctx.lineWidth=1;
     ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('melting', gx+4, ty(s.sub.Tm)-4); ctx.fillText('boiling', gx+4, ty(s.sub.Tb)-4); }
   ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  ctx.fillText('Grey = solid (fixed positions, vibrating).  Blue = liquid (close, sliding past each other).  Green = gas (far apart, fast, random).', 40, H-40);
-  ctx.fillText(`energy supplied so far: ${(E*10).toFixed(0)} units`, 40, H-20);
+  if (layer('key')) ctx.fillText('Grey = solid (fixed positions, vibrating).  Blue = liquid (close, sliding past each other).  Green = gas (far apart, fast, random).', 40, H-40);
+  if (layer('counter')) ctx.fillText(`energy supplied so far: ${(E*10).toFixed(0)} units`, 40, layer('key')?H-20:H-40);
   $('rT').textContent=T.toFixed(0)+' °C'; $('rS').textContent=state.split(' ')[0];
 }
 let last=performance.now();

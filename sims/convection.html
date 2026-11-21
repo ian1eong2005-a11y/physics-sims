@@ -86,7 +86,7 @@ select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--lin
       <div class="row"><label for="speed">Simulation speed</label><span class="val" id="speedV">1.0×</span></div>
       <input type="range" id="speed" min="0.2" max="3" step="0.1" value="1">
     </div>
-    <div class="dens">
+    <div class="dens" data-layer="boxes">
       <div><small>Box A (above heater)</small><span id="dA">–</span></div>
       <div><small>Box B (far side)</small><span id="dB">–</span></div>
     </div>
@@ -98,6 +98,19 @@ select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--lin
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'particles',label:'Moving particles',simple:true},
+  {id:'temp',label:'Particles coloured by temperature',simple:true,input:'showT'},
+  {id:'arrows',label:'Flow arrows',simple:true,input:'arrows'},
+  {id:'density',label:'Density map',on:false,input:'showD'},
+  {id:'trace',label:'One traced particle and its path',input:'trace'},
+  {id:'boxes',label:'Boxes A and B with particle counts'},
+  {id:'labels',label:'HEATER label'},
+  {id:'key',label:'Colour key'},
+  {id:'text',label:'Explanation beside the tank'},
+  {id:'clock',label:'Timer'},
+];
 (() => {
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const $ = id => document.getElementById(id);
@@ -182,7 +195,9 @@ function draw(){
   const W=cv.width, H=cv.height, s=S();
   ctx.clearRect(0,0,W,H);
   const fg=css('--fg'), muted=css('--muted'), line=css('--line'), hot=css('--hot'), trace=css('--trace'), accent=css('--accent');
-  const pad=40, tankX=pad, tankY=60, tankW=W-2*pad-200, tankH=tankW*BH/BW;
+  // the side column (key, notes, timer): when all of it is hidden the tank moves to the middle
+  const side = layer('key') || layer('text') || layer('clock') || ($('showD').checked && layer('density'));
+  const pad=40, tankX=side?pad:pad+100, tankY=60, tankW=W-2*pad-200, tankH=tankW*BH/BW;
   const X = x=>tankX+x/BW*tankW, Y = y=>tankY+y/BH*tankH;
   if ($('showD').checked){
     const gc=16, gr=12, cnt=new Float32Array(gc*gr);
@@ -199,34 +214,37 @@ function draw(){
   if (heater==='top'){ ctx.fillRect(x0, tankY-20, x1-x0, 12); }
   else { ctx.fillRect(x0, tankY+tankH+6, x1-x0, 10); for (let i=0;i<6;i++){ const fx=x0+(i+0.5)*(x1-x0)/6, fl=8+16*s.power*(0.7+0.3*Math.sin(t*18+i)); ctx.beginPath(); ctx.moveTo(fx-6,tankY+tankH+30); ctx.quadraticCurveTo(fx,tankY+tankH+30-fl-6,fx+6,tankY+tankH+30); ctx.fill(); } }
   ctx.globalAlpha=1; ctx.fillStyle = hot; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
-  ctx.fillText('HEATER', (x0+x1)/2, heater==='top'? tankY-26 : tankY+tankH+48);
+  if (layer('labels')) ctx.fillText('HEATER', (x0+x1)/2, heater==='top'? tankY-26 : tankY+tankH+48);
   // flow arrows
   if ($('arrows').checked && A>0.01){ const gc=8, gr=5; ctx.strokeStyle=fg; ctx.fillStyle=fg; ctx.globalAlpha=Math.min(.6,A*4); ctx.lineWidth=2;
     for (let gy=0;gy<gr;gy++) for (let gx=0;gx<gc;gx++){ const mx=(gx+0.5)*BW/gc, my=(gy+0.5)*BH/gr; const [vx,vy]=flowAt(mx,my); const m=Math.hypot(vx,vy); if (m<0.01) continue; const cx=X(mx), cy=Y(my), L=Math.min(36, 14+m*120), ux=vx/m, uy=vy/m;
       ctx.beginPath(); ctx.moveTo(cx-ux*L/2, cy-uy*L/2); ctx.lineTo(cx+ux*L/2, cy+uy*L/2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx+ux*(L/2+6), cy+uy*(L/2+6)); ctx.lineTo(cx+ux*L/2-uy*5, cy+uy*L/2+ux*5); ctx.lineTo(cx+ux*L/2+uy*5, cy+uy*L/2-ux*5); ctx.fill(); }
     ctx.globalAlpha=1; ctx.lineWidth=1; }
-  if (trail.length>1){ ctx.strokeStyle=trace; ctx.lineWidth=2; ctx.beginPath(); trail.forEach(([x,y],i)=>i?ctx.lineTo(X(x),Y(y)):ctx.moveTo(X(x),Y(y))); ctx.stroke(); ctx.lineWidth=1; }
+  if (trail.length>1 && $('trace').checked){ ctx.strokeStyle=trace; ctx.lineWidth=2; ctx.beginPath(); trail.forEach(([x,y],i)=>i?ctx.lineTo(X(x),Y(y)):ctx.moveTo(X(x),Y(y))); ctx.stroke(); ctx.lineWidth=1; }
   const showT = $('showT').checked, pr = s.fl.r/BW*tankW;
-  P.forEach(p=>{ ctx.fillStyle = colour(p.T, showT); ctx.beginPath(); ctx.arc(X(p.x),Y(p.y), pr, 0, 7); ctx.fill(); });
+  if (layer('particles')) P.forEach(p=>{ ctx.fillStyle = colour(p.T, showT); ctx.beginPath(); ctx.arc(X(p.x),Y(p.y), pr, 0, 7); ctx.fill(); });
   if ($('trace').checked){ ctx.strokeStyle=trace; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(X(P[0].x),Y(P[0].y),pr*1.9,0,7); ctx.stroke(); ctx.lineWidth=1; }
   // sample boxes A (above the heater) and B (far side), equal size: count the particles
   const bw=0.16, bh=0.16, aX = (hx0+hx1)/2-bw/2, aY = heater==='top'?0.06:0.40;
   const bX = heater==='bl'?0.76:0.08, bY = heater==='top'?0.06:0.40;
   const count = (x0,y0)=>P.filter(p=>p.x>x0&&p.x<x0+bw&&p.y>y0&&p.y<y0+bh).length;
   for (const [bx0,by0,lab,id] of [[aX,aY,'A',$('dA')],[bX,bY,'B',$('dB')]]){
-    ctx.setLineDash([5,4]); ctx.strokeStyle=fg; ctx.strokeRect(X(bx0),Y(by0),bw/BW*tankW,bh/BH*tankH); ctx.setLineDash([]);
-    ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillText(lab, X(bx0)+4, Y(by0)+14);
+    if (layer('boxes')){ ctx.setLineDash([5,4]); ctx.strokeStyle=fg; ctx.strokeRect(X(bx0),Y(by0),bw/BW*tankW,bh/BH*tankH); ctx.setLineDash([]);
+      ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillText(lab, X(bx0)+4, Y(by0)+14); }
     id.textContent = count(bx0,by0)+' particles';
   }
-  const lx = tankX+tankW+24, ly = tankY;
-  ctx.textAlign='left'; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Key', lx, ly+4);
-  ctx.font='12px IBM Plex Sans, sans-serif';
-  const rows=[[colour(0,true),'cool particle'],[colour(1,true),'warm particle'],[trace,'traced particle'],[fg,'A, B: equal boxes']];
-  rows.forEach(([c,txt],i)=>{ ctx.fillStyle=c; ctx.beginPath(); ctx.arc(lx+6, ly+30+i*22, 5, 0, 7); ctx.fill(); ctx.fillStyle=muted; ctx.fillText(txt, lx+18, ly+34+i*22); });
-  ctx.fillStyle=muted; const notes=['Particles never get bigger.','Warm ones move faster and','spread apart: fewer particles','in the same space = less dense.','The less dense patch rises','as a group; cooler, denser','fluid sinks to replace it.'];
-  notes.forEach((n,i)=>ctx.fillText(n, lx, ly+140+i*18));
-  if ($('showD').checked){ ctx.fillStyle=accent; ctx.globalAlpha=.5; ctx.fillRect(lx, ly+290, 12, 12); ctx.globalAlpha=1; ctx.fillStyle=muted; ctx.fillText('deeper blue = denser', lx+18, ly+300); }
-  ctx.fillStyle=muted; ctx.fillText(`t = ${t.toFixed(0)} s`, lx, tankY+tankH);
+  const lx = tankX+tankW+24, ly = tankY; let ny = ly+4; // ny: next free line in the side column (it closes up when a part is hidden)
+  ctx.textAlign='left'; ctx.font='12px IBM Plex Sans, sans-serif';
+  if (layer('key')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Key', lx, ly+4);
+    ctx.font='12px IBM Plex Sans, sans-serif';
+    const rows=[[colour(0,true),'cool particle'],[colour(1,true),'warm particle'],[trace,'traced particle'],[fg,'A, B: equal boxes']];
+    rows.forEach(([c,txt],i)=>{ ctx.fillStyle=c; ctx.beginPath(); ctx.arc(lx+6, ly+30+i*22, 5, 0, 7); ctx.fill(); ctx.fillStyle=muted; ctx.fillText(txt, lx+18, ly+34+i*22); });
+    ny = ly+140; }
+  ctx.fillStyle=muted;
+  if (layer('text')){ const notes=['Particles never get bigger.','Warm ones move faster and','spread apart: fewer particles','in the same space = less dense.','The less dense patch rises','as a group; cooler, denser','fluid sinks to replace it.'];
+    notes.forEach((n,i)=>ctx.fillText(n, lx, ny+i*18)); ny += notes.length*18+34; }
+  if ($('showD').checked && layer('density')){ ctx.fillStyle=accent; ctx.globalAlpha=.5; ctx.fillRect(lx, ny-10, 12, 12); ctx.globalAlpha=1; ctx.fillStyle=muted; ctx.fillText('deeper blue = denser', lx+18, ny); }
+  ctx.fillStyle=muted; if (layer('clock')) ctx.fillText(`t = ${t.toFixed(0)} s`, lx, tankY+tankH);
 }
 
 let last = performance.now();

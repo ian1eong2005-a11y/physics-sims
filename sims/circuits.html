@@ -87,15 +87,25 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <label class="check"><input type="checkbox" id="electron"> Show electron flow instead of conventional current</label>
       <label class="check"><input type="checkbox" id="hide"> Hide meter readings (quiz mode)</label>
     </div>
-    <div class="res">
+    <div class="res" data-layer="readout">
       <div><small>Effective R</small><span id="rR">– Ω</span></div>
       <div><small>Battery current</small><span id="rI">– A</span></div>
     </div>
-    <div class="work" id="work"></div>
+    <div class="work" id="work" data-layer="working"></div>
   </div>
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'ammeters',label:'Ammeter readings',simple:true},
+  {id:'voltmeters',label:'Voltmeters and their readings',simple:true},
+  {id:'charges',label:'Moving charge dots'},
+  {id:'labels',label:'Labels (resistor values, e.m.f., switch names)'},
+  {id:'text',label:'Key under the circuit (what the dots mean)'},
+  {id:'readout',label:'Effective R and battery current boxes'},
+  {id:'working',label:'Working (formulae)'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -143,7 +153,7 @@ function layout(){
   const w=[];
   const branches = arr==='parallel' ? N : arr==='mixed' ? N-1 : 1;
   const B = Math.max(390, T + GAP*(branches-1) + 110);
-  cv.height = B + 80;
+  cv.height = B + (layer('text') ? 80 : 52); // the key line under the circuit needs the extra strip
   const cell={type:'cell',at:[L,(T+B)/2],dir:'v'};
   if (arr==='series'){
     const xs=[...Array(N).keys()].map(i=>200+ (i+1)*(560/(N+1)));
@@ -172,19 +182,21 @@ function drawComp(c, sol, s){
   const [x,y]=c.at; const hide=$('hide').checked;
   ctx.lineWidth=2; ctx.strokeStyle=fg; ctx.fillStyle=panel; ctx.textAlign='center';
   if (c.type==='cell'){ ctx.fillRect(x-14,y-24,28,48); ctx.beginPath(); ctx.moveTo(x-18,y-8); ctx.lineTo(x+18,y-8); ctx.moveTo(x-9,y+8); ctx.lineTo(x+9,y+8); ctx.lineWidth=3; ctx.stroke(); ctx.lineWidth=2;
-    ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillText('+', x+22, y-10); ctx.fillText(s.E.toFixed(1)+' V', x+24, y+12); return; }
+    ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillText('+', x+22, y-10); if (layer('labels')) ctx.fillText(s.E.toFixed(1)+' V', x+24, y+12); return; }
   if (c.type==='sw'||c.type==='swLast'){ const closed = c.type==='sw'?s.sw:s.swLast; ctx.fillRect(x-22,y-14,44,28); ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(x-16,y,3,0,7); ctx.arc(x+16,y,3,0,7); ctx.fill(); ctx.beginPath(); ctx.moveTo(x-16,y); if (closed) ctx.lineTo(x+16,y); else ctx.lineTo(x+10,y-16); ctx.stroke();
-    ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(c.type==='sw'?'switch':`switch (R${N})`, x, y+26); return; }
+    if (layer('labels')){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(c.type==='sw'?'switch':`switch (R${N})`, x, y+26); } return; }
   if (c.type==='A'){ const I=c.cur==='main'?sol.It:sol.I[c.cur]; ctx.beginPath(); ctx.arc(x,y,15,0,7); ctx.fill(); ctx.strokeStyle=amm; ctx.stroke(); ctx.fillStyle=amm; ctx.font='600 13px IBM Plex Mono, monospace'; ctx.fillText('A', x, y+5);
-    ctx.font='600 12px IBM Plex Mono, monospace'; ctx.fillText(hide?'? A':I.toFixed(2)+' A', x, y-22); return; }
+    if (layer('ammeters')){ ctx.font='600 12px IBM Plex Mono, monospace'; ctx.fillText(hide?'? A':I.toFixed(2)+' A', x, y-22); } return; }
   if (c.type==='R'){ const i=c.idx, R=s.R[i], V=sol.V[i], I=sol.I[i], P=V*I;
     if ($('lamps').checked){ if (P>0.01){ const rad=16+Math.min(40,P*3), g=ctx.createRadialGradient(x,y,4,x,y,rad); g.addColorStop(0,glow); g.addColorStop(1,'rgba(255,179,0,0)'); ctx.fillStyle=g; ctx.globalAlpha=Math.min(1,0.25+P/8); ctx.beginPath(); ctx.arc(x,y,rad,0,7); ctx.fill(); ctx.globalAlpha=1; }
       ctx.fillStyle=panel; ctx.beginPath(); ctx.arc(x,y,14,0,7); ctx.fill(); ctx.strokeStyle=fg; ctx.stroke(); ctx.beginPath(); ctx.moveTo(x-10,y-10); ctx.lineTo(x+10,y+10); ctx.moveTo(x+10,y-10); ctx.lineTo(x-10,y+10); ctx.stroke(); }
     else { ctx.fillRect(x-24,y-9,48,18); ctx.strokeRect(x-24,y-9,48,18); }
-    ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.fillText(`R${i+1} = ${R} Ω`, x, y+32);
+    if (layer('labels')){ ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.fillText(`R${i+1} = ${R} Ω`, x, y+32); }
+    if (layer('voltmeters')){
     ctx.strokeStyle=volt; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(x-30,y); ctx.lineTo(x-30,y-28); ctx.lineTo(x-12,y-28); ctx.moveTo(x+30,y); ctx.lineTo(x+30,y-28); ctx.lineTo(x+12,y-28); ctx.stroke();
     ctx.fillStyle=panel; ctx.beginPath(); ctx.arc(x,y-28,12,0,7); ctx.fill(); ctx.strokeStyle=volt; ctx.stroke(); ctx.fillStyle=volt; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.fillText('V', x, y-24);
-    ctx.fillText(hide?'? V':V.toFixed(2)+' V', x, y-46); ctx.lineWidth=2; }
+    ctx.fillText(hide?'? V':V.toFixed(2)+' V', x, y-46); }
+    ctx.lineWidth=2; }
 }
 
 let last=performance.now();
@@ -199,11 +211,11 @@ function frame(now){
   ctx.strokeStyle=wireC; ctx.lineWidth=3; ctx.lineJoin='round';
   for (const w of wires){ ctx.beginPath(); w.pts.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p)); ctx.stroke(); }
   if (arr!=='series'){ ctx.fillStyle=wireC; for (const p of [wires[0].pts[wires[0].pts.length-1], wires[1].pts[0]]){ ctx.beginPath(); ctx.arc(p[0],p[1],5,0,7); ctx.fill(); } }
-  for (const w of wires){ const I = w.cur==='main'?sol.It:sol.I[w.cur]; const n=Math.round(w.len/SPACING); const shift = dir*offsets*I;
+  if (layer('charges')) for (const w of wires){ const I = w.cur==='main'?sol.It:sol.I[w.cur]; const n=Math.round(w.len/SPACING); const shift = dir*offsets*I;
     for (let k=0;k<n;k++){ const [x,y]=pointAt(w, k*w.len/n + shift); ctx.fillStyle=chargeC; ctx.beginPath(); ctx.arc(x,y,4,0,7); ctx.fill(); if ($('electron').checked){ ctx.fillStyle=fg; ctx.fillRect(x-2,y-0.5,4,1); } } }
   for (const w of wires) for (const c of w.comps) drawComp(c, sol, s);
   ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  ctx.fillText($('electron').checked?'Yellow dots: electrons, flowing from − to + (opposite to conventional current).':'Yellow dots: conventional current, flowing from + to −. Their speed shows the size of the current.', 120, H-30);
+  if (layer('text')) ctx.fillText($('electron').checked?'Yellow dots: electrons, flowing from − to + (opposite to conventional current).':'Yellow dots: conventional current, flowing from + to −. Their speed shows the size of the current.', 120, H-30);
   $('rR').textContent=(Number.isFinite(sol.Rt)?(+sol.Rt.toFixed(2)):'–')+' Ω'; $('rI').textContent=$('hide').checked?'? A':sol.It.toFixed(2)+' A'; $('work').textContent=sol.work;
   requestAnimationFrame(frame);
 }
@@ -218,6 +230,7 @@ function setArr(v){ arr=v; [...$('arrSeg').children].forEach(x=>x.setAttribute('
 $('arrSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b||b.disabled) return; setArr(b.dataset.v); });
 $('nSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; N=+b.dataset.v; [...$('nSeg').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); buildSliders(); dirty=true; });
 $('emf').addEventListener('input',()=>$('emfV').textContent=(+$('emf').value).toFixed(1)+' V');
+window.addEventListener('simlayers',()=>{ dirty=true; });
 buildSliders(); notice(); requestAnimationFrame(frame);
 })();
 </script>

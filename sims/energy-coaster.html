@@ -37,7 +37,7 @@
         <label class="check"><input type="checkbox" id="bars" checked> Show energy bars</label>
         <label class="check"><input type="checkbox" id="nums" checked> Show numbers</label>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Height</small><span id="rH">–</span></div>
         <div><small>Speed</small><span id="rV">–</span></div>
         <div><small>Ep = mgh</small><span id="rEp">–</span></div>
@@ -58,7 +58,7 @@
         <div class="row"><label for="ct">Time taken</label><span class="val" id="ctV">5 s</span></div>
         <input type="range" id="ct" min="2" max="20" step="1" value="5">
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Force = weight</small><span id="rF">–</span></div>
         <div><small>Work = F × d</small><span id="rWd">–</span></div>
         <div><small>Power = W ÷ t</small><span id="rPw">–</span></div>
@@ -73,6 +73,24 @@
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js). Labels avoid Ep/Ek so they read the same on the Sec 2 page.
+window.SIM_LAYERS=[
+  {id:'bars',label:'Energy bars',modes:['coaster'],simple:true,input:'bars'},
+  {id:'marker',label:'Dashed start-height line',modes:['coaster'],simple:true},
+  {id:'nums',label:'Numbers (kJ) on the bars',modes:['coaster'],input:'nums'},
+  {id:'arrow',label:'Speed arrow on the car',modes:['coaster']},
+  {id:'labels',label:'Letters A to F on the track',modes:['coaster']},
+  {id:'scale',label:'Height scale (m)',modes:['coaster','crane']},
+  {id:'text',label:'Explanation sentence',modes:['coaster']},
+  {id:'working',label:'Energy working (mgh, ½mv²)',modes:['coaster']},
+  {id:'forces',label:'Force arrows (pull and weight)',modes:['crane'],simple:true},
+  {id:'working',label:'Working: force, work done, power',modes:['crane'],simple:true},
+  {id:'marker',label:'Dashed lift-height line',modes:['crane']},
+  {id:'labels',label:'Mass written on the crate',modes:['crane']},
+  {id:'text',label:'Tips (faster lift, heavier crate)',modes:['crane']},
+  {id:'progress',label:'Time bar',modes:['crane']},
+  {id:'readout',label:'Readouts in the panel'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 // Lower Sec wording (window.SIM_OPTS.sec2): GPE, KE and the internal store, as in the Sec 2 notes.
@@ -113,28 +131,32 @@ function drawCoaster(){
   const m=+$('mass').value; const Etot=m*g*h0(); const h=track(x); const Ep=m*g*h, Ek=Math.max(0,Etot-Ep-lost);
   ctx.clearRect(0,0,W,H);
   const px=X=>40+X/100*560, py=Y=>380-Y/32*300;
+  // with the energy bars hidden the track moves to the middle of the canvas
+  ctx.save(); if (!$('bars').checked) ctx.translate(130,0);
   // ground and track
   ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(40,380); ctx.lineTo(600,380); ctx.stroke();
   ctx.strokeStyle=fg; ctx.lineWidth=3; ctx.beginPath(); for(let X=0;X<=100;X+=0.5){ const yy=py(Math.min(33,track(X))); X?ctx.lineTo(px(X),yy):ctx.moveTo(px(X),yy);} ctx.stroke(); ctx.lineWidth=1;
   // start height marker
-  ctx.strokeStyle=acc; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(40,py(h0())); ctx.lineTo(600,py(h0())); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillStyle=acc; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillText('start height '+h0()+' m', 44, py(h0())-4);
+  if (layer('marker')){ ctx.strokeStyle=acc; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(40,py(h0())); ctx.lineTo(600,py(h0())); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=acc; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillText('start height '+h0()+' m', 44, py(h0())-4); }
   // height axis
-  ctx.fillStyle=muted; ctx.textAlign='right'; for (const Y of [0,10,20,30]) ctx.fillText(Y+' m', 36, py(Y)+4);
+  ctx.font='11px IBM Plex Mono, monospace';
+  if (layer('scale')){ ctx.fillStyle=muted; ctx.textAlign='right'; for (const Y of [0,10,20,30]) ctx.fillText(Y+' m', 36, py(Y)+4); }
   // car
   const cx=px(x), cy=py(h)-10; ctx.fillStyle=hot; ctx.beginPath(); ctx.arc(cx,cy,10,0,7); ctx.fill();
   // speed arrow
-  if (v>0.2){ const L=v*4; ctx.strokeStyle=hot; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx,cy-18); ctx.lineTo(cx+dir*L,cy-18); ctx.stroke(); ctx.lineWidth=1; }
+  if (v>0.2 && layer('arrow')){ const L=v*4; ctx.strokeStyle=hot; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx,cy-18); ctx.lineTo(cx+dir*L,cy-18); ctx.stroke(); ctx.lineWidth=1; }
   // labels A B C D at hills/valleys
-  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
-  [['A',startX()],['B',25],['C',45],['D',62],['E',78],['F',95]].forEach(([L,X])=>ctx.fillText(L, px(X), py(Math.min(32,track(X)))-24));
+  if (layer('labels')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
+    [['A',startX()],['B',25],['C',45],['D',62],['E',78],['F',95]].forEach(([L,X])=>ctx.fillText(L, px(X), py(Math.min(32,track(X)))-24)); }
+  ctx.restore();
   // bars
   if ($('bars').checked){ const bx=660, by=60, bw=50, bh=280; const bar=(i,val,col,lab)=>{ const xx=bx+i*62; ctx.fillStyle=line; ctx.fillRect(xx,by,bw,bh); ctx.fillStyle=col; const hh=Math.min(1,val/Etot)*bh; ctx.fillRect(xx,by+bh-hh,bw,hh); ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(lab, xx+bw/2, by+bh+16); if ($('nums').checked){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText((val/1000).toFixed(1)+' kJ', xx+bw/2, by+bh+32);} };
     bar(0,Ep,acc,'Ep'); bar(1,Ek,hot,'Ek'); bar(2,lost,muted,'thermal'); bar(3,Etot,good,'total');
     ctx.fillStyle=fg; ctx.textAlign='left'; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('Energy stores', bx, by-16); }
   ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  ctx.fillText(+$('fric').value===0 ? 'No friction: Ep + Ek stays constant. The car can only reach the start height, never higher.' : 'Friction: some energy is transferred to the thermal store of the track and air each metre. The car climbs less each time.', 40, 420);
-  ctx.fillText(`m = ${m} kg, g = 10 N/kg.  Ep = mgh = ${m} × 10 × ${h.toFixed(1)} = ${(Ep/1000).toFixed(1)} kJ.  Ek = ½mv² = ½ × ${m} × ${v.toFixed(1)}² = ${(Ek/1000).toFixed(1)} kJ.`, 40, 444);
+  if (layer('text')) ctx.fillText(+$('fric').value===0 ? 'No friction: Ep + Ek stays constant. The car can only reach the start height, never higher.' : 'Friction: some energy is transferred to the thermal store of the track and air each metre. The car climbs less each time.', 40, 420);
+  if (layer('working')) ctx.fillText(`m = ${m} kg, g = 10 N/kg.  Ep = mgh = ${m} × 10 × ${h.toFixed(1)} = ${(Ep/1000).toFixed(1)} kJ.  Ek = ½mv² = ½ × ${m} × ${v.toFixed(1)}² = ${(Ek/1000).toFixed(1)} kJ.`, 40, layer('text')?444:420);
   $('rH').textContent=h.toFixed(1)+' m'; $('rV').textContent=v.toFixed(1)+' m/s'; $('rEp').textContent=$('nums').checked?(Ep/1000).toFixed(1)+' kJ':'?'; $('rEk').textContent=$('nums').checked?(Ek/1000).toFixed(1)+' kJ':'?';
 }
 function drawCrane(){
@@ -143,25 +165,33 @@ function drawCrane(){
   const f=Math.min(1, ct/T); const y=hh*f;
   ctx.clearRect(0,0,W,H);
   const py=Y=>400-Y/22*320;
+  // with nothing in the right-hand column the crane moves to the middle of the canvas
+  const side=layer('working')||layer('text')||layer('progress');
+  ctx.save(); if (!side) ctx.translate(130,0);
   // crane
   ctx.strokeStyle=fg; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(120,400); ctx.lineTo(120,50); ctx.lineTo(420,50); ctx.stroke(); ctx.lineWidth=1;
   ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(40,400); ctx.lineTo(620,400); ctx.stroke();
   // rope and crate
   const cx=380; ctx.strokeStyle=muted; ctx.beginPath(); ctx.moveTo(cx,50); ctx.lineTo(cx,py(y)-40); ctx.stroke();
-  const s=40+m/1000*40; ctx.fillStyle=css('--warn'); ctx.fillRect(cx-s/2, py(y)-s, s, s); ctx.fillStyle=fg; ctx.textAlign='center'; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText(m+' kg', cx, py(y)-s/2+4);
+  const s=40+m/1000*40; ctx.fillStyle=css('--warn'); ctx.fillRect(cx-s/2, py(y)-s, s, s); ctx.fillStyle=fg; ctx.textAlign='center'; ctx.font='600 12px IBM Plex Sans, sans-serif'; if (layer('labels')) ctx.fillText(m+' kg', cx, py(y)-s/2+4);
   // force arrows
+  if (layer('forces')){
   ctx.strokeStyle=good; ctx.fillStyle=good; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(cx+s/2+16,py(y)); ctx.lineTo(cx+s/2+16,py(y)-s-30); ctx.stroke(); ctx.lineWidth=1; ctx.textAlign='left'; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('pull '+F+' N', cx+s/2+24, py(y)-s-20);
-  ctx.strokeStyle=hot; ctx.fillStyle=hot; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(cx-s/2-16,py(y)-s); ctx.lineTo(cx-s/2-16,py(y)+30); ctx.stroke(); ctx.lineWidth=1; ctx.textAlign='right'; ctx.fillText('weight '+F+' N', cx-s/2-24, py(y)+30);
+  ctx.strokeStyle=hot; ctx.fillStyle=hot; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(cx-s/2-16,py(y)-s); ctx.lineTo(cx-s/2-16,py(y)+30); ctx.stroke(); ctx.lineWidth=1; ctx.textAlign='right'; ctx.fillText('weight '+F+' N', cx-s/2-24, py(y)+30); }
   // height axis
-  ctx.fillStyle=muted; ctx.textAlign='right'; ctx.font='11px IBM Plex Mono, monospace'; for (const Y of [0,5,10,15,20]) ctx.fillText(Y+' m', 100, py(Y)+4);
-  ctx.strokeStyle=acc; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(140,py(hh)); ctx.lineTo(600,py(hh)); ctx.stroke(); ctx.setLineDash([]);
-  // text
-  const rx=640; ctx.fillStyle=fg; ctx.textAlign='left'; ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.fillText('Lifting at steady speed', rx, 70);
-  ctx.font='13px IBM Plex Sans, sans-serif';
-  [`force needed = weight = ${m} × 10 = ${F} N`, `distance moved = ${hh} m`, `work done = F × d = ${F} × ${hh} = ${Wd} J`, `= Ep gained = mgh = ${Wd} J`, `time = ${T} s`, `power = work ÷ time = ${Wd} ÷ ${T} = ${+(P.toFixed(0))} W`].forEach((s,i)=>ctx.fillText(s, rx, 100+i*26));
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('Faster lift (less time):', rx, 280); ctx.fillText('same work, more power.', rx, 298); ctx.fillText('Heavier crate: more force,', rx, 320); ctx.fillText('more work, more power.', rx, 338);
+  ctx.fillStyle=muted; ctx.textAlign='right'; ctx.font='11px IBM Plex Mono, monospace'; if (layer('scale')) for (const Y of [0,5,10,15,20]) ctx.fillText(Y+' m', 100, py(Y)+4);
+  if (layer('marker')){ ctx.strokeStyle=acc; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(140,py(hh)); ctx.lineTo(600,py(hh)); ctx.stroke(); ctx.setLineDash([]); }
+  ctx.restore();
+  // text (the right-hand column closes up when a part is hidden)
+  const rx=640; let ry=70;
+  if (layer('working')){ ctx.fillStyle=fg; ctx.textAlign='left'; ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.fillText('Lifting at steady speed', rx, 70);
+    ctx.font='13px IBM Plex Sans, sans-serif';
+    [`force needed = weight = ${m} × 10 = ${F} N`, `distance moved = ${hh} m`, `work done = F × d = ${F} × ${hh} = ${Wd} J`, `= Ep gained = mgh = ${Wd} J`, `time = ${T} s`, `power = work ÷ time = ${Wd} ÷ ${T} = ${+(P.toFixed(0))} W`].forEach((s,i)=>ctx.fillText(s, rx, 100+i*26));
+    ry=280; }
+  ctx.textAlign='left';
+  if (layer('text')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('Faster lift (less time):', rx, ry); ctx.fillText('same work, more power.', rx, ry+18); ctx.fillText('Heavier crate: more force,', rx, ry+40); ctx.fillText('more work, more power.', rx, ry+58); ry+=76; }
   // progress
-  ctx.fillStyle=line; ctx.fillRect(rx, 356, 220, 14); ctx.fillStyle=acc; ctx.fillRect(rx,356,220*f,14); ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText(`t = ${Math.min(T,ct).toFixed(1)} s`, rx, 388);
+  if (layer('progress')){ ctx.fillStyle=line; ctx.fillRect(rx, ry, 220, 14); ctx.fillStyle=acc; ctx.fillRect(rx,ry,220*f,14); ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.fillText(`t = ${Math.min(T,ct).toFixed(1)} s`, rx, ry+32); }
   $('cmV').textContent=m+' kg'; $('chV').textContent=hh+' m'; $('ctV').textContent=T+' s'; $('rF').textContent=F+' N'; $('rWd').textContent=Wd+' J'; $('rPw').textContent=(+P.toFixed(0))+' W'; $('rEpg').textContent=Wd+' J';
 }
 function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (running){ if (mode==='coaster') stepCoaster(dt); else { ct+=dt; if (ct>+$('ct').value+1.5) ct=0; } } if (mode==='coaster') drawCoaster(); else drawCrane(); requestAnimationFrame(frame); }

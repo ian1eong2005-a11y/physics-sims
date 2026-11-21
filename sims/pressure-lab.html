@@ -38,11 +38,11 @@
         <input type="file" id="face" accept="image/*" capture="user" style="font-size:.8rem">
         <button class="btn" id="noFace">Remove photo</button>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Force on each nail</small><span id="rF">–</span></div>
         <div><small>Pressure on the skin</small><span id="rP">–</span></div>
       </div>
-      <div class="fb" id="nFb"></div>
+      <div class="fb" id="nFb" data-layer="fb"></div>
     </div>
 
     <div id="sCtl" class="hide" style="flex-direction:column;gap:12px">
@@ -60,16 +60,29 @@
         <div class="row"><label for="force">Force pushing down</label><span class="val" id="forceV">20 N</span></div>
         <input type="range" id="force" min="5" max="6000" step="5" value="20">
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small id="aL">Small area</small><span id="aP">–</span></div>
         <div><small id="bL">Large area</small><span id="bP">–</span></div>
       </div>
-      <div class="fb" id="sFb"></div>
+      <div class="fb" id="sFb" data-layer="fb"></div>
     </div>
   </div>
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'verdict',label:'"Ouch" / "Comfortable" headline',modes:['nails'],simple:true},
+  {id:'arrows',label:'Force on each nail',modes:['nails'],simple:true,input:'arrows'},
+  {id:'weight',label:'Weight arrow',modes:['nails']},
+  {id:'working',label:'Working',modes:['nails'],input:'working'},
+  {id:'force',label:'Force arrows',modes:['sharp'],simple:true},
+  {id:'formula',label:'p = F ÷ A under each side',modes:['sharp'],simple:true},
+  {id:'labels',label:'Labels'},
+  {id:'text',label:'Explanation at the bottom'},
+  {id:'readout',label:'Readouts'},
+  {id:'fb',label:'Feedback box'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -92,7 +105,7 @@ function drawNails(dt){
   // nails: draw up to 40 across, spaced evenly; height 34
   const shown=Math.min(n,40), cols=shown, sp=bw/(cols+1);
   ctx.fillStyle='#6b7280'; for (let i=0;i<shown;i++){ const x=bx+sp*(i+1); ctx.beginPath(); ctx.moveTo(x-3,by); ctx.lineTo(x+3,by); ctx.lineTo(x,by-34); ctx.closePath(); ctx.fill(); }
-  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(n===1?'1 nail':`${n} nails (${shown} drawn across the bed${n>40?', more behind':''})`, bx+bw/2, by+50);
+  if (layer('labels')){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(n===1?'1 nail':`${n} nails (${shown} drawn across the bed${n>40?', more behind':''})`, bx+bw/2, by+50); }
   // person: lies on the points if safe, sinks a little onto them if pierced
   const sink=pierced?8:0, py=by-34-26+sink;
   ctx.strokeStyle=fg; ctx.lineWidth=5; ctx.lineCap='round';
@@ -107,17 +120,17 @@ function drawNails(dt){
   else { ctx.fillStyle='#f3d2b3'; ctx.fillRect(hx-hr,hy-hr,2*hr,2*hr); ctx.font='44px system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(pierced?'😖':n>=100?'😌':'😬', hx, hy+2); ctx.textBaseline='alphabetic'; }
   ctx.restore(); ctx.strokeStyle=fg; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(hx,hy,hr,0,7); ctx.stroke(); ctx.lineWidth=1;
   // weight arrow and per-nail force arrows
-  ctx.strokeStyle=acc; ctx.fillStyle=acc; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(380,py-70); ctx.lineTo(380,py-12); ctx.stroke(); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(380,py-6); ctx.lineTo(374,py-16); ctx.lineTo(386,py-16); ctx.fill();
-  ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(`weight ${W} N, shared between the nails`, 392, py-50);
+  if (layer('weight')){ ctx.strokeStyle=acc; ctx.fillStyle=acc; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(380,py-70); ctx.lineTo(380,py-12); ctx.stroke(); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(380,py-6); ctx.lineTo(374,py-16); ctx.lineTo(386,py-16); ctx.fill();
+  ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(`weight ${W} N, shared between the nails`, 392, py-50); }
   if ($('arrows').checked){ const L=Math.max(6, Math.min(60, 60*F/500)); ctx.strokeStyle=hot; ctx.fillStyle=hot; for (let i=0;i<shown;i++){ const x=bx+sp*(i+1); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(x,by-34); ctx.lineTo(x,by-34-L); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x,by-34-L-5); ctx.lineTo(x-3,by-34-L+2); ctx.lineTo(x+3,by-34-L+2); ctx.fill(); } ctx.lineWidth=1; }
-  if (pierced){ ctx.fillStyle=hot; ctx.font='700 18px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('OUCH! the point pierces the skin', 450, 90); for (let i=0;i<6;i++){ ctx.fillStyle=hot; ctx.beginPath(); ctx.arc(300+i*40+Math.sin(t*5+i)*4, py+18, 3,0,7); ctx.fill(); } }
-  else { ctx.fillStyle=good; ctx.font='700 18px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('Comfortable: the skin is not pierced', 450, 90); }
+  if (pierced){ ctx.fillStyle=hot; ctx.font='700 18px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; if (layer('verdict')) ctx.fillText('OUCH! the point pierces the skin', 450, 90); for (let i=0;i<6;i++){ ctx.fillStyle=hot; ctx.beginPath(); ctx.arc(300+i*40+Math.sin(t*5+i)*4, py+18, 3,0,7); ctx.fill(); } }
+  else if (layer('verdict')){ ctx.fillStyle=good; ctx.font='700 18px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('Comfortable: the skin is not pierced', 450, 90); }
   if ($('working').checked){ ctx.textAlign='left'; ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif';
     [`force on each nail = ${W} N ÷ ${n} = ${+F.toPrecision(3)} N`, `area of one nail point ≈ 1 mm² = 0.000001 m²`, `pressure on the skin = ${+F.toPrecision(3)} N ÷ 0.000001 m² = ${fmtP(P)}`, `skin is pierced above about ${fmtP(PIERCE)}`].forEach((s,i)=>ctx.fillText(s, 30, 130+i*22)); }
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  wrap('The total area of all the points = number of nails × 1 mm². Same weight, bigger total area, smaller pressure. That is the whole trick.', 30, 470, 840, 16);
+  if (layer('text')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  wrap('The total area of all the points = number of nails × 1 mm². Same weight, bigger total area, smaller pressure. That is the whole trick.', 30, 470, 840, 16); }
   $('nailsV').textContent=n; $('weightV').textContent=W+' N'; $('rF').textContent=(+F.toPrecision(3))+' N'; $('rP').textContent=fmtP(P);
-  $('nFb').className='fb '+(pierced?'bad':'ok'); $('nFb').textContent = pierced ? `${n} nail${n>1?'s':''}: each point pushes with ${+F.toPrecision(3)} N on a tiny area, so the pressure is huge.` : `${n} nails share the weight: only ${+F.toPrecision(3)} N on each point, so the pressure is below what pierces skin.`;
+  $('nFb').classList.toggle('bad',pierced); $('nFb').classList.toggle('ok',!pierced); /* classList keeps the show/hide class */ $('nFb').textContent = pierced ? `${n} nail${n>1?'s':''}: each point pushes with ${+F.toPrecision(3)} N on a tiny area, so the pressure is huge.` : `${n} nails share the weight: only ${+F.toPrecision(3)} N on each point, so the pressure is below what pierces skin.`;
 }
 
 const OBJ={
@@ -139,14 +152,15 @@ function drawSharp(dt){
     ctx.fillStyle='#d9c9a8'; ctx.fillRect(x+30,260,w-60,110);
     ctx.fillStyle=css('--panel'); const cw=Math.max(14, Math.min(200, Math.sqrt(A)*900)); ctx.beginPath(); ctx.moveTo(x+w/2-cw/2-16,260); ctx.quadraticCurveTo(x+w/2-cw/2,260,x+w/2-cw/2,260+dent); ctx.lineTo(x+w/2+cw/2,260+dent); ctx.quadraticCurveTo(x+w/2+cw/2,260,x+w/2+cw/2+16,260); ctx.closePath(); ctx.fill();
     ctx.fillStyle=fg; ctx.fillRect(x+w/2-cw/2, 200+dent, cw, 60); ctx.font='34px system-ui, sans-serif'; ctx.fillText(o.icon, x+w/2, 190+dent);
-    ctx.strokeStyle=acc; ctx.fillStyle=acc; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(x+w/2,110); ctx.lineTo(x+w/2,150+dent); ctx.stroke(); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+w/2,156+dent); ctx.lineTo(x+w/2-6,146+dent); ctx.lineTo(x+w/2+6,146+dent); ctx.fill();
-    ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=fg; ctx.textAlign='center'; ctx.fillText(`force ${F} N`, x+w/2+50, 130);
-    ctx.font='11px IBM Plex Mono, monospace'; ctx.fillStyle=muted; ctx.fillText(`area ${fmtA(A)}`, x+w/2, 102);
-    ctx.font='600 13px IBM Plex Mono, monospace'; ctx.fillStyle=P>Pb*1.5||P>Pa*1.5?hot:fg; ctx.fillStyle=i===0?hot:good; ctx.fillText(`p = ${F} ÷ ${A} = ${fmtP(P)}`, x+w/2, 384); };
+    if (layer('force')){ ctx.strokeStyle=acc; ctx.fillStyle=acc; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(x+w/2,110); ctx.lineTo(x+w/2,150+dent); ctx.stroke(); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+w/2,156+dent); ctx.lineTo(x+w/2-6,146+dent); ctx.lineTo(x+w/2+6,146+dent); ctx.fill();
+    ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=fg; ctx.textAlign='center'; ctx.fillText(`force ${F} N`, x+w/2+50, 130); }
+    ctx.textAlign='center';
+    if (layer('labels')){ ctx.font='11px IBM Plex Mono, monospace'; ctx.fillStyle=muted; ctx.fillText(`area ${fmtA(A)}`, x+w/2, 102); }
+    if (layer('formula')){ ctx.font='600 13px IBM Plex Mono, monospace'; ctx.fillStyle=P>Pb*1.5||P>Pa*1.5?hot:fg; ctx.fillStyle=i===0?hot:good; ctx.fillText(`p = ${F} ÷ ${A} = ${fmtP(P)}`, x+w/2, 384); } };
   panel(40,o.a[0],o.a[1],Pa,0); panel(480,o.b[0],o.b[1],Pb,1);
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('pressing into '+o.surf, 450, 50);
-  ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  wrap(`Same force, ${Math.round(o.b[1]/o.a[1])}× the area: the pressure is ${Math.round(o.b[1]/o.a[1])}× smaller. ${o.note}`, 40, 420, 820, 18);
+  if (layer('labels')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('pressing into '+o.surf, 450, 50); }
+  if (layer('text')){ ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  wrap(`Same force, ${Math.round(o.b[1]/o.a[1])}× the area: the pressure is ${Math.round(o.b[1]/o.a[1])}× smaller. ${o.note}`, 40, 420, 820, 18); }
   $('forceV').textContent=F+' N'; $('aL').textContent=o.a[0].split(' (')[0]; $('bL').textContent=o.b[0].split(' (')[0]; $('aP').textContent=fmtP(Pa); $('bP').textContent=fmtP(Pb);
   $('sFb').textContent=`Pressure = force ÷ area. ${fmtP(Pa)} is ${Math.round(Pa/Pb)} times ${fmtP(Pb)}.`;
 }

@@ -67,11 +67,20 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <label class="check"><input type="checkbox" id="rays" checked> Show the three construction rays</label>
       <label class="check"><input type="checkbox" id="chars" checked> Describe the image</label>
     </div>
-    <div class="card" id="card"></div>
+    <div class="card" id="card" data-layer="card"></div>
   </div>
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'rays',label:'Three construction rays',modes:['object'],simple:true,input:'rays'},
+  {id:'points',label:'F and 2F marks',simple:true},
+  {id:'flen',label:'Focal length bracket (f = … cm)'},
+  {id:'legend',label:'Ray colour key',modes:['object']},
+  {id:'labels',label:'Labels'},
+  {id:'card',label:'Explanation card (panel)'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -92,21 +101,22 @@ function draw(){
   line(20,AX,W-20,AX,ln,1,[4,4]);
   ctx.fillStyle=lens; ctx.globalAlpha=.25; ctx.beginPath(); ctx.ellipse(LX,AX,14,120,0,0,7); ctx.fill(); ctx.globalAlpha=1; ctx.strokeStyle=lens; ctx.lineWidth=2; ctx.stroke(); ctx.lineWidth=1;
   ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center';
-  for (const [k,l] of [[-2,'2F'],[-1,'F'],[1,'F'],[2,'2F']]){ const x=LX+k*fpx; ctx.fillRect(x-1,AX-6,2,12); ctx.fillText(l, x, AX+26); }
-  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('converging lens', LX, AX-130);
+  if (layer('points')) for (const [k,l] of [[-2,'2F'],[-1,'F'],[1,'F'],[2,'2F']]){ const x=LX+k*fpx; ctx.fillRect(x-1,AX-6,2,12); ctx.fillText(l, x, AX+26); }
+  if (layer('labels')){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('converging lens', LX, AX-130); }
   // focal length bracket
-  line(LX,AX+44,LX+fpx,AX+44,fg,1.5); line(LX,AX+39,LX,AX+49,fg,1.5); line(LX+fpx,AX+39,LX+fpx,AX+49,fg,1.5); ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.fillText(`f = ${s.f} cm`, LX+fpx/2, AX+62);
+  if (layer('flen')){ line(LX,AX+44,LX+fpx,AX+44,fg,1.5); line(LX,AX+39,LX,AX+49,fg,1.5); line(LX+fpx,AX+39,LX+fpx,AX+49,fg,1.5); ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.fillText(`f = ${s.f} cm`, LX+fpx/2, AX+62); }
 
   if (mode==='beam'){
     for (let k=-3;k<=3;k++){ const y=AX+k*28; ray(30,y,LX,y,r1); const t=(W-20-LX)/fpx; ray(LX,y,W-20,AX+(y-AX)*(1-t),r1); }
-    ctx.fillStyle=r1; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('parallel rays (e.g. from a very distant object)', 30, AX-110);
-    ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(LX+fpx,AX,5,0,7); ctx.fill(); ctx.textAlign='center'; ctx.fillText('principal focus F', LX+fpx, AX-18);
+    ctx.font='600 13px IBM Plex Sans, sans-serif';
+    if (layer('labels')){ ctx.fillStyle=r1; ctx.textAlign='left'; ctx.fillText('parallel rays (e.g. from a very distant object)', 30, AX-110); }
+    if (layer('points')){ ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(LX+fpx,AX,5,0,7); ctx.fill(); ctx.textAlign='center'; ctx.fillText('principal focus F', LX+fpx, AX-18); }
     $('card').innerHTML='<b>Action of a converging lens</b>Rays parallel to the principal axis are refracted so that they converge to one point, the <b>principal focus F</b>. The distance from the centre of the lens to F is the <b>focal length f</b>. A fatter (more curved) lens has a shorter focal length.';
     return;
   }
   // object and image
   const u=s.u, hob=50; const ox=LX-u*PX;
-  ctx.fillStyle=obj; line(ox,AX,ox,AX-hob,obj,3); arrowHead(ox,AX-hob,-Math.PI/2,obj); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('object', ox, AX-hob-12);
+  ctx.fillStyle=obj; line(ox,AX,ox,AX-hob,obj,3); arrowHead(ox,AX-hob,-Math.PI/2,obj); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; if (layer('labels')) ctx.fillText('object', ox, AX-hob-12);
   let v, hi, real;
   if (Math.abs(u-s.f)<0.01){ v=Infinity; }
   else { v = 1/(1/s.f-1/u); hi = -hob*v/u; real = v>0; }
@@ -126,12 +136,12 @@ function draw(){
   }
   if (v!==Infinity){
     const ix=LX+v*PX, iy=AX-hi;
-    if (ix>30 && ix<W-30 && Math.abs(hi)<400){ ctx.globalAlpha=real?1:.75; line(ix,AX,ix,iy,img,3); arrowHead(ix,iy,hi>0?-Math.PI/2:Math.PI/2,img); ctx.globalAlpha=1; ctx.fillStyle=img; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(real?'real image':'virtual image', ix, hi>0?iy-12:iy+18); }
+    if (ix>30 && ix<W-30 && Math.abs(hi)<400){ ctx.globalAlpha=real?1:.75; line(ix,AX,ix,iy,img,3); arrowHead(ix,iy,hi>0?-Math.PI/2:Math.PI/2,img); ctx.globalAlpha=1; ctx.fillStyle=img; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; if (layer('labels')) ctx.fillText(real?'real image':'virtual image', ix, hi>0?iy-12:iy+18); }
     else { ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('image is off the screen (very far away)', LX+40, 40); }
   } else { ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('object at F: rays leave parallel, so no image forms (it is at infinity)', LX+40, 40); }
   // legend
   ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  [[r1,'parallel to axis → through F'],[r2,'through optical centre → straight on'],[r3,'through F → parallel to axis']].forEach(([c,l],i)=>{ ctx.fillStyle=c; ctx.fillRect(30,H-60+i*16,18,3); ctx.fillStyle=muted; ctx.fillText(l, 54, H-55+i*16); });
+  if (layer('legend')) [[r1,'parallel to axis → through F'],[r2,'through optical centre → straight on'],[r3,'through F → parallel to axis']].forEach(([c,l],i)=>{ ctx.fillStyle=c; ctx.fillRect(30,H-60+i*16,18,3); ctx.fillStyle=muted; ctx.fillText(l, 54, H-55+i*16); });
   // description
   if ($('chars').checked){
     let tags;
@@ -148,6 +158,7 @@ $('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); i
 $('f').addEventListener('input',()=>{ $('fV').textContent=$('f').value+' cm'; draw(); });
 $('u').addEventListener('input',()=>{ $('uV').textContent=$('u').value+' cm'; draw(); });
 ['rays','chars'].forEach(id=>$(id).addEventListener('change',draw));
+window.addEventListener('simlayers',draw);
 notice(); draw();
 })();
 </script>

@@ -82,7 +82,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <div class="row"><label for="speed">Simulation speed</label><span class="val" id="speedV">1.0×</span></div>
       <input type="range" id="speed" min="0.2" max="3" step="0.1" value="1">
     </div>
-    <div class="read">
+    <div class="read" data-layer="readout">
       <div><small>Resultant</small><span id="rFr">0 N</span></div>
       <div><small>Acceleration</small><span id="rA">0 m/s²</span></div>
       <div><small>Velocity</small><span id="rV">0 m/s</span></div>
@@ -95,6 +95,18 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'forces',label:'Force arrows (applied, friction, air)',simple:true},
+  {id:'resultant',label:'Resultant force arrow',simple:true},
+  {id:'labels',label:'Values on the arrows'},
+  {id:'vert',label:'Weight and normal force',on:false,input:'vert'},
+  {id:'velocity',label:'Velocity arrow under the trolley'},
+  {id:'text',label:'Explanations on the diagram'},
+  {id:'ruler',label:'Distance numbers on the track'},
+  {id:'graph',label:'Velocity–time graph'},
+  {id:'readout',label:'Readouts (resultant, acceleration, velocity)'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -124,16 +136,17 @@ function arrow(x,y,len,color,label,thick=4){
   ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=thick;
   ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+len,y); ctx.stroke();
   const d=Math.sign(len); ctx.beginPath(); ctx.moveTo(x+len+d*10,y); ctx.lineTo(x+len-d*4,y-7); ctx.lineTo(x+len-d*4,y+7); ctx.fill();
-  ctx.font='600 13px IBM Plex Mono, monospace'; ctx.textAlign=d>0?'left':'right'; ctx.fillText(label, x+len+d*16, y+5); ctx.lineWidth=1;
+  if (layer('labels')){ ctx.font='600 13px IBM Plex Mono, monospace'; ctx.textAlign=d>0?'left':'right'; ctx.fillText(label, x+len+d*16, y+5); } ctx.lineWidth=1;
 }
 function varrow(x,y,len,color,label){
   ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=3;
   ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+len); ctx.stroke();
   const d=Math.sign(len); ctx.beginPath(); ctx.moveTo(x,y+len+d*9); ctx.lineTo(x-6,y+len-d*4); ctx.lineTo(x+6,y+len-d*4); ctx.fill();
-  ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillText(label, x+10, y+len+(d>0?4:8)); ctx.lineWidth=1;
+  if (layer('labels')){ ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='left'; ctx.fillText(label, x+10, y+len+(d>0?4:8)); } ctx.lineWidth=1;
 }
 
 function draw(){
+  const wantH = layer('graph') ? 560 : 340; if (cv.height!==wantH) cv.height=wantH; // no empty strip when the graph is hidden
   const W=cv.width,H=cv.height,c=S(),L=lastForces;
   ctx.clearRect(0,0,W,H);
   const fg=css('--fg'),muted=css('--muted'),line=css('--line'),ap=css('--applied'),frc=css('--friction'),drg=css('--drag'),res=css('--result'),vert=css('--vert');
@@ -143,7 +156,7 @@ function draw(){
   ctx.fillStyle=line; ctx.fillRect(0,groundY,W,4);
   ctx.font='12px IBM Plex Mono, monospace'; ctx.fillStyle=muted; ctx.textAlign='center';
   const first=Math.floor((s-cx/scale)/5)*5;
-  for (let d=first; d<s+cx/scale+5; d+=5){ const x=cx+(d-s)*scale; ctx.fillRect(x,groundY,2,12); ctx.fillText(d+' m', x, groundY+28); }
+  for (let d=first; d<s+cx/scale+5; d+=5){ const x=cx+(d-s)*scale; ctx.fillRect(x,groundY,2,12); if (layer('ruler')) ctx.fillText(d+' m', x, groundY+28); }
 
   // trolley
   const bw=110,bh=64, bx=cx-bw/2, by=groundY-bh-10;
@@ -154,26 +167,28 @@ function draw(){
 
   // force arrows (horizontal: from the centre of the trolley)
   const fs=4.2, midY=by+bh/2;
+  if (layer('forces')){
   arrow(cx, midY-14, L.F*fs, ap, `F = ${Math.abs(L.F)} N`);
   arrow(cx, midY+14, L.fr*fs, frc, `friction ${Math.abs(L.fr).toFixed(0)} N`);
-  if (c.air && Math.abs(L.dr)>0.5) arrow(cx, midY+30, L.dr*fs, drg, `air ${Math.abs(L.dr).toFixed(0)} N`);
+  if (c.air && Math.abs(L.dr)>0.5) arrow(cx, midY+30, L.dr*fs, drg, `air ${Math.abs(L.dr).toFixed(0)} N`); }
   if ($('vert').checked){ varrow(cx+bw/2+40, midY, c.m*10*1.2, vert, `W = ${c.m*10} N`); varrow(cx-bw/2-40, midY, -c.m*10*1.2, vert, `N = ${c.m*10} N`); }
 
   // resultant, drawn above
   ctx.textAlign='center'; ctx.font='600 15px IBM Plex Sans, sans-serif';
   if (Math.abs(L.Fr)<0.5){
-    ctx.fillStyle=res; ctx.fillText('Resultant force = 0 N  →  forces balanced', cx, by-62);
+    if (layer('resultant')){ ctx.fillStyle=res; ctx.fillText('Resultant force = 0 N  →  forces balanced', cx, by-62); }
     ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif';
-    ctx.fillText(Math.abs(v)<0.01 ? 'Stays at rest' : `Keeps moving at constant velocity ${v.toFixed(1)} m/s`, cx, by-42);
+    if (layer('text')) ctx.fillText(Math.abs(v)<0.01 ? 'Stays at rest' : `Keeps moving at constant velocity ${v.toFixed(1)} m/s`, cx, layer('resultant')?by-42:by-56);
   } else {
-    arrow(cx, by-50, L.Fr*fs, res, `Fr = ${Math.abs(L.Fr).toFixed(0)} N`, 6);
+    if (layer('resultant')) arrow(cx, by-50, L.Fr*fs, res, `Fr = ${Math.abs(L.Fr).toFixed(0)} N`, 6);
     ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif';
-    ctx.fillText(Math.sign(L.Fr)===Math.sign(v)||Math.abs(v)<0.01 ? 'Unbalanced: speeding up' : 'Unbalanced: slowing down', cx, by-72);
+    if (layer('text')) ctx.fillText(Math.sign(L.Fr)===Math.sign(v)||Math.abs(v)<0.01 ? 'Unbalanced: speeding up' : 'Unbalanced: slowing down', cx, layer('resultant')?by-72:by-56);
   }
   // velocity arrow under the trolley
-  if (Math.abs(v)>0.05){ arrow(cx, groundY+52, Math.sign(v)*Math.min(140, 10+Math.abs(v)*6), fg, `v = ${v.toFixed(1)} m/s`, 3); }
+  if (layer('velocity') && Math.abs(v)>0.05){ arrow(cx, groundY+52, Math.sign(v)*Math.min(140, 10+Math.abs(v)*6), fg, `v = ${v.toFixed(1)} m/s`, 3); }
 
   // speed-time graph
+  if (layer('graph')){
   const gX=70,gY=330,gW=W-100,gH=200, vmax=Math.max(10, Math.ceil(Math.max(...hist.map(h=>Math.abs(h[1])),1)/10)*10);
   ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gX,gY); ctx.lineTo(gX,gY+gH); ctx.moveTo(gX,gY+gH/2); ctx.lineTo(gX+gW,gY+gH/2); ctx.stroke();
   ctx.fillStyle=muted; ctx.font='12px IBM Plex Mono, monospace'; ctx.textAlign='right';
@@ -184,7 +199,8 @@ function draw(){
   ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('velocity–time graph (last 20 s)', gX, gY-8);
   ctx.strokeStyle=css('--accent'); ctx.lineWidth=2.5; ctx.beginPath();
   hist.forEach(([tt,vv],i)=>{ const x=gX+(tt-t0)/20*gW, y=gY+gH/2-vv/vmax*gH/2; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke(); ctx.lineWidth=1;
-  if (Math.abs(L.Fr)<0.5 && Math.abs(v)>0.05){ ctx.fillStyle=res; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('flat line = constant velocity, not zero velocity', gX+gW, gY+gH/2-v/vmax*gH/2-8); }
+  if (layer('text') && Math.abs(L.Fr)<0.5 && Math.abs(v)>0.05){ ctx.fillStyle=res; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('flat line = constant velocity, not zero velocity', gX+gW, gY+gH/2-v/vmax*gH/2-8); }
+  }
 
   $('rFr').textContent=(L.Fr>0?'+':'')+L.Fr.toFixed(0)+' N';
   $('rA').textContent=(L.a>0?'+':'')+L.a.toFixed(2)+' m/s²';

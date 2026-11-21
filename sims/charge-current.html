@@ -29,7 +29,7 @@
         <span class="lbl">Right ball</span>
         <div class="seg" id="qb"><button data-v="1" aria-pressed="false">+</button><button data-v="-1" aria-pressed="true">−</button></div>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Result</small><span id="rRes">–</span></div>
         <div><small>Unit of charge</small><span>coulomb (C)</span></div>
       </div>
@@ -56,7 +56,7 @@
           <button data-v="e" aria-pressed="true">electrons (−)</button><button data-v="c" aria-pressed="false">conventional current</button>
         </div>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Resistance R</small><span id="rR">–</span></div>
         <div><small>Current I = V ÷ R</small><span id="rI">–</span></div>
         <div><small>Time t</small><span id="rT">–</span></div>
@@ -71,6 +71,18 @@
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'forces',label:'Force arrows',modes:['charges'],simple:true},
+  {id:'heading',label:'Heading (attract / repel)',modes:['charges'],simple:true},
+  {id:'charges',label:'Moving charges (dots)',modes:['current'],simple:true},
+  {id:'meter',label:'Ammeter reading',modes:['current'],simple:true},
+  {id:'labels',label:'Labels (wire, battery voltage)',modes:['current']},
+  {id:'direction',label:'Which way the charges flow (sentence)',modes:['current']},
+  {id:'working',label:'Q = I × t working',modes:['current']},
+  {id:'text',label:'Explanations on the diagram'},
+  {id:'readout',label:'Readouts'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -86,12 +98,13 @@ function drawCharges(dt){
   ball(ax,qa); ball(bx,qb);
   // force arrows
   const arrow=(x,d)=>{ const L=90; ctx.strokeStyle=fg; ctx.fillStyle=fg; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(x,cy-80); ctx.lineTo(x+d*L,cy-80); ctx.stroke(); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+d*(L+14),cy-80); ctx.lineTo(x+d*L,cy-90); ctx.lineTo(x+d*L,cy-70); ctx.fill(); };
-  arrow(ax, attract?1:-1); arrow(bx, attract?-1:1);
+  if (layer('forces')){ arrow(ax, attract?1:-1); arrow(bx, attract?-1:1); }
   ctx.fillStyle=fg; ctx.font='600 20px Bricolage Grotesque, sans-serif'; ctx.textAlign='center';
-  ctx.fillText(attract?'Unlike charges attract':'Like charges repel', W/2, 70);
+  if (layer('heading')) ctx.fillText(attract?'Unlike charges attract':'Like charges repel', W/2, 70);
   ctx.fillStyle=muted; ctx.font='13px IBM Plex Sans, sans-serif';
-  ctx.fillText('The arrows show the electric force on each ball. The forces are equal in size and opposite in direction.', W/2, 360);
-  ctx.fillText('Charge is measured in coulombs (C). One electron carries a tiny negative charge; a coulomb is about 6 × 10¹⁸ of them.', W/2, 384);
+  if (layer('text')){
+    ctx.fillText('The arrows show the electric force on each ball. The forces are equal in size and opposite in direction.', W/2, 360);
+    ctx.fillText('Charge is measured in coulombs (C). One electron carries a tiny negative charge; a coulomb is about 6 × 10¹⁸ of them.', W/2, 384); }
   $('rRes').textContent=attract?'attract':'repel';
 }
 
@@ -105,27 +118,28 @@ function drawCurrent(dt){
   // battery at bottom centre
   const bx=450; ctx.fillStyle=css('--panel'); ctx.fillRect(bx-40,B-20,80,40);
   ctx.strokeStyle=fg; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(bx-12,B-26); ctx.lineTo(bx-12,B+26); ctx.stroke(); ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(bx+12,B-14); ctx.lineTo(bx+12,B+14); ctx.stroke(); ctx.lineWidth=1;
-  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('+', bx-24, B+42); ctx.fillText('−', bx+24, B+42); ctx.fillText(V+' V', bx, B-30);
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('+', bx-24, B+42); ctx.fillText('−', bx+24, B+42); if (layer('labels')) ctx.fillText(V+' V', bx, B-30);
   // resistance wire at top: length ∝ slider, thickness ∝ thick
   const wl=(+$('len').value)/100*400, wx=450-wl/2; ctx.fillStyle=css('--panel'); ctx.fillRect(wx-4,T-16,wl+8,32);
   ctx.strokeStyle=hot; ctx.lineWidth=2+thick*2; ctx.beginPath(); ctx.moveTo(wx,T); ctx.lineTo(wx+wl,T); ctx.stroke(); ctx.lineWidth=1;
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText(`resistance wire · ${$('len').value} cm · ${thick===1?'thin':thick===2?'medium':'thick'} · R = ${r.toFixed(1)} Ω`, 450, T-24);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; if (layer('labels')) ctx.fillText(`resistance wire · ${$('len').value} cm · ${thick===1?'thin':thick===2?'medium':'thick'} · R = ${r.toFixed(1)} Ω`, 450, T-24);
   // ammeter on the right side
   ctx.fillStyle=css('--panel'); ctx.beginPath(); ctx.arc(Rr,225,28,0,7); ctx.fill(); ctx.strokeStyle=fg; ctx.stroke(); ctx.fillStyle=fg; ctx.font='700 18px IBM Plex Sans, sans-serif'; ctx.fillText('A', Rr, 232);
-  ctx.font='12px IBM Plex Mono, monospace'; ctx.fillText(I.toFixed(2)+' A', Rr, 275);
+  ctx.font='12px IBM Plex Mono, monospace'; if (layer('meter')) ctx.fillText(I.toFixed(2)+' A', Rr, 275);
   // moving charges along the loop
   const perim=2*((Rr-L)+(B-T)); const n=Math.round(perim/28);
   const pos=s=>{ s=((s%perim)+perim)%perim; if (s<(Rr-L)) return [L+s,T]; s-=(Rr-L); if (s<(B-T)) return [Rr,T+s]; s-=(B-T); if (s<(Rr-L)) return [Rr-s,B]; s-=(Rr-L); return [L,B-s]; };
   // conventional current: clockwise? battery + is on the left (bx-24) so conventional current leaves + and goes left along the bottom → anticlockwise... define: conventional current flows from + (left) around: bottom-left → up left side → top → down right side → back to − (right). That is clockwise in screen coords starting at bottom-left going up.
   const dirSign = flow==='c' ? 1 : -1; // s increases clockwise (top L→R, right T→B, bottom R→L, left B→T)
-  for (let i=0;i<n;i++){ const s=i*perim/n + dirSign*phase*60; const [x,y]=pos(s); if (Math.abs(x-bx)<40 && y===B) continue; if (y===T && x>wx && x<wx+wl && (i%2)) continue;
+  if (layer('charges')) for (let i=0;i<n;i++){ const s=i*perim/n + dirSign*phase*60; const [x,y]=pos(s); if (Math.abs(x-bx)<40 && y===B) continue; if (y===T && x>wx && x<wx+wl && (i%2)) continue;
     ctx.fillStyle=flow==='e'?cold:hot; ctx.beginPath(); ctx.arc(x,y,5,0,7); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='700 9px IBM Plex Sans, sans-serif'; ctx.fillText(flow==='e'?'−':'+', x, y+3); }
-  // direction label
-  ctx.fillStyle=flow==='e'?cold:hot; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  ctx.fillText(flow==='e' ? 'Electron flow: − terminal → around → + terminal' : 'Conventional current: + terminal → around → − terminal (the opposite way to the electrons)', L, B+70);
+  // direction label, working and tip: the lines that are shown stack up from B+70 (no gaps)
+  let ty=B+70; ctx.textAlign='left';
+  if (layer('direction')){ ctx.fillStyle=flow==='e'?cold:hot; ctx.font='600 13px IBM Plex Sans, sans-serif';
+    ctx.fillText(flow==='e' ? 'Electron flow: − terminal → around → + terminal' : 'Conventional current: + terminal → around → − terminal (the opposite way to the electrons)', L, ty); ty+=26; }
   ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif';
-  ctx.fillText(`Current I = rate of flow of charge. Here ${I.toFixed(2)} C passes the ammeter every second. Charge so far: Q = I × t = ${I.toFixed(2)} × ${t.toFixed(0)} = ${Q.toFixed(0)} C`, L, B+96);
-  ctx.fillStyle=muted; ctx.fillText('Make the wire longer: more resistance, smaller current, slower dots. Make it thicker: less resistance.', L, B+120);
+  if (layer('working')){ ctx.fillText(`Current I = rate of flow of charge. Here ${I.toFixed(2)} C passes the ammeter every second. Charge so far: Q = I × t = ${I.toFixed(2)} × ${t.toFixed(0)} = ${Q.toFixed(0)} C`, L, ty); ty+=24; }
+  ctx.fillStyle=muted; if (layer('text')) ctx.fillText('Make the wire longer: more resistance, smaller current, slower dots. Make it thicker: less resistance.', L, ty);
   $('rR').textContent=r.toFixed(1)+' Ω'; $('rI').textContent=(V? I.toFixed(2):'0.00')+' A'; $('rT').textContent=t.toFixed(0)+' s'; $('rQ').textContent=Q.toFixed(0)+' C';
 }
 function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (mode==='charges') drawCharges(dt); else drawCurrent(dt); requestAnimationFrame(frame); }

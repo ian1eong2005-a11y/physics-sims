@@ -40,13 +40,13 @@
         <button class="btn primary" id="fault">⚡ Make the fault happen</button>
         <button class="btn" id="tReset">Reset</button>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Current in live wire</small><span id="rLive">–</span></div>
         <div><small>Metal case at</small><span id="rCase">–</span></div>
         <div><small>Fuse</small><span id="rFuse">–</span></div>
         <div><small>Person</small><span id="rPerson">–</span></div>
       </div>
-      <div class="fb" id="tFb"></div>
+      <div class="fb" id="tFb" data-layer="fb"></div>
     </div>
 
     <!-- switch -->
@@ -69,14 +69,14 @@
         <span class="lbl">Person touches</span>
         <div class="seg three" id="swTouchSeg"><button data-v="none" aria-pressed="true">nothing</button><button data-v="case" aria-pressed="false">the metal case</button><button data-v="inside" aria-pressed="false">the parts inside</button></div>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Lamp</small><span id="rsLamp">–</span></div>
         <div><small>Parts inside at</small><span id="rsIn">–</span></div>
         <div><small>Metal case at</small><span id="rsCase">–</span></div>
         <div><small>Fuse</small><span id="rsFuse">–</span></div>
         <div><small>Person</small><span id="rsPerson">–</span></div>
       </div>
-      <div class="fb" id="sFb"></div>
+      <div class="fb" id="sFb" data-layer="fb"></div>
     </div>
 
     <!-- appliances -->
@@ -108,7 +108,7 @@
           <button data-v="3" aria-pressed="false">3 A</button><button data-v="5" aria-pressed="false">5 A</button><button data-v="13" aria-pressed="true">13 A</button>
         </div>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Current I = P ÷ V</small><span id="rI">–</span></div>
         <div><small>Energy per day</small><span id="rE">–</span></div>
         <div><small>Cost per day</small><span id="rC">–</span></div>
@@ -119,6 +119,20 @@
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'current',label:'Moving dots (current)',modes:['toaster','switch'],simple:true},
+  {id:'status',label:'Warnings (230 V, shock / safe, lamp on / off)',modes:['toaster','switch'],simple:true},
+  {id:'labels',label:'Labels',modes:['toaster','plug','switch'],simple:['plug']},
+  {id:'key',label:'Colour key',modes:['toaster']},
+  {id:'title',label:'Title above the plug',modes:['plug'],simple:true},
+  {id:'front',label:'Small front view of the plug',modes:['plug']},
+  {id:'fuse',label:'Fuse rating check',modes:['app'],simple:true},
+  {id:'working',label:'Working (I = P ÷ V, energy, cost)',modes:['app']},
+  {id:'text',label:'Explanations on the diagram'},
+  {id:'readout',label:'Readouts',modes:['toaster','switch','app'],simple:['app']},
+  {id:'fb',label:'Feedback box',modes:['toaster','switch']},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -217,27 +231,27 @@ function drawToasterReal(S){
   const fg=css('--fg'),muted=css('--muted'),line=css('--line'),hot=css('--hot'),good=css('--good'),panel=css('--panel');
   // ---- wiring inside the wall
   ctx.fillStyle='rgba(160,160,170,.18)'; ctx.fillRect(14,120,112,360);
-  ctx.fillStyle=muted; ctx.font='600 10px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('INSIDE THE WALL', 18, 134);
+  ctx.fillStyle=muted; ctx.font='600 10px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (layer('labels')) ctx.fillText('INSIDE THE WALL', 18, 134);
   strokeEarth(R.wallE,5); strokePath(R.wallN,BLUE,5); strokePath(R.wallL,BROWN,5);
   ground(44,470,GY);
-  ctx.font='600 10px IBM Plex Sans, sans-serif'; ctx.fillStyle=BROWN; ctx.fillText('LIVE 230 V', 18, 344); ctx.fillText('from the mains', 18, 356);
-  ctx.fillStyle=BLUE; ctx.fillText('NEUTRAL 0 V', 18, 300); ctx.fillStyle=GY; ctx.fillText('EARTH', 50, 164); ctx.fillText('to the ground', 50, 176);
+  if (layer('labels')){ ctx.font='600 10px IBM Plex Sans, sans-serif'; ctx.fillStyle=BROWN; ctx.fillText('LIVE 230 V', 18, 344); ctx.fillText('from the mains', 18, 356);
+    ctx.fillStyle=BLUE; ctx.fillText('NEUTRAL 0 V', 18, 300); ctx.fillStyle=GY; ctx.fillText('EARTH', 50, 164); ctx.fillText('to the ground', 50, 176); }
   // ---- socket faceplate (front view) with its three holes
   ctx.globalAlpha=.86; ctx.fillStyle='#f7f7f4'; ctx.strokeStyle=fg; ctx.beginPath(); ctx.roundRect(130,140,200,220,14); ctx.fill(); ctx.stroke(); ctx.globalAlpha=1;
   ctx.fillStyle='#3b4250'; ctx.fillRect(225,166,10,40); ctx.fillRect(178,279,34,13); ctx.fillRect(248,279,34,13);
-  ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('wall socket', 136, 374);
+  ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (layer('labels')) ctx.fillText('wall socket', 136, 374);
   // ---- the plug pushed in, drawn see-through
   ctx.globalAlpha=.55; ctx.fillStyle='#e9e3d6'; ctx.beginPath(); ctx.roundRect(158,158,144,184,16); ctx.fill(); ctx.globalAlpha=1;
   ctx.setLineDash([5,4]); ctx.strokeStyle=fg; ctx.beginPath(); ctx.roundRect(158,158,144,184,16); ctx.stroke(); ctx.setLineDash([]);
   drawPlugParts(S);
-  ctx.font='700 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
-  ctx.fillStyle=GY; ctx.fillText('E', 214, 180); ctx.fillStyle=BLUE; ctx.fillText('N', 168, 303); ctx.fillStyle=BROWN; ctx.fillText('L', 294, 303);
-  ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('plug (see-through)', 230, 154); ctx.fillText('fuse', 306, 238);
+  if (layer('labels')){ ctx.font='700 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
+    ctx.fillStyle=GY; ctx.fillText('E', 214, 180); ctx.fillStyle=BLUE; ctx.fillText('N', 168, 303); ctx.fillStyle=BROWN; ctx.fillText('L', 294, 303);
+    ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.fillText('plug (see-through)', 230, 154); ctx.fillText('fuse', 306, 238); }
   // ---- cable
   strokePath(cat([[230,342],[230,446],[400,446],[400,372],[440,372]]),'rgba(120,120,130,.25)',34);
   strokePath(R.cabN,BLUE,5); strokeEarth(R.cabE,5); strokePath(R.cabL,BROWN,5);
   const tag=(x,y,col,t)=>{ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,9,0,7); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='700 10px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(t,x,y+4); };
-  tag(320,426,BROWN,'L'); tag(320,446,GY,'E'); tag(320,466,BLUE,'N');
+  if (layer('labels')){ tag(320,426,BROWN,'L'); tag(320,446,GY,'E'); tag(320,466,BLUE,'N'); }
   // ---- toaster
   const caseCol = S.caseLive ? `rgba(228,87,46,${0.35+0.2*Math.sin(t*8)})` : '#c5ccd4';
   ctx.fillStyle='#e0b070'; ctx.beginPath(); ctx.roundRect(518,122,82,56,8); ctx.fill(); ctx.beginPath(); ctx.roundRect(640,122,82,56,8); ctx.fill();
@@ -246,30 +260,31 @@ function drawToasterReal(S){
   ctx.fillStyle=fg; ctx.fillRect(796,226,22,12); ctx.fillRect(466,400,34,8); ctx.fillRect(734,400,34,8);
   ctx.fillStyle=panel; ctx.globalAlpha=.94; ctx.beginPath(); ctx.roundRect(452,196,326,196,12); ctx.fill(); ctx.globalAlpha=1;
   ctx.setLineDash([5,4]); ctx.strokeStyle=muted; ctx.beginPath(); ctx.roundRect(452,196,326,196,12); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('cut-away: inside the toaster', 460, 210);
-  ctx.fillStyle=fg; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.fillText('METAL CASE', 640, 190);
+  if (layer('labels')){ ctx.fillStyle=muted; ctx.font='10px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('cut-away: inside the toaster', 460, 210);
+    ctx.fillStyle=fg; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.fillText('METAL CASE', 640, 190); }
   // wires inside
   strokeEarth(R.inE,5); strokePath(R.inN,BLUE,5); strokePath(R.inL,BROWN,5);
   ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(R.screw[0],R.screw[1],6,0,7); ctx.fill();
   ctx.save(); if (S.normal){ ctx.shadowColor=hot; ctx.shadowBlur=14; } strokePath(R.element, S.normal?'#ff7a30':'#8a8f98', 4); ctx.restore();
   // labels with leader lines
   const lab=(x,y,tx,ty,txt,col,align='left')=>{ ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(tx,ty); ctx.stroke(); ctx.fillStyle=col; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign=align; ctx.fillText(txt, tx+(align==='left'?4:-4), ty+4); };
-  lab(482,320,500,320,'live (brown)',BROWN);
+  if (layer('labels')){ lab(482,320,500,320,'live (brown)',BROWN);
   lab(620,382,620,362,'neutral (blue)',BLUE);
   lab(472,388,530,352,'earth (green/yellow), screwed to the case',GY);
-  ctx.fillStyle=S.normal?hot:muted; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(S.normal?'heating element (glowing)':'heating element (cold)', 612, 254);
+  ctx.fillStyle=S.normal?hot:muted; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(S.normal?'heating element (glowing)':'heating element (cold)', 612, 254); }
   // the fault
   if (fault){ ctx.strokeStyle=COPPER; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(458,362); ctx.lineTo(R.F[0],R.F[1]); ctx.stroke(); ctx.lineWidth=1;
     if (!S.blown){ ctx.fillStyle=css('--warn'); for(let i=0;i<6;i++){ const a=t*20+i*1.1; ctx.beginPath(); ctx.arc(R.F[0]+Math.cos(a)*8,R.F[1]+Math.sin(a)*8,2,0,7); ctx.fill(); } }
-    ctx.fillStyle=hot; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('FAULT: worn insulation,', 430, 300); ctx.fillText('bare live wire touches', 430, 314); ctx.fillText('the metal case →', 430, 328); }
+    ctx.fillStyle=hot; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; if (layer('labels')){ ctx.fillText('FAULT: worn insulation,', 430, 300); ctx.fillText('bare live wire touches', 430, 314); ctx.fillText('the metal case →', 430, 328); } }
   if (S.overheat>0){ ctx.save(); ctx.globalAlpha=S.overheat*0.7; ctx.shadowColor=hot; ctx.shadowBlur=20; strokePath(R.cabL,hot,10); ctx.restore(); }
   if (S.touch) drawPerson(846, S);
-  if (S.caseLive){ ctx.fillStyle=hot; ctx.font='700 15px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('WHOLE CASE AT 230 V', 616, 148); }
+  if (S.caseLive && layer('status')){ ctx.fillStyle=hot; ctx.font='700 15px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('WHOLE CASE AT 230 V', 616, 148); }
   // charge flow
+  if (layer('current')){
   if (S.normal) flow(R.normal, 80, 24, css('--warn'));
   if (S.earthFault) flow(R.earthFault, 320, 12, hot, 4.2);
-  if (S.shock) flow(R.shock, 60, 30, hot, 4);
-  drawLegend(470,8);
+  if (S.shock) flow(R.shock, 60, 30, hot, 4); }
+  if (layer('key')) drawLegend(470,8);
 }
 function drawLegend(x,y){
   const fg=css('--fg'), muted=css('--muted'), line=css('--line'), hot=css('--hot');
@@ -290,7 +305,8 @@ function drawPerson(x, S){
   ctx.beginPath(); ctx.moveTo(x+j,384); ctx.lineTo(x-10,462); ctx.moveTo(x+j,384); ctx.lineTo(x+12,462); ctx.stroke();
   ctx.lineWidth=1; ctx.lineCap='butt'; ground(x,472,GY);
   ctx.font='700 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
-  if (shocked){ ctx.fillStyle=hot; ctx.fillText('⚡ SHOCK ⚡', x, 228); }
+  if (!layer('status')){}
+  else if (shocked){ ctx.fillStyle=hot; ctx.fillText('⚡ SHOCK ⚡', x, 228); }
   else if (fault && S.earthed && !S.blown){ ctx.fillStyle=good; ctx.fillText('safe', x, 228); }
 }
 // ---------- CIRCUIT DIAGRAM VIEW geometry ----------
@@ -308,38 +324,39 @@ function drawDiagram(S){
   const fg=css('--fg'),muted=css('--muted'),line=css('--line'),hot=css('--hot'),warn=css('--warn');
   ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
   // supply
-  ctx.fillStyle=BROWN; ctx.fillText('LIVE 230 V', 40, 100); ctx.fillStyle=BLUE; ctx.fillText('NEUTRAL 0 V', 40, 422);
+  if (layer('labels')){ ctx.fillStyle=BROWN; ctx.fillText('LIVE 230 V', 40, 100); ctx.fillStyle=BLUE; ctx.fillText('NEUTRAL 0 V', 40, 422); }
   ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(90,110,5,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(90,400,5,0,7); ctx.fill();
   strokePath(D.live1,BROWN,4); strokePath(D.live2,BROWN,4); strokePath(D.neutral,BLUE,4);
   // fuse
   if (S.fuseIn){ ctx.fillStyle=S.blown?css('--panel'):S.fuseGlow>0?`rgba(228,87,46,${0.4+0.6*S.fuseGlow})`:warn; ctx.fillRect(190,98,60,24); ctx.strokeStyle=fg; ctx.strokeRect(190,98,60,24);
     if (!S.blown) strokePath([[190,110],[250,110]],fg,1.5); else { strokePath([[190,110],[212,110]],fg,1.5); strokePath([[228,110],[250,110]],fg,1.5); }
-    ctx.fillStyle=fg; ctx.textAlign='center'; ctx.fillText(S.blown?'fuse BLOWN':'fuse', 220, 92); }
+    ctx.fillStyle=fg; ctx.textAlign='center'; if (layer('labels')) ctx.fillText(S.blown?'fuse BLOWN':'fuse', 220, 92); }
   else strokePath([[190,110],[250,110]],BROWN,4);
   // metal case (dashed box) around the element
   ctx.fillStyle=S.caseLive?`rgba(228,87,46,${0.18+0.1*Math.sin(t*8)})`:'transparent'; ctx.fillRect(380,150,190,180);
   ctx.setLineDash([7,5]); ctx.strokeStyle=fg; ctx.lineWidth=2; ctx.strokeRect(380,150,190,180); ctx.setLineDash([]); ctx.lineWidth=1;
-  ctx.fillStyle=muted; ctx.textAlign='left'; ctx.fillText('metal case', 470, 322);
+  ctx.fillStyle=muted; ctx.textAlign='left'; if (layer('labels')) ctx.fillText('metal case', 470, 322);
   // element
   ctx.save(); if (S.normal){ ctx.shadowColor=hot; ctx.shadowBlur=12; } strokePath(D.element,S.normal?'#ff7a30':muted,3); ctx.restore();
-  ctx.fillStyle=muted; ctx.fillText('heating element', 470, 234);
+  ctx.fillStyle=muted; if (layer('labels')) ctx.fillText('heating element', 470, 234);
   // earth wire
-  if (S.earthed){ strokeEarth([[570,330],[650,330],[650,432]],4); ground(650,436,GY); ctx.fillStyle=GY; ctx.fillText('earth wire', 590, 322); }
-  else { ctx.fillStyle=muted; ctx.fillText('no earth wire', 590, 322); }
+  if (S.earthed){ strokeEarth([[570,330],[650,330],[650,432]],4); ground(650,436,GY); ctx.fillStyle=GY; if (layer('labels')) ctx.fillText('earth wire', 590, 322); }
+  else { ctx.fillStyle=muted; if (layer('labels')) ctx.fillText('no earth wire', 590, 322); }
   // fault
-  if (fault){ ctx.strokeStyle=hot; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(450,160); ctx.lineTo(420,180); ctx.lineTo(430,190); ctx.lineTo(D.F[0],D.F[1]); ctx.stroke(); ctx.lineWidth=1; ctx.fillStyle=hot; ctx.textAlign='right'; ctx.fillText('fault: live wire', 372, 236); ctx.fillText('touches the case', 372, 252); ctx.textAlign='left'; }
+  if (fault){ ctx.strokeStyle=hot; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(450,160); ctx.lineTo(420,180); ctx.lineTo(430,190); ctx.lineTo(D.F[0],D.F[1]); ctx.stroke(); ctx.lineWidth=1; ctx.fillStyle=hot; ctx.textAlign='right'; if (layer('labels')){ ctx.fillText('fault: live wire', 372, 236); ctx.fillText('touches the case', 372, 252); } ctx.textAlign='left'; }
   if (S.overheat>0){ ctx.save(); ctx.globalAlpha=S.overheat*0.7; ctx.shadowColor=hot; ctx.shadowBlur=18; strokePath(D.live2,hot,10); ctx.restore(); }
   // person
   if (S.touch){ const j=S.shock?Math.sin(t*40)*2:0; ctx.strokeStyle=fg; ctx.lineWidth=4; ctx.lineCap='round';
     ctx.beginPath(); ctx.arc(690+j,225,13,0,7); ctx.stroke(); ctx.beginPath(); ctx.moveTo(690+j,240); ctx.lineTo(690+j,340); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(690+j,252); ctx.lineTo(620,236); ctx.lineTo(572,236); ctx.stroke(); ctx.beginPath(); ctx.moveTo(690+j,340); ctx.lineTo(676,420); ctx.moveTo(690+j,340); ctx.lineTo(704,420); ctx.stroke(); ctx.lineWidth=1; ctx.lineCap='butt';
-    ground(690,436,GY); if (S.shock){ ctx.fillStyle=hot; ctx.font='700 14px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('⚡ SHOCK ⚡', 690, 200); } }
-  if (S.caseLive){ ctx.fillStyle=hot; ctx.font='700 15px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('CASE AT 230 V', 475, 142); }
-  ctx.font='700 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillStyle=BROWN; ctx.fillText('L', 300, 102); ctx.fillStyle=BLUE; ctx.fillText('N', 300, 392); if (S.earthed){ ctx.fillStyle=GY; ctx.fillText('E', 656, 384); }
-  drawLegend(470,8);
+    ground(690,436,GY); if (S.shock && layer('status')){ ctx.fillStyle=hot; ctx.font='700 14px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('⚡ SHOCK ⚡', 690, 200); } }
+  if (S.caseLive && layer('status')){ ctx.fillStyle=hot; ctx.font='700 15px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('CASE AT 230 V', 475, 142); }
+  ctx.font='700 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (layer('labels')){ ctx.fillStyle=BROWN; ctx.fillText('L', 300, 102); ctx.fillStyle=BLUE; ctx.fillText('N', 300, 392); if (S.earthed){ ctx.fillStyle=GY; ctx.fillText('E', 656, 384); } }
+  if (layer('key')) drawLegend(470,8);
+  if (layer('current')){
   if (S.normal) flow(D.normal, 70, 26, warn);
   if (S.earthFault) flow(D.earthFault, 300, 12, hot, 4.2);
-  if (S.shock) flow(D.shock, 60, 30, hot, 4);
+  if (S.shock) flow(D.shock, 60, 30, hot, 4); }
 }
 
 function toasterText(S){
@@ -357,13 +374,13 @@ function drawToaster(dt){
   ctx.clearRect(0,0,cv.width,cv.height);
   if (view==='real') drawToasterReal(S); else drawDiagram(S);
   const tx=toasterText(S);
-  ctx.fillStyle=css('--fg'); ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (view==='real') wrap(tx.cap, 440, 436, 300, 17); else wrap(tx.cap, 20, 470, 860, 17);
+  ctx.fillStyle=css('--fg'); ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (!layer('text')){} else if (view==='real') wrap(tx.cap, 440, 436, 300, 17); else wrap(tx.cap, 20, 470, 860, 17);
   
   $('rLive').textContent = S.blown ? '0 A' : S.earthFault ? 'huge (100+ A)' : S.normal ? '4.3 A' : '0 A';
   $('rCase').textContent = S.caseLive ? '230 V ⚠' : '0 V';
   $('rFuse').textContent = !S.fuseIn ? 'none fitted' : S.blown ? 'blown' : S.fuseGlow>0 ? 'heating…' : 'intact';
   $('rPerson').textContent = !S.touch ? 'not touching' : S.shock ? 'SHOCK' : 'safe';
-  $('tFb').className='fb '+tx.cls; $('tFb').textContent=tx.fb;
+  $('tFb').className='fb '+tx.cls+(layer('fb')?'':' layer-off'); $('tFb').textContent=tx.fb;
   $('fault').disabled = fault;
 }
 
@@ -373,7 +390,8 @@ function drawPlug(){
   ctx.clearRect(0,0,cv.width,cv.height);
   const S={fuseIn:true, blown:false, fuseGlow:0};
   // big view of the inside of the plug (back cover removed, pins pointing away from you)
-  ctx.save(); ctx.translate(300,250); ctx.scale(1.75,1.75); ctx.translate(-230,-250);
+  const PCX=layer('labels')?300:450;
+  ctx.save(); ctx.translate(PCX,250); ctx.scale(1.75,1.75); ctx.translate(-230,-250);
   ctx.fillStyle='#ece6d8'; ctx.strokeStyle=fg; ctx.lineWidth=1.2; ctx.beginPath(); ctx.roundRect(158,158,144,184,16); ctx.fill(); ctx.stroke();
   drawPlugParts(S);
   strokePath([[230,342],[230,372]],'rgba(120,120,130,.5)',22);
@@ -382,19 +400,21 @@ function drawPlug(){
   // labels with leader lines (positions converted from plug coordinates)
   const P=(x,y)=>[300+(x-230)*1.75, 250+(y-250)*1.75];
   const lab=(px,py,tx,ty,txt,col)=>{ const [x,y]=P(px,py); ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(tx,ty); ctx.stroke(); ctx.fillStyle=col; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign=tx<x?'right':'left'; ctx.fillText(txt, tx+(tx<x?-6:6), ty+4); };
+  if (layer('labels')){
   lab(230,180,560,90,'EARTH pin (top, longest) ← green/yellow wire',GY);
   lab(272,236,560,170,'FUSE: in the live wire',css('--hot'));
   lab(265,285,560,250,'LIVE pin (bottom right) ← brown wire',BROWN);
   { const [x,y]=P(195,285); ctx.strokeStyle=BLUE; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(150,430); ctx.stroke(); ctx.fillStyle=BLUE; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('NEUTRAL pin (bottom left)', 20, 446); ctx.fillText('← blue wire', 20, 462); }
-  lab(230,334,560,300,'cable grip: holds the outer cable firmly',muted);
-  ctx.fillStyle=fg; ctx.font='600 14px Bricolage Grotesque, sans-serif'; ctx.textAlign='left'; ctx.fillText('Inside a 3-pin plug (back cover removed, pins pointing away from you)', 20, 26);
+  lab(230,334,560,300,'cable grip: holds the outer cable firmly',muted); }
+  ctx.fillStyle=fg; ctx.font='600 14px Bricolage Grotesque, sans-serif'; ctx.textAlign='left'; if (layer('title')) ctx.fillText('Inside a 3-pin plug (back cover removed, pins pointing away from you)', 20, 26);
   // small front view, pins towards you
+  if (layer('front')){
   const fx=780, fy=424; ctx.fillStyle='#ece6d8'; ctx.strokeStyle=fg; ctx.beginPath(); ctx.roundRect(fx-50,fy-60,100,120,10); ctx.fill(); ctx.stroke();
   ctx.fillStyle='#b8a46a'; ctx.fillRect(fx-5,fy-44,10,26); ctx.fillRect(fx-38,fy+20,22,9); ctx.fillRect(fx+16,fy+20,22,9);
   ctx.font='700 11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillStyle=GY; ctx.fillText('E', fx+16, fy-28); ctx.fillStyle=BROWN; ctx.fillText('L', fx-27, fy+44); ctx.fillStyle=BLUE; ctx.fillText('N', fx+27, fy+44);
-  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('front of the plug (pins towards you):', fx, fy-70); ctx.fillText('left and right swap over', fx, fy+76);
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('front of the plug (pins towards you):', fx, fy-70); ctx.fillText('left and right swap over', fx, fy+76); }
   ctx.textAlign='left'; ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif';
-  ['Memory aid (inside view): BRown → Bottom Right, BLue → Bottom Left, green/yellow → top.', 'The earth pin is longest, so it connects first and opens the socket\'s safety shutters.'].forEach((s,i)=>ctx.fillText(s, 20, 492+i*18));
+  if (layer('text')) ['Memory aid (inside view): BRown → Bottom Right, BLue → Bottom Left, green/yellow → top.', 'The earth pin is longest, so it connects first and opens the socket\'s safety shutters.'].forEach((s,i)=>ctx.fillText(s, 20, 492+i*18));
 }
 
 // ---------- switch and fuse: live or neutral? (with a metal lamp, a fault and a person) ----------
@@ -424,8 +444,8 @@ function drawSwitch(dt){
   const col=(isLiveWire, at230)=> isLiveWire ? (at230?BROWN:line) : (at230?hot:BLUE);
   // supply
   ctx.fillStyle=css('--panel'); ctx.strokeStyle=fg; ctx.fillRect(30,70,60,240); ctx.strokeRect(30,70,60,240);
-  ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('mains', 60, 185); ctx.fillText('supply', 60, 201);
-  ctx.fillStyle=BROWN; ctx.fillText('L 230 V', 60, 62); ctx.fillStyle=BLUE; ctx.fillText('N 0 V', 60, 330);
+  if (layer('labels')){ ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('mains', 60, 185); ctx.fillText('supply', 60, 201);
+    ctx.fillStyle=BROWN; ctx.fillText('L 230 V', 60, 62); ctx.fillStyle=BLUE; ctx.fillText('N 0 V', 60, 330); }
   // wires
   const A=[[90,yL],[S1[0],yL]], B=[[S1[1],yL],[S2[0],yL]], C=[[S2[1],yL],[LX,yL],[LX,LY-40]];
   const D=[[LX,LY+40],[LX,yN],[S2[1],yN]], E=[[S2[0],yN],[S1[1],yN]], F=[[S1[0],yN],[90,yN]];
@@ -436,14 +456,14 @@ function drawSwitch(dt){
   const slot=(x0,x1,y,kind,isLive,leftAt230)=>{
     if (kind==='wire'){ strokePath([[x0,y],[x1,y]], col(isLive,leftAt230), 5); return; }
     if (kind==='switch'){ const open=s.off; ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(x0,y,5,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(x1,y,5,0,7); ctx.fill(); ctx.strokeStyle=fg; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(open?x1-12:x1, open?y-30:y); ctx.stroke(); ctx.lineWidth=1;
-      ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('switch '+(open?'OFF':'ON'), (x0+x1)/2, y+24); return; }
+      ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; if (layer('labels')) ctx.fillText('switch '+(open?'OFF':'ON'), (x0+x1)/2, y+24); return; }
     // fuse
     const blown=swBlown, glow= s.earthFault && s.fuseL && isLive ? Math.min(1,swTf/1.8) : 0;
     strokePath([[x0,y],[x0+8,y]], col(isLive,leftAt230), 5); strokePath([[x1-8,y],[x1,y]], col(isLive, isLive?s.liveConn:(!s.neutConn&&s.liveConn)), 5);
     ctx.fillStyle=css('--panel'); ctx.strokeStyle=fg; ctx.fillRect(x0+8,y-10,x1-x0-16,20); ctx.strokeRect(x0+8,y-10,x1-x0-16,20);
     ctx.strokeStyle=glow?`rgb(255,${Math.round(180-150*glow)},40)`:fg; ctx.lineWidth=2; ctx.beginPath();
     if (blown){ ctx.moveTo(x0+10,y); ctx.lineTo((x0+x1)/2-6,y+2); ctx.moveTo((x0+x1)/2+6,y-2); ctx.lineTo(x1-10,y); } else { ctx.moveTo(x0+10,y); ctx.lineTo(x1-10,y); }
-    ctx.stroke(); ctx.lineWidth=1; ctx.fillStyle=blown?hot:muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(blown?'fuse BLOWN':'fuse', (x0+x1)/2, y+26); };
+    ctx.stroke(); ctx.lineWidth=1; ctx.fillStyle=blown?hot:muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; if (layer('labels')) ctx.fillText(blown?'fuse BLOWN':'fuse', (x0+x1)/2, y+26); };
   slot(S1[0],S1[1],yL, s.swL?'switch':'wire', true, true);
   slot(S2[0],S2[1],yL, s.fuseL?'fuse':'wire', true, liveB);
   slot(S1[0],S1[1],yN, s.swL?'wire':'switch', false, false);
@@ -451,33 +471,35 @@ function drawSwitch(dt){
   // metal lamp: case, earth wire, bulb
   const cx0=560, cy0=60, cx1=820, cy1=330;
   ctx.strokeStyle=s.caseLive?hot:'#8b95a1'; ctx.lineWidth=s.caseLive?5:4; ctx.strokeRect(cx0,cy0,cx1-cx0,cy1-cy0); ctx.lineWidth=1;
-  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('metal case of the lamp', cx0+6, cy1-8);
+  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (layer('labels')) ctx.fillText('metal case of the lamp', cx0+6, cy1-8);
   ctx.fillStyle=s.lampOn?warn:css('--panel'); ctx.strokeStyle=s.insideLive?hot:fg; ctx.lineWidth=s.insideLive?3:1.5; ctx.beginPath(); ctx.arc(LX,LY,40,0,7); ctx.fill(); ctx.stroke(); ctx.lineWidth=1;
-  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(s.lampOn?'ON':'OFF', LX, LY+5);
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; if (layer('status')) ctx.fillText(s.lampOn?'ON':'OFF', LX, LY+5);
   // earth wire from the case to the ground
-  if (s.earthed){ strokePath([[cx0+40,cy1],[cx0+40,370]],GY,5); ground(cx0+40,372,GY); ctx.fillStyle=GY; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('earth wire', cx0+50, 362); }
-  else { ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('no earth wire', cx0+10, 362); }
+  if (s.earthed){ strokePath([[cx0+40,cy1],[cx0+40,370]],GY,5); ground(cx0+40,372,GY); ctx.fillStyle=GY; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (layer('labels')) ctx.fillText('earth wire', cx0+50, 362); }
+  else { ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (layer('labels')) ctx.fillText('no earth wire', cx0+10, 362); }
   // fault: the live wire touches the case
   const FX=640;
-  if (swF){ ctx.strokeStyle=hot; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(FX,yL); ctx.lineTo(FX-6,yL-14); ctx.lineTo(FX+6,yL-24); ctx.lineTo(FX,cy0); ctx.stroke(); ctx.lineWidth=1; ctx.fillStyle=hot; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('fault: live touches case', FX+10, yL-18); }
+  if (swF){ ctx.strokeStyle=hot; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(FX,yL); ctx.lineTo(FX-6,yL-14); ctx.lineTo(FX+6,yL-24); ctx.lineTo(FX,cy0); ctx.stroke(); ctx.lineWidth=1; ctx.fillStyle=hot; ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (layer('labels')) ctx.fillText('fault: live touches case', FX+10, yL-18); }
   // person
   const PX=852, feet=372, touching=s.touch!=='none', shocked=s.shockCase||s.shockIn;
   if (touching){ const hx=s.touch==='case'?cx1:LX+40, hy=s.touch==='case'?190:LY;
     ctx.strokeStyle=shocked?hot:fg; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(PX,150,13,0,7); ctx.moveTo(PX,163); ctx.lineTo(PX,260); ctx.moveTo(PX,260); ctx.lineTo(PX-14,feet); ctx.moveTo(PX,260); ctx.lineTo(PX+14,feet); ctx.moveTo(PX,190); ctx.lineTo(hx,hy); ctx.stroke(); ctx.lineWidth=1;
     ground(PX,feet+2,muted);
     if (s.touch==='inside'){ ctx.fillStyle=css('--bg'); ctx.fillRect(cx1-2,LY-12,4,24); }
-    ctx.fillStyle=shocked?hot:good; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(shocked?'SHOCK!':'safe', PX, 128); }
+    ctx.fillStyle=shocked?hot:good; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; if (layer('status')) ctx.fillText(shocked?'SHOCK!':'safe', PX, 128); }
   // moving charge
   const lampPath=cat(A,B,C,[[LX,LY+40]],D,E,F);
-  if (s.lampOn) flow(lampPath, 70, 26, warn);
+  const showI=layer('current');
+  if (s.lampOn && showI) flow(lampPath, 70, 26, warn);
   const toFault=cat(A,B,[[S2[1],yL],[FX,yL],[FX,cy0]]);
-  if (s.earthFault) flow(cat(toFault,[[cx0+40,cy0],[cx0+40,cy1],[cx0+40,370]]), 260, 14, hot, 4);
-  if (s.shockCase) flow(cat(toFault,[[cx1,cy0],[cx1,190],[PX,190],[PX,260],[PX,feet]]), 90, 22, hot, 4);
-  if (s.shockIn) flow(cat(A,B,C,[[LX,LY]],[[LX+40,LY],[PX,190],[PX,260],[PX,feet]]), 90, 22, hot, 4);
+  if (!showI){}
+  else if (s.earthFault) flow(cat(toFault,[[cx0+40,cy0],[cx0+40,cy1],[cx0+40,370]]), 260, 14, hot, 4);
+  if (s.shockCase && showI) flow(cat(toFault,[[cx1,cy0],[cx1,190],[PX,190],[PX,260],[PX,feet]]), 90, 22, hot, 4);
+  if (s.shockIn && showI) flow(cat(A,B,C,[[LX,LY]],[[LX+40,LY],[PX,190],[PX,260],[PX,feet]]), 90, 22, hot, 4);
   // labels
   ctx.textAlign='left'; ctx.font='600 12px IBM Plex Sans, sans-serif';
-  ctx.fillStyle=s.insideLive?hot:good; ctx.fillText('parts inside: '+(s.insideLive?'230 V':'0 V'), 702, 266);
-  ctx.fillStyle=s.caseLive?hot:good; ctx.fillText('case: '+(s.caseLive?'230 V':'0 V'), 702, 286);
+  if (layer('status')){ ctx.fillStyle=s.insideLive?hot:good; ctx.fillText('parts inside: '+(s.insideLive?'230 V':'0 V'), 702, 266);
+    ctx.fillStyle=s.caseLive?hot:good; ctx.fillText('case: '+(s.caseLive?'230 V':'0 V'), 702, 286); }
   // message
   let msg, cls='';
   const wrongSw = !s.swL && s.off, rule=' Switches and fuses belong in the LIVE wire.';
@@ -492,8 +514,8 @@ function drawSwitch(dt){
   else if (swF && !s.liveConn){ cls='ok'; msg='The switch in the LIVE wire is OFF, so even the faulty case is at 0 V and safe to touch. Unplug the lamp and get the fault repaired.'; }
   else if (s.off){ cls=s.swL?'ok':'bad'; msg = s.swL ? 'Switch in the LIVE wire and OFF: every part of the lamp is at 0 V. Safe to change the bulb.' : 'Switch in the NEUTRAL wire and OFF: no current, so the lamp is dark, but the parts inside are still joined to 230 V. Touching them would give a shock.'+rule; }
   else { msg='Switch ON: current flows live → lamp → neutral.'+(s.fuseL?'':' The fuse is in the NEUTRAL wire: try making the fault happen with the earth wire connected.')+(s.swL?'':' The switch is in the NEUTRAL wire: switch it OFF and touch the parts inside.'); }
-  ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; wrap(msg, 30, 410, 840, 20);
-  $('sFb').className='fb '+cls; $('sFb').textContent=msg;
+  ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (layer('text')) wrap(msg, 30, 410, 840, 20);
+  $('sFb').className='fb '+cls+(layer('fb')?'':' layer-off'); $('sFb').textContent=msg;
   $('rsLamp').textContent=s.lampOn?'on':'off'; $('rsIn').textContent=s.insideLive?'230 V':'0 V'; $('rsCase').textContent=s.caseLive?'230 V':'0 V';
   $('rsFuse').textContent=swBlown?'blown':(s.earthFault&&s.fuseL?'melting…':'intact'); $('rsPerson').textContent=touching?(shocked?'SHOCK':'safe'):'–';
 }
@@ -504,6 +526,8 @@ function drawApp(dt){
   const P=+$('app').value, h=+$('hrs').value, c=+$('tariff').value; const I=P/V, kwh=P/1000*h, cost=kwh*c;
   spin+=dt*P/400;
   ctx.clearRect(0,0,cv.width,cv.height);
+  const showF=layer('fuse'), oy=layer('working')?0:80, ox=showF?0:155;
+  ctx.save(); ctx.translate(ox,oy);
   ctx.fillStyle=css('--panel'); ctx.strokeStyle=line; ctx.fillRect(60,80,260,180); ctx.strokeRect(60,80,260,180);
   ctx.fillStyle=fg; ctx.font='600 16px Bricolage Grotesque, sans-serif'; ctx.textAlign='center'; ctx.fillText($('app').selectedOptions[0].text, 190, 115);
   ctx.font='13px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.fillText('rated 230 V, '+P+' W', 190, 140);
@@ -511,14 +535,17 @@ function drawApp(dt){
   else { ctx.fillStyle=fg; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('low power: small current, little heating', 190, 200); }
   ctx.fillStyle=css('--panel'); ctx.beginPath(); ctx.arc(460,170,70,0,7); ctx.fill(); ctx.strokeStyle=line; ctx.stroke();
   ctx.save(); ctx.translate(460,170); ctx.rotate(spin); ctx.strokeStyle=acc; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-60); ctx.stroke(); ctx.restore(); ctx.lineWidth=1;
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('electricity meter', 460, 262); ctx.fillText('spins faster for higher power', 460, 280);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('electricity meter', 460, 262); if (layer('text')) ctx.fillText('spins faster for higher power', 460, 280);
+  ctx.restore();
   const ok=I<=fuseA, tooBig=fuseA>2.5*I+1;
+  if (showF){ ctx.save(); ctx.translate(0,oy);
   ctx.fillStyle=ok?(tooBig?css('--warn'):good):hot; ctx.fillRect(580,100,290,60);
   ctx.fillStyle='#fff'; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
   ctx.fillText(ok? (tooBig? `${fuseA} A fuse works, but is far above ${I.toFixed(1)} A` : `${fuseA} A fuse: good (just above ${I.toFixed(1)} A)`) : `${fuseA} A fuse BLOWS: ${I.toFixed(1)} A is too big`, 592, 125);
   ctx.fillText(ok? (tooBig? 'a fault might not blow it quickly' : 'blows if the current rises above it') : 'choose a rating just above the normal current', 592, 146);
-  ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif';
-  [`current I = P ÷ V = ${P} ÷ 230 = ${I.toFixed(2)} A`, `energy = P × t = ${P/1000} kW × ${h} h = ${kwh.toFixed(2)} kWh per day`, `(in joules: E = VIt = 230 × ${I.toFixed(2)} × ${(h*3600).toFixed(0)} s = ${(P*h*3600/1e6).toFixed(2)} MJ)`, `cost = ${kwh.toFixed(2)} kWh × ${c} ¢ = ${cost<100? cost.toFixed(1)+' ¢' : '$'+(cost/100).toFixed(2)} per day`, `over 30 days: $${(cost*30/100).toFixed(2)}`].forEach((s,i)=>ctx.fillText(s, 60, 320+i*26));
+  ctx.restore(); }
+  ctx.fillStyle=fg; ctx.font='13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  if (layer('working')) [`current I = P ÷ V = ${P} ÷ 230 = ${I.toFixed(2)} A`, `energy = P × t = ${P/1000} kW × ${h} h = ${kwh.toFixed(2)} kWh per day`, `(in joules: E = VIt = 230 × ${I.toFixed(2)} × ${(h*3600).toFixed(0)} s = ${(P*h*3600/1e6).toFixed(2)} MJ)`, `cost = ${kwh.toFixed(2)} kWh × ${c} ¢ = ${cost<100? cost.toFixed(1)+' ¢' : '$'+(cost/100).toFixed(2)} per day`, `over 30 days: $${(cost*30/100).toFixed(2)}`].forEach((s,i)=>ctx.fillText(s, 60, 320+i*26));
   $('hrsV').textContent=h+' h'; $('tariffV').textContent=c+' ¢'; $('rI').textContent=I.toFixed(2)+' A'; $('rE').textContent=kwh.toFixed(2)+' kWh'; $('rC').textContent= cost<100? cost.toFixed(1)+' ¢' : '$'+(cost/100).toFixed(2); $('rC30').textContent='$'+(cost*30/100).toFixed(2);
 }
 

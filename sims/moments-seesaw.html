@@ -53,11 +53,11 @@ label,.lbl{font-size:.82rem;font-weight:600;letter-spacing:.02em;text-transform:
   </div>
 
   <div class="panel">
-    <div class="mom">
+    <div class="mom" data-layer="readout">
       <div><small>Anticlockwise</small><span id="acw">0 N cm</span></div>
       <div class="cw"><small>Clockwise</small><span id="cw">0 N cm</span></div>
     </div>
-    <div class="status" id="status">Beam is balanced</div>
+    <div class="status" id="status" data-layer="status">Beam is balanced</div>
     <div class="ctl">
       <label class="check"><input type="checkbox" id="showMoments" checked> Show each moment on the beam</label>
       <label class="check"><input type="checkbox" id="offCentre"> Pivot off-centre (beam's own weight counts)</label>
@@ -69,7 +69,7 @@ label,.lbl{font-size:.82rem;font-weight:600;letter-spacing:.02em;text-transform:
         <button class="btn" id="reveal" disabled>Reveal</button>
       </div>
     </div>
-    <div class="ctl">
+    <div class="ctl" data-layer="working">
       <span class="lbl">Working</span>
       <div class="work" id="work"></div>
     </div>
@@ -80,6 +80,16 @@ label,.lbl{font-size:.82rem;font-weight:600;letter-spacing:.02em;text-transform:
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'ruler',label:'Distance scale on the beam',simple:true},
+  {id:'status',label:'Balanced / tips message',simple:true},
+  {id:'moments',label:'Moment on each weight',input:'showMoments'},
+  {id:'turn',label:'Clockwise / anticlockwise labels'},
+  {id:'labels',label:'Labels (pivot, tray, centre of gravity)'},
+  {id:'readout',label:'Clockwise and anticlockwise totals'},
+  {id:'working',label:'Working'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -116,15 +126,15 @@ function draw(){
   // pivot
   const px=CX+p*PX;
   ctx.fillStyle=line; ctx.beginPath(); ctx.moveTo(px,BEAM_Y+8); ctx.lineTo(px-28,BEAM_Y+70); ctx.lineTo(px+28,BEAM_Y+70); ctx.closePath(); ctx.fill();
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('pivot', px, BEAM_Y+86);
+  if (layer('labels')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('pivot', px, BEAM_Y+86); }
 
   // beam, rotated about the pivot
   ctx.save(); ctx.translate(px,BEAM_Y); ctx.rotate(angle*Math.PI/180); ctx.translate(-px,-BEAM_Y);
   ctx.fillStyle=massC; ctx.globalAlpha=.25; ctx.fillRect(CX-50*PX,BEAM_Y-6,100*PX,12); ctx.globalAlpha=1; ctx.strokeStyle=fg; ctx.lineWidth=1.5; ctx.strokeRect(CX-50*PX,BEAM_Y-6,100*PX,12);
   ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center';
-  for (let c=-50;c<=50;c+=10){ const x=CX+c*PX; ctx.fillRect(x-0.5,BEAM_Y-6,1,12); ctx.fillText(Math.abs(c-p)+'', x, BEAM_Y+26); }
-  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('distance from pivot / cm', CX, BEAM_Y+42);
-  if ($('offCentre').checked){ ctx.fillStyle=massC; ctx.beginPath(); ctx.arc(CX,BEAM_Y,4,0,7); ctx.fill(); ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('centre of gravity, beam weight '+BEAM_W+' N', CX, BEAM_Y-48); ctx.strokeStyle=massC; ctx.beginPath(); ctx.moveTo(CX,BEAM_Y+6); ctx.lineTo(CX,BEAM_Y+6+BEAM_W*4); ctx.stroke(); }
+  for (let c=-50;c<=50;c+=10){ const x=CX+c*PX; ctx.fillRect(x-0.5,BEAM_Y-6,1,12); if (layer('ruler')) ctx.fillText(Math.abs(c-p)+'', x, BEAM_Y+26); }
+  if (layer('ruler')){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('distance from pivot / cm', CX, BEAM_Y+42); }
+  if ($('offCentre').checked){ ctx.fillStyle=massC; ctx.beginPath(); ctx.arc(CX,BEAM_Y,4,0,7); ctx.fill(); ctx.font='11px IBM Plex Sans, sans-serif'; if (layer('labels')) ctx.fillText('centre of gravity, beam weight '+BEAM_W+' N', CX, BEAM_Y-48); ctx.strokeStyle=massC; ctx.beginPath(); ctx.moveTo(CX,BEAM_Y+6); ctx.lineTo(CX,BEAM_Y+6+BEAM_W*4); ctx.stroke(); }
   // weights on beam
   for (const it of items){ if (it.pos===null || it===drag) continue; const x=CX+it.pos*PX, h=14+it.w*3, w=22+it.w*2;
     ctx.fillStyle=it.mystery?myst:massC; ctx.beginPath(); ctx.roundRect(x-w/2,BEAM_Y-6-h,w,h,3); ctx.fill();
@@ -134,12 +144,12 @@ function draw(){
 
   // turning-direction arrows
   ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
-  ctx.fillStyle=acwC; ctx.fillText('anticlockwise  ↶', px-150, 150); ctx.fillStyle=cwC; ctx.fillText('↷  clockwise', px+150, 150);
-  if (bal && !hidden){ ctx.fillStyle=ok; ctx.font='600 15px IBM Plex Sans, sans-serif'; ctx.fillText('Balanced: clockwise moments = anticlockwise moments', CX, 120); }
+  if (layer('turn')){ ctx.fillStyle=acwC; ctx.fillText('anticlockwise  ↶', px-150, 150); ctx.fillStyle=cwC; ctx.fillText('↷  clockwise', px+150, 150); }
+  if (bal && !hidden && layer('status')){ ctx.fillStyle=ok; ctx.font='600 15px IBM Plex Sans, sans-serif'; ctx.fillText('Balanced: clockwise moments = anticlockwise moments', CX, 120); }
 
   // tray
   ctx.fillStyle=css('--bg'); ctx.beginPath(); ctx.roundRect(60,400,480,90,8); ctx.fill(); ctx.strokeStyle=line; ctx.stroke();
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Weights: drag onto the beam', 72, 418);
+  if (layer('labels')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Weights: drag onto the beam', 72, 418); }
   TRAY.forEach((tw,i)=>{ const [x,y]=trayXY(i), h=14+tw.w*3, w=22+tw.w*2; ctx.fillStyle=massC; ctx.beginPath(); ctx.roundRect(x-w/2,y-h/2,w,h,3); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.fillText(tw.label,x,y+4); });
   // dragging item follows the pointer
   if (drag){ const h=14+drag.w*3, w=22+drag.w*2; ctx.fillStyle=drag.mystery?myst:massC; ctx.globalAlpha=.85; ctx.beginPath(); ctx.roundRect(drag.x-w/2,drag.y-h/2,w,h,3); ctx.fill(); ctx.globalAlpha=1; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.fillText(drag.mystery&&!revealed?'?':drag.w+' N', drag.x, drag.y+4); }

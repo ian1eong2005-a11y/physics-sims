@@ -68,7 +68,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <label class="check"><input type="checkbox" id="cork" checked> Floating cork</label>
       <label class="check"><input type="checkbox" id="side" checked> Side view of the cork</label>
     </div>
-    <div class="read">
+    <div class="read" data-layer="readout">
       <div><small>Frequency</small><span id="rf">2.0 Hz</span></div>
       <div><small>Wavelength</small><span id="rl">10 cm</span></div>
       <div><small>Speed</small><span id="rv">20 cm/s</span></div>
@@ -82,6 +82,14 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js). No #modeSeg: point and bar dipper share one mode ('all').
+window.SIM_LAYERS=[
+  {id:'mark',label:'Wavelength marker (λ)',simple:true,input:'mark'},
+  {id:'cork',label:'Floating cork',simple:true,input:'cork'},
+  {id:'side',label:'Side view of the water surface',input:'side'},
+  {id:'labels',label:'Labels on the tank (dipper, cork)'},
+  {id:'readout',label:'Frequency, wavelength and speed readouts'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -95,7 +103,7 @@ function draw(){
   const W=cv.width,H=cv.height,s=S(), fg=css('--fg'),muted=css('--muted'),line=css('--line'),water=css('--water'),cork=css('--cork'),mark=css('--mark');
   ctx.clearRect(0,0,W,H);
   const lam=V/s.f, lamPx=lam*PX;        // cm, px
-  const tx=60, ty=40, tw=600, th=380;   // tank
+  const tx=$('side').checked?60:150, ty=40, tw=600, th=380;   // tank (centred when the side view is hidden)
   ctx.fillStyle=water; ctx.globalAlpha=.75; ctx.fillRect(tx,ty,tw,th); ctx.globalAlpha=1; ctx.strokeStyle=line; ctx.lineWidth=3; ctx.strokeRect(tx,ty,tw,th); ctx.lineWidth=1;
   ctx.save(); ctx.beginPath(); ctx.rect(tx,ty,tw,th); ctx.clip();
   const travelled = (V*t*PX);            // px the first wavefront has moved
@@ -109,7 +117,7 @@ function draw(){
     ctx.globalAlpha=1; ctx.fillStyle=fg; ctx.fillRect(sx-4,ty+10,8,th-20);
   }
   ctx.lineWidth=1; ctx.restore();
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(src==='point'?'dipper (point source): circular wavefronts':'bar dipper: straight (plane) wavefronts', tx, ty-10);
+  if (layer('labels')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(src==='point'?'dipper (point source): circular wavefronts':'bar dipper: straight (plane) wavefronts', tx, ty-10); }
   // wavelength marker: between two wavefronts along the centre line to the right of the source
   const corkX = sx+lamPx*3.5;
   if ($('mark').checked && travelled>lamPx*4.5){ const first = sx + (travelled%lamPx); let a=first; while (a<sx+lamPx*3) a+=lamPx; const b=a+lamPx; const y=sy+70;
@@ -118,7 +126,7 @@ function draw(){
   // cork: bobs with the local water height, does not travel
   const dist = (corkX-sx)/PX, inWave = travelled/PX>=dist;
   const h = inWave ? Math.sin(2*Math.PI*(dist/lam - s.f*t)) : 0;
-  if ($('cork').checked){ ctx.fillStyle=cork; ctx.beginPath(); ctx.arc(corkX, sy, 7+2*h, 0, 7); ctx.fill(); ctx.fillStyle=fg; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('cork', corkX, sy-16); }
+  if ($('cork').checked){ ctx.fillStyle=cork; ctx.beginPath(); ctx.arc(corkX, sy, 7+2*h, 0, 7); ctx.fill(); if (layer('labels')){ ctx.fillStyle=fg; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('cork', corkX, sy-16); } }
   // side view
   if ($('side').checked){ const vx=tx+tw+30, vy=120, vw=W-vx-20, vh=200;
     ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('side view', vx, vy-50);

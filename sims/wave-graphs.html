@@ -58,7 +58,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   <div class="stage">
     <canvas id="c" width="900" height="520" aria-label="A wave on a rope with its two graphs"></canvas>
     <p class="notice"><b>What to notice.</b> Both graphs have <i>displacement</i> up the side, which is why they look alike. The difference is the axis along the bottom. Click any particle on the rope to follow it.</p>
-    <div class="two">
+    <div class="two" data-layer="summary">
       <div><b class="h">Displacement–distance</b>A photograph of the <i>whole rope</i> at one instant. Every particle gives one point. Read <b>λ</b> and <b>A</b> from it. For a transverse wave it looks like the rope itself.</div>
       <div class="t"><b class="h">Displacement–time</b>The diary of <i>one particle</i>. It records where that particle was at each moment as it bobs up and down. Read <b>T</b> (so f = 1/T) and <b>A</b> from it.</div>
     </div>
@@ -101,7 +101,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <label class="check"><input type="checkbox" id="behind"> Look behind: where does the particle go next?</label>
       <label class="check"><input type="checkbox" id="vel"> Show how every particle is moving (arrows)</label>
     </div>
-    <div class="ctl">
+    <div class="ctl" data-layer="dtgraph">
       <label for="dtMode">Displacement–time display</label>
       <select id="dtMode">
         <option value="grow">time axis moves (normal graph)</option>
@@ -109,7 +109,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
         <option value="left">frozen time axis: trace moves ←</option>
       </select>
     </div>
-    <div class="read">
+    <div class="read" data-layer="readout">
       <div><small>Period T = 1/f</small><span id="rT">2.0 s</span></div>
       <div><small>Speed v = fλ</small><span id="rv">0.50 m/s</span></div>
     </div>
@@ -126,6 +126,20 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js). No #modeSeg: one mode ('all') for transverse and longitudinal alike.
+window.SIM_LAYERS=[
+  {id:'dxgraph',label:'Displacement–distance graph',simple:true},
+  {id:'dtgraph',label:'Displacement–time graph (and its display setting)',simple:true},
+  {id:'map',label:'Mapping lines between the rope and the graphs',input:'map'},
+  {id:'marks',label:'λ, T and A markers',input:'marks'},
+  {id:'behind',label:'Look behind: where the particle goes next',on:false,input:'behind'},
+  {id:'vel',label:'Arrows showing how every particle moves',on:false,input:'vel'},
+  {id:'titles',label:'Titles above the rope and the graphs'},
+  {id:'labels',label:'Particle name (P12) and "now" labels'},
+  {id:'text',label:'Explanation sentences on the diagram'},
+  {id:'readout',label:'Period and speed readouts'},
+  {id:'summary',label:'The two boxes comparing the graphs'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -140,7 +154,8 @@ const pmod=(a,m)=>((a%m)+m)%m;
 // panel geometry (canvas units)
 const WX0=60, WX1=560, ROPE_Y=105;                 // wave panel
 const GX0=60, GX1=560, GY=330, GH=85;             // d-x graph: axis at GY, +/- GH
-const TX0=630, TX1=880;                            // d-t graph, same axis GY/GH
+let TX0=630, TX1=880;                              // d-t graph, same axis GY/GH (moves under the rope when the d-x graph is hidden)
+let OX=0;                                          // sideways shift: centres the picture when the d-t graph is hidden
 const xToPx=x=>WX0+(x/L)*(WX1-WX0);
 const SCALE=GH/0.14;                               // px per metre of displacement (14 cm = full height)
 
@@ -150,11 +165,14 @@ function draw(){
   ctx.font='12px IBM Plex Sans, sans-serif';
   const xs=Array.from({length:N},(_,i)=>i*L/(N-1)), ds=xs.map(x=>disp(x,t,s));
   const xsel=xs[s.sel], dsel=ds[s.sel];
+  const dxOn=layer('dxgraph'), dtOn=layer('dtgraph');
+  OX = dtOn?0:150; TX0 = dxOn?630:185; TX1 = dxOn?880:435;
+  ctx.save(); ctx.translate(OX,0);
 
   // ---- wave panel
-  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  ctx.fillText(type==='trans'?'The rope (transverse wave)':'The spring (longitudinal wave)', WX0, 22);
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText(D>0?'wave travels →':'← wave travels', WX1, 22);
+  if (layer('titles')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+    ctx.fillText(type==='trans'?'The rope (transverse wave)':'The spring (longitudinal wave)', WX0, 22);
+    ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText(D>0?'wave travels →':'← wave travels', WX1, 22); }
   ctx.strokeStyle=line; ctx.setLineDash([3,4]); ctx.beginPath(); ctx.moveTo(WX0,ROPE_Y); ctx.lineTo(WX1,ROPE_Y); ctx.stroke(); ctx.setLineDash([]);
   const px=[], py=[];
   for (let i=0;i<N;i++){
@@ -169,36 +187,39 @@ function draw(){
   const bi = s.sel - D*2;   // the particle just BEHIND the selected one (the side the wave comes from)
   const lookBehind = $('behind').checked && bi>=0 && bi<N;
   if (lookBehind && type==='trans'){ drawBehind(px[s.sel],py[s.sel],px[bi],py[bi], ROPE_Y); }
-  ctx.fillStyle=sel; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.fillText('P'+s.sel, px[s.sel], py[s.sel]-14);
-  if (type==='long'){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('particles move left–right along the spring; displacement to the right counts as positive', (WX0+WX1)/2, ROPE_Y+34); }
+  ctx.textAlign='center';
+  if (layer('labels')){ ctx.fillStyle=sel; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.fillText('P'+s.sel, px[s.sel], py[s.sel]-14); }
+  if (type==='long' && layer('text')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('particles move left–right along the spring; displacement to the right counts as positive', (WX0+WX1)/2, ROPE_Y+34); }
 
   // ---- d-x graph
   const axis=(x0,x1,xlabel,title,col)=>{
     ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(x0,GY-GH-10); ctx.lineTo(x0,GY+GH+10); ctx.moveTo(x0,GY); ctx.lineTo(x1,GY); ctx.stroke();
-    ctx.fillStyle=col; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(title, x0, GY-GH-22);
+    if (layer('titles')){ ctx.fillStyle=col; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(title, x0, GY-GH-22); }
     ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText(xlabel, x1, GY+GH+26);
     ctx.save(); ctx.translate(x0-34,GY); ctx.rotate(-Math.PI/2); ctx.textAlign='center'; ctx.fillText('displacement / cm',0,0); ctx.restore();
     ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='right';
     for (const v of [-10,0,10]){ ctx.fillText(v, x0-6, GY-v/100*SCALE+4); }
   };
+  if (dxOn){
   axis(GX0,GX1,'distance along rope / m','Displacement–distance graph: snapshot of every particle now', wave);
   ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center';
   for (let x=0;x<=L;x+=0.5) ctx.fillText(x.toFixed(1), xToPx(x), GY+GH+12);
   ctx.strokeStyle=wave; ctx.lineWidth=2; ctx.beginPath();
   for (let k=0;k<=200;k++){ const x=k*L/200, X=xToPx(x), Y=GY-disp(x,t,s)*SCALE; k?ctx.lineTo(X,Y):ctx.moveTo(X,Y); } ctx.stroke(); ctx.lineWidth=1;
-  if ($('map').checked){
+  }
+  if ($('map').checked && dxOn){
     ctx.strokeStyle=line; ctx.setLineDash([2,4]);
     for (let i=0;i<N;i+=2){ ctx.beginPath(); ctx.moveTo(px[i],py[i]); ctx.lineTo(xToPx(xs[i]),GY-ds[i]*SCALE); ctx.stroke(); }
     ctx.setLineDash([]);
     ctx.strokeStyle=sel; ctx.setLineDash([5,4]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(px[s.sel],py[s.sel]); ctx.lineTo(xToPx(xsel),GY-dsel*SCALE); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth=1;
   }
-  for (let i=0;i<N;i++){ ctx.fillStyle=i===s.sel?sel:wave; ctx.beginPath(); ctx.arc(xToPx(xs[i]),GY-ds[i]*SCALE,i===s.sel?6:2.5,0,7); ctx.fill(); }
-  if (lookBehind){ drawBehind(xToPx(xsel),GY-dsel*SCALE,xToPx(xs[bi]),GY-ds[bi]*SCALE, GY);
+  if (dxOn) for (let i=0;i<N;i++){ ctx.fillStyle=i===s.sel?sel:wave; ctx.beginPath(); ctx.arc(xToPx(xs[i]),GY-ds[i]*SCALE,i===s.sel?6:2.5,0,7); ctx.fill(); }
+  if (lookBehind){ if (dxOn) drawBehind(xToPx(xsel),GY-dsel*SCALE,xToPx(xs[bi]),GY-ds[bi]*SCALE, GY);
     const up = ds[bi]>dsel+1e-4, down = ds[bi]<dsel-1e-4;
     const word = type==='trans' ? (up?'UP':down?'DOWN':'nowhere: it is at a crest or trough, about to turn') : (up?'to the RIGHT (positive)':down?'to the LEFT (negative)':'nowhere: it is at maximum displacement, about to turn');
-    ctx.fillStyle=css('--fg'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+    if (layer('text')){ ctx.fillStyle=css('--fg'); ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
     ctx.fillText(`Look behind P${s.sel} (${D>0?'to its left':'to its right'}, where the wave comes from).`, WX0, 486);
-    ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText(`In the next instant P${s.sel} moves to where that particle is now: it moves ${word}.`, WX0, 504); }
+    ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText(`In the next instant P${s.sel} moves to where that particle is now: it moves ${word}.`, WX0, 504); } }
 
   // ---- d-t graph for the selected particle
   const T=1/s.f, win=2.5*T, dtm=$('dtMode').value;
@@ -206,6 +227,7 @@ function draw(){
   if (dtm==='grow'){ t0=Math.max(0,t-win); tToPx=tt=>TX0+(tt-t0)/win*(TX1-TX0); }        // the diary fills from the left, then scrolls
   else if (dtm==='right'){ t0=Math.max(0,t-win); tToPx=tt=>TX0+8+(t-tt)/win*(TX1-TX0-8); } // pen fixed on the left; older readings slide right
   else { t0=Math.max(0,t-win); tToPx=tt=>TX1-8-(t-tt)/win*(TX1-TX0-8); }                   // pen fixed on the right; older readings slide left
+  if (dtOn){
   const nowX=tToPx(t);
   axis(TX0,TX1,dtm==='grow'?'time / s':dtm==='right'?'← newer   older →':'← older   newer →','Displacement–time graph: diary of P'+s.sel, time);
   ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center';
@@ -214,17 +236,18 @@ function draw(){
     ctx.fillStyle='rgba(31,111,235,.05)'; ctx.fillRect(TX0,GY-GH,TX1-TX0,2*GH);
     const off=pmod(t/win*(TX1-TX0-8), 40); ctx.strokeStyle='rgba(31,111,235,.15)';
     for (let x=0;x<TX1-TX0;x+=40){ const X = dtm==='right' ? TX0+8+pmod(x+off,TX1-TX0-8) : TX1-8-pmod(x+off,TX1-TX0-8); ctx.beginPath(); ctx.moveTo(X,GY-GH); ctx.lineTo(X,GY+GH); ctx.stroke(); }
-    ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(dtm==='right'?'paper moves →, the pen only moves up and down':'paper moves ←, the pen only moves up and down', (TX0+TX1)/2, GY+GH+12);
+    if (layer('text')){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(dtm==='right'?'paper moves →, the pen only moves up and down':'paper moves ←, the pen only moves up and down', (TX0+TX1)/2, GY+GH+12); }
     // the pen
     ctx.strokeStyle=css('--fg'); ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(nowX,GY-GH-6); ctx.lineTo(nowX,GY+GH+2); ctx.stroke(); ctx.lineWidth=1; }
   ctx.strokeStyle=time; ctx.lineWidth=2; ctx.beginPath();
   for (let k=0;k<=250;k++){ const tt=t0+(t-t0)*k/250; const X=tToPx(tt), Y=GY-disp(xsel,tt,s)*SCALE; k?ctx.lineTo(X,Y):ctx.moveTo(X,Y); } ctx.stroke(); ctx.lineWidth=1;
-  if (dtm!=='grow' && t>win*0.6){ ctx.fillStyle=time; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
+  if (dtm!=='grow' && t>win*0.6 && layer('text')){ ctx.fillStyle=time; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
     ctx.fillText(((dtm==='right')===(D>0)) ? 'the trace has the same shape as the wave on the rope!' : 'the trace is the mirror image of the rope', (TX0+TX1)/2, GY-GH-8+14); }
   ctx.fillStyle=sel; ctx.beginPath(); ctx.arc(nowX,GY-dsel*SCALE,6,0,7); ctx.fill();
-  ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('now', nowX, GY-GH-4);
-  if ($('map').checked){ ctx.strokeStyle=sel; ctx.setLineDash([5,4]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(xToPx(xsel),GY-dsel*SCALE); ctx.lineTo(nowX,GY-dsel*SCALE); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth=1;
+  if (layer('labels')){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('now', nowX, GY-GH-4); }
+  if ($('map').checked && dxOn){ ctx.strokeStyle=sel; ctx.setLineDash([5,4]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(xToPx(xsel),GY-dsel*SCALE); ctx.lineTo(nowX,GY-dsel*SCALE); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth=1;
     ctx.fillStyle=sel; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('same displacement right now', (GX1+TX0)/2+15, GY-dsel*SCALE-6); }
+  }
 
   // ---- λ, T, A markers
   if ($('marks').checked){
@@ -232,15 +255,16 @@ function draw(){
     const brace=(x1,x2,y,label)=>{ ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2,y); ctx.moveTo(x1,y-5); ctx.lineTo(x1,y+5); ctx.moveTo(x2,y-5); ctx.lineTo(x2,y+5); ctx.stroke(); ctx.fillText(label,(x1+x2)/2,y-7); };
     // crests on the d-x graph: x = lam*(1/4 + f t + n)
     const c1=s.lam*pmod(0.25+D*s.f*t,1), c2=c1+s.lam;
-    if (c2<=L) brace(xToPx(c1),xToPx(c2),GY-GH-6,'λ = '+s.lam.toFixed(1)+' m');
+    if (c2<=L && dxOn) brace(xToPx(c1),xToPx(c2),GY-GH-6,'λ = '+s.lam.toFixed(1)+' m');
     // crests in time for the selected particle: t' = (xsel/lam - 1/4 - n)/f
     const ph0=xsel/s.lam-D*s.f*t0, k1=t0+(D>0?pmod(ph0-0.25,1):pmod(0.25-ph0,1))/s.f, k2=k1+T;
-    if (k2<=t) { const a=tToPx(k1), b=tToPx(k2); brace(Math.min(a,b),Math.max(a,b),GY-GH-6,'T = '+T.toFixed(2)+' s'); }
+    if (k2<=t && dtOn) { const a=tToPx(k1), b=tToPx(k2); brace(Math.min(a,b),Math.max(a,b),GY-GH-6,'T = '+T.toFixed(2)+' s'); }
     // amplitude on the d-x graph
-    const ax=GX1-14; ctx.beginPath(); ctx.moveTo(ax,GY); ctx.lineTo(ax,GY-s.A*SCALE); ctx.moveTo(ax-4,GY-s.A*SCALE); ctx.lineTo(ax+4,GY-s.A*SCALE); ctx.stroke();
-    ctx.textAlign='left'; ctx.fillText('A', ax+6, GY-s.A*SCALE/2+4);
+    if (dxOn){ const ax=GX1-14; ctx.beginPath(); ctx.moveTo(ax,GY); ctx.lineTo(ax,GY-s.A*SCALE); ctx.moveTo(ax-4,GY-s.A*SCALE); ctx.lineTo(ax+4,GY-s.A*SCALE); ctx.stroke();
+    ctx.textAlign='left'; ctx.fillText('A', ax+6, GY-s.A*SCALE/2+4); }
     ctx.lineWidth=1;
   }
+  ctx.restore();
   // readouts
   $('rT').textContent=T.toFixed(2)+' s'; $('rv').textContent=(s.f*s.lam).toFixed(2)+' m/s';
   $('selV').textContent='P'+s.sel;
@@ -267,7 +291,7 @@ $('amp').addEventListener('input',()=>$('ampV').textContent=$('amp').value+' cm'
 $('play').addEventListener('click',()=>{ running=!running; $('play').textContent=running?'Pause':'Play'; $('scrubWrap').hidden=running; if(!running){ tPause=t; $('scrub').value=0; $('scrubV').textContent='0.00 T'; } });
 $('scrub').addEventListener('input',()=>{ const T=1/S().f; t=Math.max(0,tPause+(+$('scrub').value)*T); $('scrubV').textContent=(+$('scrub').value).toFixed(2)+' T'; });
 $('reset').addEventListener('click',()=>{ t=0; tPause=0; $('scrub').value=0; });
-cv.addEventListener('click',e=>{ const r=cv.getBoundingClientRect(); const x=(e.clientX-r.left)*cv.width/r.width, y=(e.clientY-r.top)*cv.height/r.height; if (y>ROPE_Y+70) return; const xm=(x-WX0)/(WX1-WX0)*L; const i=Math.round(xm/L*(N-1)); if (i>=0&&i<N) $('sel').value=i; });
+cv.addEventListener('click',e=>{ const r=cv.getBoundingClientRect(); const x=(e.clientX-r.left)*cv.width/r.width-OX, y=(e.clientY-r.top)*cv.height/r.height; if (y>ROPE_Y+70) return; const xm=(x-WX0)/(WX1-WX0)*L; const i=Math.round(xm/L*(N-1)); if (i>=0&&i<N) $('sel').value=i; });
 requestAnimationFrame(frame);
 })();
 </script>

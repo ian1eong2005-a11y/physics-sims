@@ -81,7 +81,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
         <div class="row"><label for="dist">Distance to wall</label><span class="val" id="distV">170 m</span></div>
         <input type="range" id="dist" min="50" max="400" step="10" value="170">
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Speed of sound</small><span>340 m/s</span></div>
         <div><small>Stopwatch</small><span id="clock">0.00 s</span></div>
       </div>
@@ -96,6 +96,19 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'labels',label:'C and R labels (compressions and rarefactions)',modes:['wave'],simple:true,input:'labels'},
+  {id:'graph',label:'Graph of the wave (displacement against distance)',modes:['wave']},
+  {id:'marks',label:'A and λ markers on the graph',modes:['wave']},
+  {id:'speaker',label:'Loudspeaker labels',modes:['wave']},
+  {id:'text',label:'Explanation sentences on the diagram',modes:['wave']},
+  {id:'working',label:'Instruction and result line (2d = 340 × t)',modes:['echo'],simple:true},
+  {id:'readout',label:'Speed of sound and stopwatch',modes:['echo'],simple:true},
+  {id:'dist',label:'Distance marker (d)',modes:['echo']},
+  {id:'labels',label:'Labels (wall, person, pulse direction)',modes:['echo']},
+  {id:'text',label:'Hint about the simulation speed',modes:['echo']},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -107,7 +120,7 @@ const S=()=>({A:+$('amp').value/100, f:+$('freq').value, vac:$('vacuum').checked
 const COLS=60, ROWS=9;
 function drawWave(){
   const W=cv.width,H=cv.height,s=S(), fg=css('--fg'),muted=css('--muted'),line=css('--line'),wave=css('--wave'),comp=css('--comp'),rare=css('--rare');
-  const x0=120, x1=W-30, airY=60, airH=170;
+  const graphOn=layer('graph'), x0=120, x1=W-30, airY=graphOn?60:130, airH=170; // the air box moves down to the middle when the graph is hidden
   const lam = 26000/s.f;               // px: higher pitch = shorter wavelength on screen
   const omega = s.f/440*2.2;           // visual angular speed
   const phase = x=>2*Math.PI*((x-x0)/lam) - omega*t*2*Math.PI;
@@ -115,7 +128,8 @@ function drawWave(){
   // speaker: cone moves with the wave at x0
   const cone = s.vac?0:ampPx*Math.sin(-omega*t*2*Math.PI);
   ctx.fillStyle=fg; ctx.fillRect(40,airY+20,30,airH-40); ctx.beginPath(); ctx.moveTo(70,airY+40); ctx.lineTo(104+cone,airY+10); ctx.lineTo(104+cone,airY+airH-10); ctx.lineTo(70,airY+airH-40); ctx.closePath(); ctx.fillStyle=css('--panel'); ctx.fill(); ctx.strokeStyle=fg; ctx.lineWidth=2; ctx.stroke(); ctx.lineWidth=1;
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('loudspeaker', 75, airY+airH+18); ctx.fillText(s.vac?'(cone still vibrates)':'vibrating cone', 75, airY+airH+34);
+  ctx.textAlign='center';
+  if (layer('speaker')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('loudspeaker', 75, airY+airH+18); ctx.fillText(s.vac?'(cone still vibrates)':'vibrating cone', 75, airY+airH+34); }
   // box of air
   ctx.strokeStyle=line; ctx.strokeRect(x0-10,airY,x1-x0+10,airH);
   if (s.vac){ ctx.fillStyle=muted; ctx.font='600 15px IBM Plex Sans, sans-serif'; ctx.fillText('Vacuum: no particles, so nothing can be pushed along. No sound reaches the far side.', (x0+x1)/2, airY+airH/2+5); }
@@ -128,40 +142,43 @@ function drawWave(){
         if (xcm<x1-10){ ctx.fillStyle=comp; ctx.fillText('C', xcm, airY-8); } if (xr<x1-10){ ctx.fillStyle=rare; ctx.fillText('R', xr, airY-8); } }
       ctx.fillStyle=comp; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('C = compression (particles close, higher pressure)', x0, airY+airH+18); ctx.fillStyle=rare; ctx.fillText('R = rarefaction (particles spread out, lower pressure)', x0, airY+airH+34);
     }
-    ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('each particle only vibrates left–right about its own spot; the pattern of C and R moves along', x1, airY+airH+50);
+    if (layer('text')){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('each particle only vibrates left–right about its own spot; the pattern of C and R moves along', x1, airY+airH+50); }
   }
   // waveform as an oscilloscope would show it
   const gY=330, gH=55, gX0=x0, gX1=x1;
+  if (graphOn){
   ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(gX0,gY); ctx.lineTo(gX1,gY); ctx.moveTo(gX0,gY-gH-10); ctx.lineTo(gX0,gY+gH+10); ctx.stroke();
   ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('the same sound wave drawn as a graph (displacement of the particles)', gX0, gY-gH-18);
   ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('distance from speaker →', gX1-130, gY+gH+22);
   if (!s.vac){ ctx.strokeStyle=wave; ctx.lineWidth=2.5; ctx.beginPath(); for (let x=gX0;x<=gX1;x+=2){ const y=gY - s.A*gH*Math.sin(phase(x)); x===gX0?ctx.moveTo(x,y):ctx.lineTo(x,y); } ctx.stroke(); ctx.lineWidth=1;
     // amplitude and wavelength markers
-    const mk=css('--rare'); ctx.strokeStyle=mk; ctx.fillStyle=mk; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center';
+    if (layer('marks')){ const mk=css('--rare'); ctx.strokeStyle=mk; ctx.fillStyle=mk; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center';
     const ax=gX1-20; ctx.beginPath(); ctx.moveTo(ax,gY); ctx.lineTo(ax,gY-s.A*gH); ctx.stroke(); ctx.fillText('A', ax, gY-s.A*gH-6);
-    let xc=gX0+((lam*0.25 + omega*t*lam)%lam); ctx.beginPath(); ctx.moveTo(xc,gY+gH+4); ctx.lineTo(xc+lam,gY+gH+4); ctx.moveTo(xc,gY+gH); ctx.lineTo(xc,gY+gH+8); ctx.moveTo(xc+lam,gY+gH); ctx.lineTo(xc+lam,gY+gH+8); ctx.stroke(); ctx.fillText('λ', xc+lam/2, gY+gH+20);
+    let xc=gX0+((lam*0.25 + omega*t*lam)%lam); ctx.beginPath(); ctx.moveTo(xc,gY+gH+4); ctx.lineTo(xc+lam,gY+gH+4); ctx.moveTo(xc,gY+gH); ctx.lineTo(xc,gY+gH+8); ctx.moveTo(xc+lam,gY+gH); ctx.lineTo(xc+lam,gY+gH+8); ctx.stroke(); ctx.fillText('λ', xc+lam/2, gY+gH+20); }
   }
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  ctx.fillText(`Louder sound = bigger amplitude (taller graph).  Higher pitch = higher frequency (more waves per second, shorter wavelength).`, 40, H-14);
+  }
+  if (layer('text')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  ctx.fillText(`Louder sound = bigger amplitude (taller graph).  Higher pitch = higher frequency (more waves per second, shorter wavelength).`, 40, H-14); }
 }
 function drawEcho(dt){
   const W=cv.width,H=cv.height,s=S(), fg=css('--fg'),muted=css('--muted'),line=css('--line'),pulseC=css('--pulse');
   const x0=90, xw=W-60, groundY=300, scale=(xw-x0)/s.d; // px per metre
   ctx.fillStyle=line; ctx.fillRect(x0-60,groundY,xw-x0+90,4); ctx.fillRect(xw,groundY-170,12,174);
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('wall', xw+6, groundY-180); ctx.fillText('person claps and starts the stopwatch', x0, groundY+40);
+  ctx.textAlign='center';
+  if (layer('labels')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('wall', xw+6, groundY-180); ctx.fillText('person claps and starts the stopwatch', x0, groundY+40); }
   ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(x0,groundY-110,12,0,7); ctx.fill(); ctx.fillRect(x0-6,groundY-98,12,60);
   // distance bracket
-  ctx.strokeStyle=fg; ctx.beginPath(); ctx.moveTo(x0,groundY+60); ctx.lineTo(xw,groundY+60); ctx.moveTo(x0,groundY+54); ctx.lineTo(x0,groundY+66); ctx.moveTo(xw,groundY+54); ctx.lineTo(xw,groundY+66); ctx.stroke();
-  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Mono, monospace'; ctx.fillText(`d = ${s.d} m`, (x0+xw)/2, groundY+82);
+  if (layer('dist')){ ctx.strokeStyle=fg; ctx.beginPath(); ctx.moveTo(x0,groundY+60); ctx.lineTo(xw,groundY+60); ctx.moveTo(x0,groundY+54); ctx.lineTo(x0,groundY+66); ctx.moveTo(xw,groundY+54); ctx.lineTo(xw,groundY+66); ctx.stroke();
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Mono, monospace'; ctx.fillText(`d = ${s.d} m`, (x0+xw)/2, groundY+82); }
   if (pulse){ if (running){ pulse.s += 340*dt; clock += dt; }
     const total = 2*s.d; if (pulse.s>=total){ pulse.s=total; pulse.done=true; }
     const pos = pulse.s<=s.d ? pulse.s : 2*s.d-pulse.s; const px=x0+pos*scale, out=pulse.s<=s.d;
     ctx.strokeStyle=pulseC; ctx.lineWidth=3; for (let k=0;k<3;k++){ ctx.globalAlpha=1-k*0.3; ctx.beginPath(); ctx.arc(px-(out?1:-1)*k*10, groundY-110, 18+k*8, out?-1.1:Math.PI-1.1, out?1.1:Math.PI+1.1); ctx.stroke(); } ctx.globalAlpha=1; ctx.lineWidth=1;
-    ctx.fillStyle=pulseC; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText(out?'sound travelling to the wall →':'← echo coming back', px, groundY-150);
-    if (pulse.done){ if (running) running=false, $('play').textContent='Play'; ctx.fillStyle=fg; ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.fillText(`Echo heard after ${clock.toFixed(2)} s.  The sound travelled there AND back: 2d = 340 × t`, W/2, 60); }
-  } else { ctx.fillStyle=muted; ctx.font='13px IBM Plex Sans, sans-serif'; ctx.fillText('Press Clap. Time how long the echo takes, then work out the distance to the wall.', W/2, 60); }
+    if (layer('labels')){ ctx.fillStyle=pulseC; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.fillText(out?'sound travelling to the wall →':'← echo coming back', px, groundY-150); }
+    if (pulse.done){ if (running) running=false, $('play').textContent='Play'; if (layer('working')){ ctx.fillStyle=fg; ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.fillText(`Echo heard after ${clock.toFixed(2)} s.  The sound travelled there AND back: 2d = 340 × t`, W/2, 60); } }
+  } else if (layer('working')){ ctx.fillStyle=muted; ctx.font='13px IBM Plex Sans, sans-serif'; ctx.fillText('Press Clap. Time how long the echo takes, then work out the distance to the wall.', W/2, 60); }
   $('clock').textContent=clock.toFixed(2)+' s';
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Slow the simulation speed down to watch the pulse. The stopwatch always shows real time.', 40, H-14);
+  if (layer('text')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Slow the simulation speed down to watch the pulse. The stopwatch always shows real time.', 40, H-14); }
 }
 
 let last=performance.now();

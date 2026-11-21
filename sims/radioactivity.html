@@ -39,7 +39,7 @@
           <option value="88,138">radium-226</option><option value="92,143">uranium-235</option><option value="92,146">uranium-238</option>
         </select>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Nucleon number A</small><span id="rA">–</span></div>
         <div><small>Electrons (neutral atom)</small><span id="rE">–</span></div>
       </div>
@@ -50,11 +50,11 @@
         <div class="row"><label for="half">Half-life</label><span class="val" id="halfV">4 s</span></div>
         <input type="range" id="half" min="1" max="10" step="1" value="4">
       </div>
-      <div class="ctl">
+      <div class="ctl" data-layer="graph">
         <label class="check"><input type="checkbox" id="theory"> Show the smooth halving curve</label>
         <label class="check"><input type="checkbox" id="marks" checked> Mark each half-life on the graph</label>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Undecayed</small><span id="rN">400</span></div>
         <div><small>Time</small><span id="rT">0 s</span></div>
       </div>
@@ -82,11 +82,11 @@
         <label class="check"><input type="checkbox" id="ions" checked> Show ionisation along the track</label>
         <label class="check"><input type="checkbox" id="table"> Show the summary table</label>
       </div>
-      <div class="read">
+      <div class="read" data-layer="readout">
         <div><small>Detector count</small><span id="rC">0 /s</span></div>
         <div><small>Background (no source)</small><span id="rB">about 1 /s</span></div>
       </div>
-      <div class="ctl">
+      <div class="ctl" data-layer="table">
         <span class="lbl">Your results for this source <span style="font-weight:400;color:var(--muted)">(fills in after 4 s on each barrier)</span></span>
         <table id="res" style="width:100%;border-collapse:collapse;font-size:.88rem"></table>
       </div>
@@ -104,6 +104,23 @@
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'notation',label:'Nuclide symbol (A, Z)',modes:['nuc'],simple:true},
+  {id:'labels',label:'Labels',modes:['nuc','pen'],simple:['nuc']},
+  {id:'name',label:'Name, e.g. carbon-12',modes:['nuc']},
+  {id:'electrons',label:'Electrons on their shells',modes:['nuc']},
+  {id:'graph',label:'Decay graph',modes:['decay'],simple:true},
+  {id:'marks',label:'Half-life marks on the graph',modes:['decay'],input:'marks'},
+  {id:'theory',label:'Smooth halving curve',modes:['decay'],on:false,input:'theory'},
+  {id:'count',label:'Count',modes:['decay','pen'],simple:true},
+  {id:'particles',label:'Radiation particles',modes:['pen'],simple:true},
+  {id:'ions',label:'Ionisation along the track',modes:['pen'],input:'ions'},
+  {id:'summary',label:'Summary table of α, β and γ',modes:['pen'],on:false,input:'table'},
+  {id:'table',label:'Your results table',modes:['pen']},
+  {id:'text',label:'Explanations on the diagram'},
+  {id:'readout',label:'Readouts'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -125,16 +142,16 @@ function drawNuc(){
     ctx.fillStyle = (i*Z/A % 1 < Z/A) ? RED : GREY; if (Z===0) ctx.fillStyle=GREY; ctx.beginPath(); ctx.arc(cx+r*Math.cos(a), cy+r*Math.sin(a), rr, 0, 7); ctx.fill(); }
   // electrons on shells
   ctx.strokeStyle=line; const shells=Math.min(4, Math.ceil(Math.log2(Z+1))); let left=Z; const cap=[2,8,18,32,50];
-  for (let s=0;s<cap.length && left>0;s++){ const r=R+40+s*28; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.stroke(); const k=Math.min(left,cap[s]); for (let i=0;i<k;i++){ const a=i/k*Math.PI*2+t*0.3*(s%2?-1:1); ctx.fillStyle=css('--cold'); ctx.beginPath(); ctx.arc(cx+r*Math.cos(a), cy+r*Math.sin(a), 3.5, 0, 7); ctx.fill(); } left-=k; }
+  if (layer('electrons')) for (let s=0;s<cap.length && left>0;s++){ const r=R+40+s*28; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.stroke(); const k=Math.min(left,cap[s]); for (let i=0;i<k;i++){ const a=i/k*Math.PI*2+t*0.3*(s%2?-1:1); ctx.fillStyle=css('--cold'); ctx.beginPath(); ctx.arc(cx+r*Math.cos(a), cy+r*Math.sin(a), 3.5, 0, 7); ctx.fill(); } left-=k; }
   // notation big
   const sym=SYM[Z-1]||'?'; ctx.fillStyle=fg; ctx.textAlign='left';
-  ctx.font='700 72px Bricolage Grotesque, sans-serif'; ctx.fillText(sym, 640, 200);
-  ctx.font='600 28px IBM Plex Mono, monospace'; ctx.textAlign='right'; ctx.fillText(A, 632, 150); ctx.fillText(Z, 632, 210);
-  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.textAlign='left'; ctx.fillText('nucleon number A (top)', 560, 120); ctx.fillText('proton number Z (bottom)', 560, 240);
-  ctx.fillStyle=fg; ctx.font='600 16px IBM Plex Sans, sans-serif'; ctx.fillText(`${NAME[Z]||sym}-${A}`, 560, 290);
+  if (layer('notation')){ ctx.font='700 72px Bricolage Grotesque, sans-serif'; ctx.fillText(sym, 640, 200);
+    ctx.font='600 28px IBM Plex Mono, monospace'; ctx.textAlign='right'; ctx.fillText(A, 632, 150); ctx.fillText(Z, 632, 210); }
+  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted; ctx.textAlign='left'; if (layer('labels')){ ctx.fillText('nucleon number A (top)', 560, 120); ctx.fillText('proton number Z (bottom)', 560, 240); }
+  ctx.fillStyle=fg; ctx.font='600 16px IBM Plex Sans, sans-serif'; if (layer('name')) ctx.fillText(`${NAME[Z]||sym}-${A}`, 560, 290);
   ctx.font='13px IBM Plex Sans, sans-serif'; ctx.fillStyle=muted;
-  [`${Z} protons (red) + ${N} neutrons (grey) = ${A} nucleons`, `${Z} electrons in a neutral atom`, 'Change only the NEUTRONS: same element, different isotope.', 'Change the PROTONS: a different element.'].forEach((s,i)=>ctx.fillText(s, 560, 320+i*22));
-  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('nucleus (not to scale)', 20, 30); ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('positively charged nucleus, negative electrons around it', 20, 50);
+  if (layer('text')) [`${Z} protons (red) + ${N} neutrons (grey) = ${A} nucleons`, `${Z} electrons in a neutral atom`, 'Change only the NEUTRONS: same element, different isotope.', 'Change the PROTONS: a different element.'].forEach((s,i)=>ctx.fillText(s, 560, 320+i*22));
+  if (layer('labels')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.fillText('nucleus (not to scale)', 20, 30); ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('positively charged nucleus, negative electrons around it', 20, 50); }
   $('ZV').textContent=Z; $('NV').textContent=N; $('rA').textContent=A; $('rE').textContent=Z;
 }
 
@@ -145,21 +162,23 @@ function drawDecay(){
   ctx.clearRect(0,0,W,H);
   const T=+$('half').value; const n=cells.filter(Boolean).length;
   // grid
-  const gx=30, gy=50, s=19; for (let i=0;i<400;i++){ const x=gx+(i%20)*s, y=gy+((i/20)|0)*s; ctx.fillStyle=cells[i]?hot:line; ctx.beginPath(); ctx.arc(x+s/2,y+s/2,cells[i]?7:4,0,7); ctx.fill(); }
-  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(`${n} undecayed nuclei (red) of 400`, gx, 36);
-  // graph
+  const showG=layer('graph'), gx=showG?30:260, gy=50, s=19; for (let i=0;i<400;i++){ const x=gx+(i%20)*s, y=gy+((i/20)|0)*s; ctx.fillStyle=cells[i]?hot:line; ctx.beginPath(); ctx.arc(x+s/2,y+s/2,cells[i]?7:4,0,7); ctx.fill(); }
+  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (layer('count')) ctx.fillText(`${n} undecayed nuclei (red) of 400`, gx, 36);
+  // graph (hidden: the grid moves to the centre)
+  if (showG){
   const px=460, py=60, pw=400, ph=340; const tmax=Math.max(4*T, t+1);
   ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px,py+ph); ctx.lineTo(px+pw,py+ph); ctx.stroke();
   const X=tt=>px+tt/tmax*pw, Y=nn=>py+ph-nn/400*ph;
   ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='right'; for (const nn of [0,100,200,300,400]) ctx.fillText(nn, px-6, Y(nn)+4); ctx.textAlign='center'; ctx.fillText('time / s', px+pw/2, py+ph+34);
   for (let k=0;k<=4;k++){ const tt=k*T; if (tt>tmax) break; ctx.fillText(tt, X(tt), py+ph+16); }
-  if ($('marks').checked){ ctx.setLineDash([4,4]); ctx.strokeStyle=acc; for (let k=1;k<=4;k++){ const tt=k*T, nn=400/2**k; if (tt>tmax) break; ctx.beginPath(); ctx.moveTo(X(tt),py+ph); ctx.lineTo(X(tt),Y(nn)); ctx.lineTo(px,Y(nn)); ctx.stroke(); ctx.fillStyle=acc; ctx.textAlign='left'; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(`${k} half-life${k>1?'s':''}: ${nn}`, X(tt)+4, Y(nn)-4); } ctx.setLineDash([]); }
-  if ($('theory').checked){ ctx.strokeStyle=muted; ctx.beginPath(); for (let i=0;i<=200;i++){ const tt=i/200*tmax; const nn=400*Math.pow(0.5,tt/T); i?ctx.lineTo(X(tt),Y(nn)):ctx.moveTo(X(tt),Y(nn)); } ctx.stroke(); }
+  if ($('marks').checked && layer('marks')){ ctx.setLineDash([4,4]); ctx.strokeStyle=acc; for (let k=1;k<=4;k++){ const tt=k*T, nn=400/2**k; if (tt>tmax) break; ctx.beginPath(); ctx.moveTo(X(tt),py+ph); ctx.lineTo(X(tt),Y(nn)); ctx.lineTo(px,Y(nn)); ctx.stroke(); ctx.fillStyle=acc; ctx.textAlign='left'; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText(`${k} half-life${k>1?'s':''}: ${nn}`, X(tt)+4, Y(nn)-4); } ctx.setLineDash([]); }
+  if ($('theory').checked && layer('theory')){ ctx.strokeStyle=muted; ctx.beginPath(); for (let i=0;i<=200;i++){ const tt=i/200*tmax; const nn=400*Math.pow(0.5,tt/T); i?ctx.lineTo(X(tt),Y(nn)):ctx.moveTo(X(tt),Y(nn)); } ctx.stroke(); }
   ctx.strokeStyle=hot; ctx.lineWidth=2.5; ctx.beginPath(); hist.forEach(([tt,nn],i)=>{ i?ctx.lineTo(X(tt),Y(nn)):ctx.moveTo(X(tt),Y(nn)); }); ctx.stroke(); ctx.lineWidth=1;
   ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('number of undecayed nuclei against time', px, 40);
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif';
-  ctx.fillText(`Half-life ${T} s: every ${T} s about HALF of what is left decays. You cannot tell WHICH nucleus goes next.`, 30, H-36);
-  ctx.fillText('Run it again: the red curve is a little different each time (random), but the halving pattern is the same.', 30, H-16);
+  }
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
+  if (layer('text')){ ctx.fillText(`Half-life ${T} s: every ${T} s about HALF of what is left decays. You cannot tell WHICH nucleus goes next.`, 30, H-36);
+  ctx.fillText('Run it again: the red curve is a little different each time (random), but the halving pattern is the same.', 30, H-16); }
   $('rN').textContent=n; $('rT').textContent=t.toFixed(1)+' s';
 }
 
@@ -188,12 +207,12 @@ function drawPen(dt){
   const bx=430; const ks=kinds();
   // source
   ctx.fillStyle=css('--warn'); ctx.fillRect(60,210,60,80); ctx.fillStyle=fg; ctx.font='26px system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText(mystery?'?':'☢', 90, 260);
-  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText(mystery?'mystery source':ks.length?'source: '+ks.map(k=>SYMS[k]).join(' + '):'no source', 90, 310);
+  ctx.font='12px IBM Plex Sans, sans-serif'; if (layer('labels')) ctx.fillText(mystery?'mystery source':ks.length?'source: '+ks.map(k=>SYMS[k]).join(' + '):'no source', 90, 310);
   // barrier
-  if (bar!=='none'){ const w={paper:4,al:14,pb:50}[bar]; ctx.fillStyle={paper:'#d8c9a3',al:'#9aa5b1',pb:'#4b5563'}[bar]; ctx.fillRect(bx,120,w,260); ctx.fillStyle=muted; ctx.textAlign='center'; ctx.fillText({paper:'sheet of paper',al:'5 mm aluminium',pb:'5 cm lead'}[bar], bx+w/2, 110); }
+  if (bar!=='none'){ const w={paper:4,al:14,pb:50}[bar]; ctx.fillStyle={paper:'#d8c9a3',al:'#9aa5b1',pb:'#4b5563'}[bar]; ctx.fillRect(bx,120,w,260); ctx.fillStyle=muted; ctx.textAlign='center'; if (layer('labels')) ctx.fillText({paper:'sheet of paper',al:'5 mm aluminium',pb:'5 cm lead'}[bar], bx+w/2, 110); }
   // detector (flashes on each count)
-  ctx.fillStyle=flash>0?acc:css('--panel'); ctx.strokeStyle=fg; ctx.fillRect(760,200,60,100); ctx.strokeRect(760,200,60,100); ctx.fillStyle=fg; ctx.textAlign='center'; ctx.fillText('detector', 790, 320);
-  const m=measured(); ctx.font='600 15px IBM Plex Mono, monospace'; ctx.fillText(m===null?'…':m.toFixed(1)+' /s', 790, 190);
+  ctx.fillStyle=flash>0?acc:css('--panel'); ctx.strokeStyle=fg; ctx.fillRect(760,200,60,100); ctx.strokeRect(760,200,60,100); ctx.fillStyle=fg; ctx.textAlign='center'; if (layer('labels')) ctx.fillText('detector', 790, 320);
+  const m=measured(); ctx.font='600 15px IBM Plex Mono, monospace'; if (layer('count')) ctx.fillText(m===null?'…':m.toFixed(1)+' /s', 790, 190);
   // particles (hidden for a mystery source: you only get the detector count, as in a real lab)
   const speed={a:120,b:260,g:400};
   for (const p of particles){ if (!p.alive) continue; p.x+=speed[p.kind]*dt;
@@ -201,12 +220,12 @@ function drawPen(dt){
     if (bar!=='none' && p.x>=bx && !p.passed){ p.passed=true; if (Math.random()>=TRANS[p.kind][bar]){ p.alive=false; p.stopX=bx; } }
     if (p.x>760) p.alive=false; }
   for (const p of particles) p.ion=p.ion.filter(io=>t-io[2]<1.2); particles=particles.filter(p=>p.alive||p.ion.length||(p.stopX&&t-(p.stopT??(p.stopT=t))<2)); if (particles.length>200) particles.splice(0,particles.length-200);
-  if (!mystery){ for (const p of particles){ ctx.fillStyle=acc; ctx.globalAlpha=.5; for (const [ix,iy,it] of p.ion){ ctx.globalAlpha=.55*(1-(t-it)/1.2); ctx.fillRect(ix,iy,2,2);} ctx.globalAlpha=1;
+  if (!mystery){ if (layer('particles')) for (const p of particles){ ctx.fillStyle=acc; ctx.globalAlpha=.5; if (layer('ions')) for (const [ix,iy,it] of p.ion){ ctx.globalAlpha=.55*(1-(t-it)/1.2); ctx.fillRect(ix,iy,2,2);} ctx.globalAlpha=1;
     if (!p.alive){ if (p.stopX){ ctx.fillStyle={a:hot,b:css('--cold'),g:good}[p.kind]; ctx.beginPath(); ctx.arc(p.stopX-3,p.y,3,0,7); ctx.fill(); } continue; }
     if (p.kind==='a'){ ctx.fillStyle=hot; ctx.beginPath(); ctx.arc(p.x,p.y,7,0,7); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='700 9px IBM Plex Sans, sans-serif'; ctx.fillText('++', p.x, p.y+3); }
     else if (p.kind==='b'){ ctx.fillStyle=css('--cold'); ctx.beginPath(); ctx.arc(p.x,p.y,4,0,7); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='700 8px IBM Plex Sans, sans-serif'; ctx.fillText('−', p.x, p.y+3); }
     else { ctx.strokeStyle=good; ctx.lineWidth=2; ctx.beginPath(); for (let i=0;i<24;i++){ const x=p.x-24+i*2, y=p.y+Math.sin(i*0.9+t*20)*4; i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.stroke(); ctx.lineWidth=1; } } }
-  else { ctx.fillStyle=muted; ctx.font='13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('You cannot see the radiation: only the detector count.', 440, 60); ctx.fillText('Try each barrier and see where the count drops.', 440, 80); }
+  else if (layer('text')){ ctx.fillStyle=muted; ctx.font='13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('You cannot see the radiation: only the detector count.', 440, 60); ctx.fillText('Try each barrier and see where the count drops.', 440, 80); }
   ev=ev.filter(e=>t-e<=10.5);
   $('rC').textContent=(m===null?'…':m.toFixed(1))+' /s';
   drawTable();
@@ -218,8 +237,8 @@ function drawPen(dt){
     : !ks.length ? 'No source, yet the detector still clicks now and then: BACKGROUND radiation (rocks, radon in the air, cosmic rays, food, medical sources).'
     : ks.length===1 ? ONE[ks[0]]
     : 'Mixed source: '+ks.map(k=>NAMES[k]).join(' + ')+'. Each kind is stopped by its own barrier, so the count drops in steps as the barrier gets thicker: paper removes alpha, aluminium removes beta, lead only reduces gamma.';
-  wrap(msg, 20, 410, 860, 20);
-  if ($('table').checked){ ctx.fillStyle=css('--panel'); ctx.globalAlpha=.95; ctx.fillRect(140,20,620,160); ctx.globalAlpha=1; ctx.strokeStyle=line; ctx.strokeRect(140,20,620,160);
+  if (layer('text')) wrap(msg, 20, 410, 860, 20);
+  if ($('table').checked && layer('summary')){ ctx.fillStyle=css('--panel'); ctx.globalAlpha=.95; ctx.fillRect(140,20,620,160); ctx.globalAlpha=1; ctx.strokeStyle=line; ctx.strokeRect(140,20,620,160);
     const rows=[['','alpha α','beta β','gamma γ'],['what it is','He nucleus (2p 2n)','fast electron','EM wave'],['charge','+2','−1','0'],['ionising','strong','medium','weak'],['stopped by','paper / skin','few mm aluminium','cm of lead (reduced)'],['speed','slow (~5% c)','fast (up to ~99% c)','speed of light']];
     rows.forEach((r,i)=>r.forEach((c,j)=>{ ctx.fillStyle=i===0||j===0?fg:muted; ctx.font=(i===0||j===0?'600 ':'')+'12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(c, 150+j*150, 44+i*22); })); }
 }

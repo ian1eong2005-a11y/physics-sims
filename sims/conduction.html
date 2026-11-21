@@ -87,7 +87,7 @@ select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--lin
       <div class="row"><label for="speed">Simulation speed</label><span class="val" id="speedV">1.5×</span></div>
       <input type="range" id="speed" min="0.5" max="4" step="0.1" value="1.5">
     </div>
-    <div class="therm">
+    <div class="therm" data-layer="readout">
       <div><small>Left end</small><span id="tL">25 °C</span></div>
       <div><small>Middle</small><span id="tM">25 °C</span></div>
       <div><small>Right end</small><span id="tR">25 °C</span></div>
@@ -100,6 +100,17 @@ select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--lin
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'electrons',label:'Free electrons (metals)',simple:true,input:'electrons'},
+  {id:'graph',label:'Temperature along the rod (graph)',simple:true},
+  {id:'collide',label:'Collision flashes',input:'collide'},
+  {id:'bonds',label:'Bonds between neighbouring atoms'},
+  {id:'labels',label:'HEAT and ICE labels'},
+  {id:'text',label:'Key sentence under the rod'},
+  {id:'clock',label:'Timer'},
+  {id:'readout',label:'Thermometer readings'},
+];
 (() => {
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const $ = id => document.getElementById(id);
@@ -170,13 +181,13 @@ function draw(){
   const W = cv.width, H = cv.height, s = state();
   ctx.clearRect(0,0,W,H);
   const fg = css('--fg'), muted = css('--muted'), line = css('--line'), hot = css('--hot'), cold = css('--cold'), el = css('--electron');
-  const pad = 60, rodX = pad, rodW = W-2*pad, rodY = 70, rodH = 190;
+  const pad = 60, rodX = pad, rodW = W-2*pad, rodY = layer('graph') ? 70 : 150, rodH = 190; // the rod moves down to the middle when the graph is hidden
   const sp = rodW/COLS, vsp = rodH/ROWS;
 
   // heater flames / ice blocks
   ctx.font = '600 14px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
-  const flame = (x) => { ctx.fillStyle = hot; for (let i=0;i<5;i++){ const fy = rodY+rodH*(i+0.5)/5, fl = 10+18*s.power*(0.7+0.3*Math.sin(t*20+i)); ctx.beginPath(); ctx.moveTo(x, fy-9); ctx.quadraticCurveTo(x+(x<W/2?-fl:fl), fy, x, fy+9); ctx.fill(); } ctx.fillStyle = hot; ctx.fillText('HEAT', x+(x<W/2?-26:26), rodY-12); };
-  const iceBlock = (x) => { ctx.fillStyle = cold; ctx.globalAlpha=.25; ctx.fillRect(x<W/2?x-34:x+6, rodY-6, 28, rodH+12); ctx.globalAlpha=1; ctx.fillStyle = cold; ctx.fillText('ICE', x+(x<W/2?-20:20), rodY-12); };
+  const flame = (x) => { ctx.fillStyle = hot; for (let i=0;i<5;i++){ const fy = rodY+rodH*(i+0.5)/5, fl = 10+18*s.power*(0.7+0.3*Math.sin(t*20+i)); ctx.beginPath(); ctx.moveTo(x, fy-9); ctx.quadraticCurveTo(x+(x<W/2?-fl:fl), fy, x, fy+9); ctx.fill(); } ctx.fillStyle = hot; if (layer('labels')) ctx.fillText('HEAT', x+(x<W/2?-26:26), rodY-12); };
+  const iceBlock = (x) => { ctx.fillStyle = cold; ctx.globalAlpha=.25; ctx.fillRect(x<W/2?x-34:x+6, rodY-6, 28, rodH+12); ctx.globalAlpha=1; ctx.fillStyle = cold; if (layer('labels')) ctx.fillText('ICE', x+(x<W/2?-20:20), rodY-12); };
   if (heater==='left'||heater==='both') flame(rodX-6);
   if (heater==='right'||heater==='both') flame(rodX+rodW+6);
   if (s.ice){ if (heater!=='right') iceBlock(rodX+rodW); if (heater!=='left') iceBlock(rodX); }
@@ -199,7 +210,7 @@ function draw(){
     const i=idx(c,r);
     for (const j of [c<COLS-1?idx(c+1,r):-1, r<ROWS-1?idx(c,r+1):-1]) if (j>=0){
       const dx=pos[j][0]-pos[i][0], dy=pos[j][1]-pos[i][1], d=Math.hypot(dx,dy), rest = j===i+1?sp:vsp;
-      ctx.strokeStyle = line; ctx.globalAlpha = .6; ctx.beginPath(); ctx.moveTo(...pos[i]); ctx.lineTo(...pos[j]); ctx.stroke(); ctx.globalAlpha = 1;
+      if (layer('bonds')){ ctx.strokeStyle = line; ctx.globalAlpha = .6; ctx.beginPath(); ctx.moveTo(...pos[i]); ctx.lineTo(...pos[j]); ctx.stroke(); ctx.globalAlpha = 1; }
       if ($('collide').checked && d < rest*0.62){
         ctx.fillStyle = hot; ctx.globalAlpha = .55; ctx.beginPath(); ctx.arc((pos[i][0]+pos[j][0])/2,(pos[i][1]+pos[j][1])/2, 7, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
       }
@@ -212,10 +223,13 @@ function draw(){
     ctx.fillStyle = el; ctx.beginPath(); ctx.arc(rodX+e.x*sp, rodY+e.y*vsp, 3.2, 0, 7); ctx.fill();
   }
   ctx.fillStyle = muted; ctx.font = '12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
-  ctx.fillText(s.mat.electrons ? 'Grey/red dots: atoms vibrating about fixed positions.  Yellow dots: free electrons.' : 'Grey/red dots: atoms vibrating about fixed positions. No free electrons in this material.', rodX, rodY+rodH+22);
+  if (layer('text')) ctx.fillText(s.mat.electrons ? 'Grey/red dots: atoms vibrating about fixed positions.  Yellow dots: free electrons.' : 'Grey/red dots: atoms vibrating about fixed positions. No free electrons in this material.', rodX, rodY+rodH+22);
 
   // temperature along the rod
   const gX = rodX, gY = 320, gW = rodW, gH = 150;
+  const col = new Float32Array(COLS);
+  for (let c=0;c<COLS;c++){ let a=0; for (let r=0;r<ROWS;r++) a+=T[idx(c,r)]; col[c]=a/ROWS; }
+  if (layer('graph')){
   ctx.strokeStyle = line; ctx.beginPath(); ctx.moveTo(gX,gY); ctx.lineTo(gX,gY+gH); ctx.lineTo(gX+gW,gY+gH); ctx.stroke();
   ctx.fillStyle = muted; ctx.textAlign='right'; ctx.font='12px IBM Plex Mono, monospace';
   for (const [v,l] of [[0,'25'],[0.5,'62.5'],[1,'100']]){ const y=gY+gH-v*gH; ctx.fillText(l, gX-8, y+4); ctx.strokeStyle=line; ctx.globalAlpha=.5; ctx.beginPath(); ctx.moveTo(gX,y); ctx.lineTo(gX+gW,y); ctx.stroke(); ctx.globalAlpha=1; }
@@ -223,11 +237,11 @@ function draw(){
   ctx.textAlign='center'; ctx.fillStyle=fg; ctx.fillText('position along the rod', gX+gW/2, gY+gH+30);
   ctx.textAlign='left'; ctx.fillText('left end', gX, gY+gH+16); ctx.textAlign='right'; ctx.fillText('right end', gX+gW, gY+gH+16);
   ctx.strokeStyle = hot; ctx.lineWidth = 2.5; ctx.beginPath();
-  const col = new Float32Array(COLS);
-  for (let c=0;c<COLS;c++){ let a=0; for (let r=0;r<ROWS;r++) a+=T[idx(c,r)]; col[c]=a/ROWS; const x=gX+sp*(c+0.5), y=gY+gH-col[c]*gH; c?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+  for (let c=0;c<COLS;c++){ const x=gX+sp*(c+0.5), y=gY+gH-col[c]*gH; c?ctx.lineTo(x,y):ctx.moveTo(x,y); }
   ctx.stroke(); ctx.lineWidth=1;
+  }
   ctx.fillStyle = muted; ctx.textAlign='left'; ctx.font='12px IBM Plex Sans, sans-serif';
-  ctx.fillText(`t = ${t.toFixed(0)} s`, gX+gW-80, gY-6);
+  if (layer('clock')) ctx.fillText(`t = ${t.toFixed(0)} s`, gX+gW-80, layer('graph') ? gY-6 : rodY+rodH+22);
 
   $('tL').textContent = tempC(col[0]).toFixed(0)+' °C';
   $('tM').textContent = tempC(col[COLS>>1]).toFixed(0)+' °C';

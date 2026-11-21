@@ -82,13 +82,13 @@ select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--lin
       <div class="row"><label for="speed">Simulation speed</label><span class="val" id="speedV">1×</span></div>
       <input type="range" id="speed" min="0.25" max="3" step="0.25" value="1">
     </div>
-    <div class="read">
+    <div class="read" data-layer="readout">
       <div><small>Time</small><span id="rT">0.0 s</span></div>
       <div><small>Speed</small><span id="rV">0.0 m/s</span></div>
       <div><small>Acceleration now</small><span id="rA">0.0 m/s²</span></div>
       <div><small>Distance</small><span id="rD">0 m</span></div>
     </div>
-    <div class="ctl">
+    <div class="ctl" data-layer="summary">
       <span class="lbl">Reading the graphs</span>
       <div class="segs" id="segs"></div>
     </div>
@@ -100,6 +100,21 @@ select{font:inherit;padding:6px 8px;border-radius:6px;border:1px solid var(--lin
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'stgraph',label:'Speed–time graph',simple:true},
+  {id:'dtgraph',label:'Distance–time graph',simple:true,input:'showDT'},
+  {id:'area',label:'Shaded area under the speed–time graph',input:'area'},
+  {id:'tangent',label:'Dashed tangent (gradient now)'},
+  {id:'labels',label:'Shape descriptions on the graphs',input:'labels'},
+  {id:'text',label:'Captions under the graphs'},
+  {id:'grid',label:'Grid lines on the graphs'},
+  {id:'carread',label:'Numbers above the car (t, speed, distance)'},
+  {id:'arrow',label:'Speed arrow on the car'},
+  {id:'ruler',label:'Distance markers on the road'},
+  {id:'readout',label:'Readouts (time, speed, acceleration, distance)'},
+  {id:'summary',label:'"Reading the graphs" panel'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -149,7 +164,7 @@ function notice(){
 function axes(g,title,ylab,ymax,col){
   const fg=css('--fg'),muted=css('--muted'),line=css('--line');
   ctx.strokeStyle=line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(g.x,g.y); ctx.lineTo(g.x,g.y+g.h); ctx.lineTo(g.x+g.w,g.y+g.h); ctx.stroke();
-  ctx.globalAlpha=.35; for (let k=1;k<=4;k++){ const y=g.y+g.h-k*g.h/4; ctx.beginPath(); ctx.moveTo(g.x,y); ctx.lineTo(g.x+g.w,y); ctx.stroke(); } ctx.globalAlpha=1;
+  if (layer('grid')){ ctx.globalAlpha=.35; for (let k=1;k<=4;k++){ const y=g.y+g.h-k*g.h/4; ctx.beginPath(); ctx.moveTo(g.x,y); ctx.lineTo(g.x+g.w,y); ctx.stroke(); } ctx.globalAlpha=1; }
   ctx.fillStyle=col; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(title,g.x,g.y-14);
   ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center';
   for (let k=0;k<=4;k++) ctx.fillText(k*5, tx(g,k*5), g.y+g.h+14);
@@ -158,6 +173,11 @@ function axes(g,title,ylab,ymax,col){
   ctx.save(); ctx.translate(g.x-40,g.y+g.h/2); ctx.rotate(-Math.PI/2); ctx.fillText(ylab,0,0); ctx.restore();
 }
 
+function hiddenBox(g,title,sub){
+  ctx.strokeStyle=css('--line'); ctx.lineWidth=1; ctx.setLineDash([6,5]); ctx.strokeRect(g.x,g.y,g.w,g.h); ctx.setLineDash([]);
+  ctx.fillStyle=css('--muted'); ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText(title, g.x+g.w/2, g.y+g.h/2-8);
+  ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText(sub, g.x+g.w/2, g.y+g.h/2+12);
+}
 function draw(){
   const W=cv.width,H=cv.height, fg=css('--fg'),muted=css('--muted'),line=css('--line'),sp=css('--speed'),ds=css('--dist'),ar=css('--area'),car=css('--car');
   ctx.clearRect(0,0,W,H);
@@ -167,14 +187,15 @@ function draw(){
   const roadY=70, rx0=70, rx1=860;
   ctx.fillStyle=line; ctx.fillRect(rx0,roadY,rx1-rx0,4);
   ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center';
-  for (let m=0;m<=DMAX;m+=50){ const x=rx0+m/DMAX*(rx1-rx0); ctx.fillRect(x-1,roadY-4,2,12); ctx.fillText(m+' m', x, roadY+26); }
+  if (layer('ruler')) for (let m=0;m<=DMAX;m+=50){ const x=rx0+m/DMAX*(rx1-rx0); ctx.fillRect(x-1,roadY-4,2,12); ctx.fillText(m+' m', x, roadY+26); }
   const cx=rx0+Math.min(d,DMAX)/DMAX*(rx1-rx0);
   ctx.fillStyle=car; ctx.beginPath(); ctx.roundRect(cx-22,roadY-26,44,20,5); ctx.fill(); ctx.fillRect(cx-12,roadY-36,24,10);
   ctx.fillStyle=fg; for (const wx of [cx-12,cx+12]){ ctx.beginPath(); ctx.arc(wx,roadY-4,5,0,7); ctx.fill(); }
-  if (v>0.05){ ctx.strokeStyle=fg; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx+28,roadY-16); ctx.lineTo(cx+28+v*3,roadY-16); ctx.stroke(); ctx.fillStyle=fg; ctx.beginPath(); ctx.moveTo(cx+32+v*3,roadY-16); ctx.lineTo(cx+26+v*3,roadY-21); ctx.lineTo(cx+26+v*3,roadY-11); ctx.fill(); }
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(`t = ${t.toFixed(1)} s   speed = ${v.toFixed(1)} m/s   distance = ${d.toFixed(0)} m`, rx0, roadY-44);
+  if (v>0.05 && layer('arrow')){ ctx.strokeStyle=fg; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx+28,roadY-16); ctx.lineTo(cx+28+v*3,roadY-16); ctx.stroke(); ctx.fillStyle=fg; ctx.beginPath(); ctx.moveTo(cx+32+v*3,roadY-16); ctx.lineTo(cx+26+v*3,roadY-21); ctx.lineTo(cx+26+v*3,roadY-11); ctx.fill(); }
+  if (layer('carread')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText(`t = ${t.toFixed(1)} s   speed = ${v.toFixed(1)} m/s   distance = ${d.toFixed(0)} m`, rx0, roadY-44); }
 
-  // speed-time graph
+  // speed-time graph (can be hidden so students predict it from the distance–time graph)
+  if (layer('stgraph')){
   axes(G1,'speed–time graph','speed / m/s',VMAX,sp);
   if ($('area').checked){ ctx.fillStyle=ar; ctx.globalAlpha=.3; ctx.beginPath(); ctx.moveTo(tx(G1,0),vy(0)); for (let k=0;k<=100;k++){ const tt=t*k/100; ctx.lineTo(tx(G1,tt),vy(speedAt(tt))); } ctx.lineTo(tx(G1,t),vy(0)); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
     if (t>0.5){ ctx.fillStyle=ar; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center'; ctx.fillText('area = '+d.toFixed(0)+' m', tx(G1,t/2), Math.min(vy(0)-8, vy(speedAt(t/2)/2)+4)); } }
@@ -185,10 +206,11 @@ function draw(){
   if (motion==='custom'){ TS.forEach((tt,i)=>{ ctx.fillStyle=i===drag?css('--accent'):sp; ctx.beginPath(); ctx.arc(tx(G1,tt),vy(V[i]),7,0,7); ctx.fill(); ctx.strokeStyle=css('--panel'); ctx.lineWidth=2; ctx.stroke(); ctx.lineWidth=1; });
     ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('drag the points ↑↓', G1.x+G1.w-110, G1.y-14); }
   // tangent showing the gradient (acceleration) at the current time
-  if (t>0 && t<TMAX && Math.abs(a)>0.02){ const dt=2.5, x0=tx(G1,t-dt), x1=tx(G1,t+dt), y0=vy(v-a*dt), y1=vy(v+a*dt); ctx.strokeStyle=css('--car'); ctx.setLineDash([4,3]); ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); ctx.setLineDash([]); }
+  if (layer('tangent') && t>0 && t<TMAX && Math.abs(a)>0.02){ const dt=2.5, x0=tx(G1,t-dt), x1=tx(G1,t+dt), y0=vy(v-a*dt), y1=vy(v+a*dt); ctx.strokeStyle=css('--car'); ctx.setLineDash([4,3]); ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); ctx.setLineDash([]); }
   ctx.fillStyle=sp; ctx.beginPath(); ctx.arc(tx(G1,t),vy(v),5,0,7); ctx.fill();
   ctx.strokeStyle=sp; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(tx(G1,t),vy(v)); ctx.lineTo(tx(G1,t),vy(0)); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('gradient = acceleration (dashed tangent);  area = distance', G1.x, G1.y+G1.h+48);
+  if (layer('text')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('gradient = acceleration (dashed tangent);  area = distance', G1.x, G1.y+G1.h+48); }
+  } else hiddenBox(G1,'speed–time graph hidden','predict it from the distance–time graph');
 
   // distance-time graph (can be hidden so students predict it)
   if ($('showDT').checked){
@@ -198,11 +220,9 @@ function draw(){
     ctx.fillStyle=ds; ctx.beginPath(); ctx.arc(tx(G2,t),dy(d),5,0,7); ctx.fill();
     if ($('labels').checked && motion==='custom'){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
       for (let i=0;i<4;i++){ const g=(V[i+1]-V[i])/5; ctx.fillText(Math.abs(g)<0.01?(V[i]<0.01?'flat':'straight'):(g>0?'curving up':'levelling off'), tx(G2,TS[i]+2.5), dy((distAt(TS[i])+distAt(TS[i+1]))/2)-12); } }
-    ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('gradient of distance–time = speed', G2.x, G2.y+G2.h+48);
+    if (layer('text')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('gradient of distance–time = speed', G2.x, G2.y+G2.h+48); }
   } else {
-    ctx.strokeStyle=line; ctx.setLineDash([6,5]); ctx.strokeRect(G2.x,G2.y,G2.w,G2.h); ctx.setLineDash([]);
-    ctx.fillStyle=muted; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('distance–time graph hidden', G2.x+G2.w/2, G2.y+G2.h/2-8);
-    ctx.font='12px IBM Plex Sans, sans-serif'; ctx.fillText('sketch your prediction, then tick "Show" to check', G2.x+G2.w/2, G2.y+G2.h/2+12);
+    hiddenBox(G2,'distance–time graph hidden','sketch your prediction, then tick "Show" to check');
   }
   $('rT').textContent=t.toFixed(1)+' s'; $('rV').textContent=v.toFixed(1)+' m/s'; $('rA').textContent=(a>=0?'+':'')+a.toFixed(2)+' m/s²'; $('rD').textContent=d.toFixed(0)+' m';
 }
@@ -211,7 +231,7 @@ let last=performance.now();
 function frame(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; if (running){ t+=dt*(+$('speed').value); if (t>=TMAX){ t=TMAX; running=false; $('play').textContent='Play'; } } draw(); requestAnimationFrame(frame); }
 
 const pos=e=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]; };
-cv.addEventListener('pointerdown',e=>{ if (motion!=='custom') return; const [x,y]=pos(e); let best=-1,bd=18; TS.forEach((tt,i)=>{ const dd=Math.hypot(x-tx(G1,tt),y-vy(V[i])); if (dd<bd){bd=dd;best=i;} }); if (best>=0){ drag=best; cv.setPointerCapture(e.pointerId); } });
+cv.addEventListener('pointerdown',e=>{ if (motion!=='custom' || !layer('stgraph')) return; const [x,y]=pos(e); let best=-1,bd=18; TS.forEach((tt,i)=>{ const dd=Math.hypot(x-tx(G1,tt),y-vy(V[i])); if (dd<bd){bd=dd;best=i;} }); if (best>=0){ drag=best; cv.setPointerCapture(e.pointerId); } });
 cv.addEventListener('pointermove',e=>{ if (drag<0) return; const [,y]=pos(e); V[drag]=Math.round(Math.min(VMAX,Math.max(0,(G1.y+G1.h-y)/G1.h*VMAX))); describe(); });
 cv.addEventListener('pointerup',()=>{ drag=-1; }); cv.addEventListener('pointercancel',()=>{ drag=-1; });
 

@@ -57,12 +57,23 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <label class="check"><input type="checkbox" id="race" checked> Show the speed race</label>
       <label class="check"><input type="checkbox" id="quizmode"> Hide names (quiz mode)</label>
     </div>
-    <div class="card" id="card"></div>
+    <div class="card" id="card" data-layer="card"></div>
     <div class="buttons"><button class="btn" id="shuffle">Random region</button></div>
   </div>
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js). No #modeSeg: one mode ('all').
+window.SIM_LAYERS=[
+  {id:'names',label:'Region names on the strip',simple:true,input:'names'},
+  {id:'card',label:'Region card (wavelength, uses, hazard)',simple:true},
+  {id:'trends',label:'Trend arrows above the strip (wavelength, frequency, energy)'},
+  {id:'scale',label:'Wavelength scale under the strip'},
+  {id:'ionising',label:'"Ionising" marker'},
+  {id:'lambda',label:'Wavelength marker (λ) on the wave'},
+  {id:'race',label:'Speed race',input:'race'},
+  {id:'text',label:'Sentences above the wave and the race'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -93,21 +104,21 @@ function draw(){
   // highlight current
   const bi=BANDS.indexOf(band()); ctx.strokeStyle=fg; ctx.lineWidth=3; ctx.strokeRect(bx+bi*seg+1.5,by+1.5,seg-3,bh-3); ctx.lineWidth=1;
   // arrows for the trends
-  ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('longer wavelength, lower frequency, less energy', bx, by-30); ctx.textAlign='right'; ctx.fillText('shorter wavelength, higher frequency, more energy', bx+bw, by-30);
-  ctx.strokeStyle=muted; ctx.beginPath(); ctx.moveTo(bx+300,by-16); ctx.lineTo(bx,by-16); ctx.moveTo(bx+8,by-21); ctx.lineTo(bx,by-16); ctx.lineTo(bx+8,by-11); ctx.moveTo(bx+bw-300,by-16); ctx.lineTo(bx+bw,by-16); ctx.moveTo(bx+bw-8,by-21); ctx.lineTo(bx+bw,by-16); ctx.lineTo(bx+bw-8,by-11); ctx.stroke();
+  if (layer('trends')){ ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('longer wavelength, lower frequency, less energy', bx, by-30); ctx.textAlign='right'; ctx.fillText('shorter wavelength, higher frequency, more energy', bx+bw, by-30);
+  ctx.strokeStyle=muted; ctx.beginPath(); ctx.moveTo(bx+300,by-16); ctx.lineTo(bx,by-16); ctx.moveTo(bx+8,by-21); ctx.lineTo(bx,by-16); ctx.lineTo(bx+8,by-11); ctx.moveTo(bx+bw-300,by-16); ctx.lineTo(bx+bw,by-16); ctx.moveTo(bx+bw-8,by-21); ctx.lineTo(bx+bw,by-16); ctx.lineTo(bx+bw-8,by-11); ctx.stroke(); }
   // wavelength scale under the bar
-  ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center';
+  if (layer('scale')){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Mono, monospace'; ctx.textAlign='center';
   ['1 km','1 m','1 cm','1 mm','1 μm','1 nm','0.01 nm','<'].forEach((l,i)=>{ if(i<7){ ctx.fillText(l, bx+i*seg, by+bh+16); ctx.fillRect(bx+i*seg-0.5,by+bh,1,5); } });
-  ctx.fillText('approximate wavelength', bx+bw/2, by+bh+34);
-  ctx.fillStyle=css('--warn'); ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('ionising (UV, X, gamma) →', bx+bw, by+bh+34);
+  ctx.fillText('approximate wavelength', bx+bw/2, by+bh+34); }
+  if (layer('ionising')){ ctx.fillStyle=css('--warn'); ctx.font='600 11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText('ionising (UV, X, gamma) →', bx+bw, by+bh+34); }
   // the wave: wavelength shrinks along the spectrum (visual, not to scale)
-  const p=pos(); const lam = 180*Math.pow(0.55,p)+10; const wy=230, wx0=60, wx1=W-60;
-  ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText((showNames?band().name:'This region')+': a transverse wave, wavelength shown shrinking as you move right (not to scale)', wx0, wy-50);
+  const p=pos(); const lam = 180*Math.pow(0.55,p)+10; const wy=$('race').checked?230:300, wx0=60, wx1=W-60; // wave moves down to the middle when the race is hidden
+  if (layer('text')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText((showNames?band().name:'This region')+': a transverse wave, wavelength shown shrinking as you move right (not to scale)', wx0, wy-50); }
   ctx.strokeStyle=band().col; ctx.lineWidth=2.5; ctx.beginPath(); for (let x=wx0;x<=wx1;x+=2){ const y=wy+30*Math.sin(2*Math.PI*((x-wx0)/lam - t*1.2)); x===wx0?ctx.moveTo(x,y):ctx.lineTo(x,y); } ctx.stroke(); ctx.lineWidth=1;
   ctx.strokeStyle=line; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(wx0,wy); ctx.lineTo(wx1,wy); ctx.stroke(); ctx.setLineDash([]);
-  ctx.strokeStyle=fg; ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center'; const mx=wx0+((0.25-t*1.2)%1+1)%1*lam; if (mx+lam<wx1){ ctx.beginPath(); ctx.moveTo(mx,wy+40); ctx.lineTo(mx+lam,wy+40); ctx.moveTo(mx,wy+35); ctx.lineTo(mx,wy+45); ctx.moveTo(mx+lam,wy+35); ctx.lineTo(mx+lam,wy+45); ctx.stroke(); ctx.fillText('λ', mx+lam/2, wy+58); }
+  ctx.strokeStyle=fg; ctx.fillStyle=fg; ctx.font='600 12px IBM Plex Mono, monospace'; ctx.textAlign='center'; const mx=wx0+((0.25-t*1.2)%1+1)%1*lam; if (mx+lam<wx1 && layer('lambda')){ ctx.beginPath(); ctx.moveTo(mx,wy+40); ctx.lineTo(mx+lam,wy+40); ctx.moveTo(mx,wy+35); ctx.lineTo(mx,wy+45); ctx.moveTo(mx+lam,wy+35); ctx.lineTo(mx+lam,wy+45); ctx.stroke(); ctx.fillText('λ', mx+lam/2, wy+58); }
   // race: three waves travelling at the same speed
-  if ($('race').checked){ const ry=330; ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Speed race in a vacuum: radio, visible and gamma all travel at 3 × 10⁸ m/s. Nobody wins.', wx0, ry-6);
+  if ($('race').checked){ const ry=330; if (layer('text')){ ctx.fillStyle=fg; ctx.font='600 13px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('Speed race in a vacuum: radio, visible and gamma all travel at 3 × 10⁸ m/s. Nobody wins.', wx0, ry-6); }
     const front=((t*120)%(wx1-wx0)); [[0,'Radio'],[3,'Visible'],[6,'Gamma']].forEach(([i,label],k)=>{ const y=ry+28+k*42, lamk=180*Math.pow(0.55,i)+10; ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='right'; ctx.fillText(showNames?label:'?', wx0-6, y+4);
       ctx.strokeStyle=BANDS[i].col; ctx.lineWidth=2; ctx.beginPath(); for (let x=wx0;x<=wx0+front;x+=2){ const yy=y+12*Math.sin(2*Math.PI*((x-wx0)/lamk - t*1.2)); x===wx0?ctx.moveTo(x,yy):ctx.lineTo(x,yy); } ctx.stroke(); ctx.lineWidth=1;
       ctx.fillStyle=BANDS[i].col; ctx.beginPath(); ctx.arc(wx0+front,y,5,0,7); ctx.fill(); });

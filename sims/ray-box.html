@@ -95,22 +95,33 @@ td:first-child,th:first-child{text-align:left}
       <label class="check"><input type="checkbox" id="angles" checked> Show angle values</label>
       <label class="check"><input type="checkbox" id="partial" checked> Show weak reflected ray at the block</label>
     </div>
-    <div class="read" id="reads">
+    <div class="read" id="reads" data-layer="readout">
       <div><small>sin i</small><span id="sinI">–</span></div>
       <div><small>sin r</small><span id="sinR">–</span></div>
       <div><small>sin i ÷ sin r</small><span id="ratio">–</span></div>
       <div><small id="vmedL">Speed in block</small><span id="vmed">–</span></div>
     </div>
     <div class="buttons">
-      <button class="btn primary" id="record">Record</button>
-      <button class="btn" id="clearT">Clear table</button>
+      <button class="btn primary" id="record" data-layer="table">Record</button>
+      <button class="btn" id="clearT" data-layer="table">Clear table</button>
       <button class="btn" id="reveal" disabled>Reveal n</button>
     </div>
-    <table id="tbl"><thead><tr><th>air ∠</th><th>block ∠</th><th>sin air</th><th>sin block</th><th>ratio</th></tr></thead><tbody></tbody></table>
+    <table id="tbl" data-layer="table"><thead><tr><th>air ∠</th><th>block ∠</th><th>sin air</th><th>sin block</th><th>ratio</th></tr></thead><tbody></tbody></table>
   </div>
 </div>
 
 <script>
+// Show / hide layers (sims/_shared.js)
+window.SIM_LAYERS=[
+  {id:'normal',label:'Normal',simple:true,input:'normal'},
+  {id:'angles',label:'Angle values',simple:true,input:'angles'},
+  {id:'partial',label:'Weak reflected ray at the block',modes:['block'],input:'partial'},
+  {id:'tir',label:'Critical angle / total internal reflection message',modes:['block'],simple:true},
+  {id:'labels',label:'Labels'},
+  {id:'text',label:'Explanations on the diagram'},
+  {id:'readout',label:'Readouts'},
+  {id:'table',label:'Results table'},
+];
 (() => {
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -140,16 +151,16 @@ function draw(){
   const srcLen=260, sx=PX-srcLen*Math.cos(dirIn), sy=SY-srcLen*Math.sin(dirIn);
 
   if (mode==='mirror'){
-    ctx.fillStyle=line; ctx.fillRect(PX-260,SY,520,8); ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('plane mirror', PX-260, SY+26);
+    ctx.fillStyle=line; ctx.fillRect(PX-260,SY,520,8); ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (layer('labels')) ctx.fillText('plane mirror', PX-260, SY+26);
     for (let x=PX-260;x<PX+260;x+=14){ ctx.strokeStyle=muted; ctx.beginPath(); ctx.moveTo(x,SY+8); ctx.lineTo(x-8,SY+18); ctx.stroke(); }
   } else if (dir==='in') {
     ctx.fillStyle=isMystery()?myst:glass; ctx.globalAlpha=.18; ctx.fillRect(PX-BLOCK_W/2,SY,BLOCK_W,BLOCK_H); ctx.globalAlpha=1; ctx.strokeStyle=isMystery()?myst:glass; ctx.lineWidth=2; ctx.strokeRect(PX-BLOCK_W/2,SY,BLOCK_W,BLOCK_H); ctx.lineWidth=1;
-    ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('air', PX-BLOCK_W/2, SY-10); ctx.fillText(isMystery()?'mystery block, n = ?':`block, n = ${n.toFixed(2)}`, PX-BLOCK_W/2+8, SY+BLOCK_H-10);
+    if (layer('labels')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('air', PX-BLOCK_W/2, SY-10); ctx.fillText(isMystery()?'mystery block, n = ?':`block, n = ${n.toFixed(2)}`, PX-BLOCK_W/2+8, SY+BLOCK_H-10); }
   }
   if (mode==='block' && dir==='out'){ const rr=drawOut(i,n); bottomText(); return rr; }
   // ray box
   ctx.save(); ctx.translate(sx,sy); ctx.rotate(dirIn); ctx.fillStyle=fg; ctx.fillRect(-56,-16,50,32); ctx.fillStyle=css('--panel'); ctx.fillRect(-10,-5,8,10); ctx.restore();
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('ray box', sx-40*Math.cos(dirIn)-20, sy-40*Math.sin(dirIn)-14);
+  if (layer('labels')){ ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='center'; ctx.fillText('ray box', sx-40*Math.cos(dirIn)-20, sy-40*Math.sin(dirIn)-14); }
   // normal
   if ($('normal').checked){ ctx.strokeStyle=norm; ctx.setLineDash([6,5]); ctx.beginPath(); ctx.moveTo(PX,SY-200); ctx.lineTo(PX,SY+(mode==='block'?BLOCK_H:0)+30); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('normal', PX+6, SY-190); }
   // incident ray
@@ -173,7 +184,7 @@ function draw(){
     if ($('partial').checked){ const dirRef=-Math.PI/2+rad(i); ray(PX,SY,dirRef,200,rayC,1.5,[4,4]); }
     // emergent ray, parallel to the incident ray
     if (ex < PX+BLOCK_W/2){ ray(ex,ey,dirIn,120,rayC,3); if ($('normal').checked){ ctx.strokeStyle=norm; ctx.setLineDash([6,5]); ctx.beginPath(); ctx.moveTo(ex,ey-60); ctx.lineTo(ex,ey+60); ctx.stroke(); ctx.setLineDash([]); }
-      ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('emerges parallel to the incident ray, shifted sideways', ex+14, ey+50); }
+      if (layer('text')){ ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('emerges parallel to the incident ray, shifted sideways', ex+14, ey+50); } }
     const si=Math.sin(rad(i)), sr=Math.sin(rad(r));
     $('sinI').textContent=si.toFixed(3); $('sinR').textContent=sr.toFixed(3); $('ratio').textContent=i===0?'(i = 0: ray not bent)':(si/sr).toFixed(2); $('vmedL').textContent='Speed in block'; $('vmed').textContent=isMystery()?'?':(3e8/n/1e8).toFixed(2)+' × 10⁸ m/s';
   }
@@ -181,6 +192,7 @@ function draw(){
   return r;
 }
 function bottomText(){
+  if (!layer('text')) return;
   ctx.fillStyle=css('--muted'); ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left';
   ctx.fillText(mode==='mirror'?'Angles are measured from the normal, never from the surface.':dir==='out'?'Inside the block the ray meets the flat face. Increase i past the critical angle: no ray escapes, all of it reflects back inside.':'The ray bends towards the normal when it slows down on entering the block, and away from the normal when it speeds up on leaving.', 40, cv.height-18);
 }
@@ -191,7 +203,7 @@ function drawOut(i,n){
   const R=210, col=isMystery()?myst:glass;
   ctx.fillStyle=col; ctx.globalAlpha=.18; ctx.beginPath(); ctx.moveTo(PX-R,SY); ctx.arc(PX,SY,R,0,Math.PI); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
   ctx.strokeStyle=col; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(PX+R,SY); ctx.arc(PX,SY,R,0,Math.PI); ctx.closePath(); ctx.stroke(); ctx.lineWidth=1;
-  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; ctx.fillText('air', PX-R, SY-10); ctx.fillText(isMystery()?'semicircular block, n = ?':`semicircular block, n = ${n.toFixed(2)}`, PX+30, SY+R+18);
+  ctx.fillStyle=muted; ctx.font='12px IBM Plex Sans, sans-serif'; ctx.textAlign='left'; if (layer('labels')){ ctx.fillText('air', PX-R, SY-10); ctx.fillText(isMystery()?'semicircular block, n = ?':`semicircular block, n = ${n.toFixed(2)}`, PX+30, SY+R+18); }
   if ($('normal').checked){ ctx.strokeStyle=norm; ctx.setLineDash([6,5]); ctx.beginPath(); ctx.moveTo(PX,SY-190); ctx.lineTo(PX,SY+R+10); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=muted; ctx.font='11px IBM Plex Sans, sans-serif'; ctx.fillText('normal', PX+6, SY-180); }
   const si=Math.sin(rad(i)), x=n*si, tir=x>1, c=deg(Math.asin(Math.min(1,1/n)));
   // incoming ray from the lower left, travelling up towards the centre of the flat face
@@ -206,8 +218,8 @@ function drawOut(i,n){
   let r=null;
   if (!tir){ r=deg(Math.asin(x)); const dR=-(Math.PI/2-rad(r)); ray(PX,SY,dR,230,rayC,Math.max(1,3*(1-Rf))); arc(PX,SY,46,-Math.PI/2,dR,isMystery()?'r = '+r.toFixed(0)+'°':'r = '+r.toFixed(1)+'°',ang); }
   ctx.font='600 14px IBM Plex Sans, sans-serif'; ctx.textAlign='center';
-  if (tir){ ctx.fillStyle=rayC; ctx.fillText('TOTAL INTERNAL REFLECTION: i is bigger than the critical angle, no light escapes', PX, 30); }
-  else if (!isMystery() && Math.abs(i-c)<1.2){ ctx.fillStyle=rayC; ctx.fillText('About the critical angle: the refracted ray runs along the surface (r ≈ 90°)', PX, 30); }
+  if (tir && layer('tir')){ ctx.fillStyle=rayC; ctx.fillText('TOTAL INTERNAL REFLECTION: i is bigger than the critical angle, no light escapes', PX, 30); }
+  else if (!tir && layer('tir') && !isMystery() && Math.abs(i-c)<1.2){ ctx.fillStyle=rayC; ctx.fillText('About the critical angle: the refracted ray runs along the surface (r ≈ 90°)', PX, 30); }
   const rs=tir?null:Math.sin(rad(r));
   $('sinI').textContent=si.toFixed(3); $('sinR').textContent=tir?'–':rs.toFixed(3);
   $('ratio').textContent=tir?'TIR':i===0?'(i = 0: not bent)':(rs/si).toFixed(2);
@@ -226,6 +238,7 @@ $('dirSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if
 $('inc').addEventListener('input',()=>{ $('incV').textContent=$('inc').value+'°'; redraw(); });
 $('mat').addEventListener('change',()=>{ if ($('mat').value==='mystery'){ mysteryN=[1.36,1.42,1.55,1.62,1.75][Math.floor(Math.random()*5)]; revealed=false; $('reveal').disabled=false; } else { $('reveal').disabled=true; } rows=[]; renderT(); redraw(); });
 ['normal','angles','partial'].forEach(id=>$(id).addEventListener('change',redraw));
+window.addEventListener('simlayers',redraw);
 $('reveal').addEventListener('click',()=>{ revealed=true; redraw(); });
 function renderT(){ const tb=$('tbl').querySelector('tbody'); tb.innerHTML=rows.map(r=> r.tir ? `<tr><td>–</td><td>${r.b}°</td><td>–</td><td>${Math.sin(rad(r.b)).toFixed(3)}</td><td>TIR</td></tr>` : `<tr><td>${r.a.toFixed(1)}°</td><td>${r.b.toFixed(1)}°</td><td>${Math.sin(rad(r.a)).toFixed(3)}</td><td>${Math.sin(rad(r.b)).toFixed(3)}</td><td>${r.b===0?'–':(Math.sin(rad(r.a))/Math.sin(rad(r.b))).toFixed(2)}</td></tr>`).join(''); }
 $('record').addEventListener('click',()=>{ const i=+$('inc').value, n=nVal(); if (dir==='in'){ const r=deg(Math.asin(Math.sin(rad(i))/n)); rows.push({a:i,b:r}); } else { const x=n*Math.sin(rad(i)); rows.push(x>1?{tir:true,b:i}:{a:deg(Math.asin(x)),b:i}); } if (rows.length>7) rows.shift(); renderT(); });
