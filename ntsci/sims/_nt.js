@@ -215,7 +215,7 @@ window.NT = (() => {
       h += '<h2>' + (step + 1) + ' · ' + STEPS[step] + '</h2>';
       let canNext = false;
       if (step === 0) {
-        h += '<p>What do you think will happen? Tap one.</p><div class="nt-opts">' + inq.guess.map((g, i) => '<button data-guess="' + i + '" aria-pressed="' + (guess === i) + '">' + esc(g) + '</button>').join('') + '</div>';
+        h += '<p>What do you think will happen? Tap one.</p><div class="nt-opts">' + mix(inq.guess.map((g, i) => [g, i])).map(q => '<button data-guess="' + q[1] + '" aria-pressed="' + (guess === q[1]) + '">' + esc(q[0]) + '</button>').join('') + '</div>';
         canNext = guess !== null;
       } else if (step === 1) {
         h += '<p>🔧 I change: <b>' + esc(c.noun || c.label.toLowerCase()) + '</b></p><p>📏 I measure: <b>' + esc(inq.dv || ms.map(m => m.noun || m.label.toLowerCase()).join(' and ')) + '</b></p><p>🔒 To be fair, what must stay <b>the same</b>? Tick them.</p><div class="nt-ticks">' +
@@ -235,7 +235,7 @@ window.NT = (() => {
         canNext = filled === tests.length;
       } else {
         let k = 0;
-        h += '<p>Look at your results. Choose the right words.</p><div class="nt-found">' + inq.found.map(part => { if (typeof part === 'string') return esc(part); const i = k++; return '<select data-found="' + i + '"' + (foundOK ? ' disabled' : '') + '><option value="">choose…</option>' + part.map((o, j) => '<option value="' + j + '"' + (foundSel[i] === j ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select>'; }).join('') + '</div>';
+        h += '<p>Look at your results. Choose the right words.</p><div class="nt-found">' + inq.found.map(part => { if (typeof part === 'string') return esc(part); const i = k++; return '<select data-found="' + i + '"' + (foundOK ? ' disabled' : '') + '><option value="">choose…</option>' + mix(part.map((o, j) => [o, j])).map(q => '<option value="' + q[1] + '"' + (foundSel[i] === q[1] ? ' selected' : '') + '>' + esc(q[0]) + '</option>').join('') + '</select>'; }).join('') + '</div>';
         h += (foundOK ? '' : '<button class="nt-check" data-act="found">Check</button>') + (foundMsg ? '<div class="nt-msg ' + (foundOK ? 'ok' : 'bad') + '">' + foundMsg + '</div>' : '');
         if (foundOK) h += '<div class="nt-why">🧠 ' + esc(inq.why) + '</div>' + (inq.guessAns !== undefined ? '<div class="nt-msg ' + (guess === inq.guessAns ? 'ok' : '') + '">' + (guess === inq.guessAns ? '👍 Your guess was right.' : '🙂 Your guess was different. That is OK. Scientists change their ideas when they see the results.') + '</div>' : '') + '<div class="nt-star">⭐ Investigation done! Now try the Quiz.</div>';
       }
@@ -285,7 +285,7 @@ window.NT = (() => {
       requestAnimationFrame(frame);
     }
     buildControls();
-    if (inqOn) startInq(0); else refresh();
+    if (inqOn) startInq(Math.min(inqList.length - 1, Math.max(0, +OPTS.start || 0))); else refresh();
     requestAnimationFrame(frame);
     window.__nt = { s, api, state: () => ({ p, done, running, step, guess, rows, sameOK, foundOK, test }), cfg };
     return api;

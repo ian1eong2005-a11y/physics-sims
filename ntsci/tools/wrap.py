@@ -52,5 +52,15 @@ out[n]={ex,inq,errs};}return out;}
 async function brief(names,frac){const r=await run(names,frac),L=[];for(const n in r){const o=r[n];let ex=typeof o.ex==='string'?o.ex:o.ex.end?('match '+o.ex.cards+' cards, '+o.ex.bins+' bins, bad='+o.ex.bad.length+', '+o.ex.end):('shots '+o.ex.n);
 let iq=o.inq===null?'no inq':typeof o.inq==='string'?o.inq:o.inq.map(q=>(q.sameOK&&q.found&&q.chart?'OK':'FAIL same='+q.sameOK+' found='+q.found+' chart='+q.chart)+' ['+q.tbl.split(' | ').slice(1).map(x=>x.split(' = ').slice(1).join('/')).join(', ')+']').join(' ; ');
 L.push(n+' :: '+ex+' :: '+iq+' :: errs '+JSON.stringify(o.errs));}return L.join(String.fromCharCode(10));}
+async function dump(names){const out={};for(const n of names){const w=await load('nt-'+n+'-inq.html');const nt=w.__nt,cfg=nt.cfg,q=s=>w.document.querySelector(s);w.__advance(0.3);const list=[];
+for(let k=0;k<cfg.inquiry.length;k++){const inq=cfg.inquiry[k];if(cfg.inquiry.length>1)q('[data-inq="'+k+'"]').click();
+const c=cfg.controls.find(c=>c.id===inq.change),tests=inq.tests||c.options.map(o=>o[0]),ms=[].concat(inq.measure).map(id=>cfg.readings.find(r=>r.id===id));
+const lab=(cc,v)=>{const o=(cc.options||[]).find(o=>o[0]===v);return o?o[1]:String(v)+(cc.unit?' '+cc.unit:'');};
+const fmt=r=>{const v=r.get(nt.s,1,0),u=typeof r.unit==='function'?r.unit(nt.s):r.unit;if(r.text)return r.text(nt.s,1,0);if(typeof v==='number')return (r.dp!==undefined?v.toFixed(r.dp):String(Math.round(v*100)/100))+(u?' '+u:'');return String(v);};
+const rows=[];for(const v of tests){nt.api.set(inq.change,v);rows.push([lab(c,v)].concat(ms.map(fmt)));}
+const go=q('#ntGo');if(go){go.click();w.__advance(40);}else w.__advance(1);await w.__snap('ws_'+n+'_'+k,900);
+list.push({name:inq.name||'',q:inq.q,guess:inq.guess,guessAns:inq.guessAns,change:c.noun||c.label.toLowerCase(),changeLabel:c.label,measure:inq.dv||ms.map(m=>m.noun||m.label.toLowerCase()).join(' and '),heads:ms.map(m=>m.label),same:inq.same,fix:Object.entries(inq.fix||{}).map(([id,v])=>{const cc=cfg.controls.find(c=>c.id===id);return cc.label+': '+lab(cc,v);}),rows,found:inq.found,foundAns:inq.foundAns,why:inq.why,go:cfg.go?(cfg.go.label||'Go'):null});}
+out[n]={title:cfg.title,emoji:cfg.emoji,inq:list,errs:w.__errs};}
+const body='x,'+btoa(unescape(encodeURIComponent(JSON.stringify(out))));await fetch('/save?name=wsdata',{method:'POST',body});return Object.keys(out).length;}
 </script>"""
 (OUT / "nt-runner.html").write_text(RUNNER, encoding="utf-8")

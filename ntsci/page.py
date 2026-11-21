@@ -48,7 +48,11 @@ def topic_page(num, title, emoji, los, applets, questions, key):
     elif mode == MODES[1]:
         st.markdown("**Be a scientist:** make a guess, plan a fair test, record your results, then say what you found.")
         a = _pick([x for x in applets if x.get("inq")], key + "_iapplet")
-        show(a["file"], a.get("height", 800) + 140, {"inq": 1})
+        opts = {"inq": 1}
+        k = st.query_params.get("inq") or ""
+        if k.isdigit() and st.query_params.get("applet") == a["file"]:   # ?inq=1 opens the applet's second investigation
+            opts["start"] = int(k)
+        show(a["file"], a.get("height", 800) + 140, opts)
     else:
         left, right = st.columns([1.2, 1], gap="large")
         with left:
