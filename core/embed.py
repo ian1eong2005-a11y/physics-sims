@@ -11,17 +11,20 @@ WRAPPER = """<!doctype html>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap" media="print" onload="this.media='all'">
 <style>{shared}
 html,body{{margin:0;background:#eef1f4}} body{{padding:6px 8px !important}}</style>
-</head><body>{fragment}<script>{shared_js}</script></body></html>"""
+<script>{shared_js}</script>
+</head><body>{fragment}</body></html>"""
 
 
 def show_sim(name: str, height: int = 720, opts: dict | None = None) -> None:
     """Render sims/<name>.html inside the page at the given pixel height.
 
-    opts is passed to the applet as window.SIM_OPTS (e.g. {"sec2": True} for Lower Sec wording)."""
+    opts is passed to the applet as window.SIM_OPTS, e.g. {"sec2": True} for Lower Sec wording, or a starting
+    view for the Show / hide layers: {"show": ["lines"]}, {"hide": ["notice"]}, {"preset": "simple"}, {"mode": "force"}.
+    _shared.js (in <head>) supplies layer() and the Show / hide button."""
     import json
     fragment = (SIMS / f"{name}.html").read_text(encoding="utf-8")
-    if opts:
-        fragment = f"<script>window.SIM_OPTS={json.dumps(opts)};</script>" + fragment
+    o = {"_sim": name, **(opts or {})}
+    fragment = f"<script>window.SIM_OPTS={json.dumps(o)};</script>" + fragment
     shared = (SIMS / "_shared.css").read_text(encoding="utf-8")
     shared_js = (SIMS / "_shared.js").read_text(encoding="utf-8")
     components.html(WRAPPER.format(fragment=fragment, shared=shared, shared_js=shared_js), height=height, scrolling=True)

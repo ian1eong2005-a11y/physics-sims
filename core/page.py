@@ -22,6 +22,35 @@ def _pick_applet(applets, key):
     return next(x for x in applets if x["name"] == pick)
 
 
+VIEW_KEYS = ("show", "hide", "preset", "mode")
+
+
+def _view_opts(a, tab):
+    """SIM_OPTS for one applet in one tab.
+
+    Explore and Quiz: the page's own opts (e.g. {"preset": "simple"} or {"show": ["field", "compass"]}), then any
+    URL settings such as ?applet=magnetism&show=lines,compass or &preset=simple (they apply to the ?applet= applet,
+    or to every applet on the page when there is no ?applet=).
+    Guided and Inquiry: always the applet's normal view (every part a guide step or investigation might mention),
+    whatever the page, the URL or the viewer chose; students can still use Show / hide during the step."""
+    o = dict(a.get("opts") or {})
+    if tab in ("guided", "inquiry"):
+        for k in VIEW_KEYS:
+            o.pop(k, None)
+        o["preset"] = "default"
+        o["save"] = False
+        return o
+    qp = st.query_params
+    want = qp.get("applet")
+    if not want or want == a["file"]:
+        url = {k: qp.get(k) for k in VIEW_KEYS if qp.get(k)}
+        if url:
+            for k in ("show", "hide", "preset"):  # a URL view replaces the page's view rather than mixing with it
+                o.pop(k, None)
+            o.update(url)
+    return o
+
+
 def _guided(a, key):
     """Step-by-step walkthrough: do this, look for this, quick check, next."""
     g = GUIDES.get(a["file"], {})
@@ -151,14 +180,14 @@ def chapter_page(title: str, los: str, applets: list, questions: list, key: str,
     """applets: list of {"name", "file", "height", "blurb", "tasks": [prompts], "guide", "controls", "inquiry"}"""
     st.set_page_config(page_title=title, page_icon="⚛", layout="wide")
     st.title(title)
-    st.caption(f"{syllabus} learning outcomes {los} · Tip: Ctrl + scroll (or pinch) zooms any applet; Space pauses; R resets.")
+    st.caption(f"{syllabus} learning outcomes {los} · Tip: Ctrl + scroll (or pinch) zooms any applet; **Show / hide** picks which parts you see; Space pauses; R resets.")
 
     explore, guided, inquiry, quiz_tab = st.tabs(["Explore", "Guided", "Inquiry", "Quiz"])
 
     with explore:
         a = _pick_applet(applets, key + "_applet")
         st.markdown(a["blurb"])
-        show_sim(a["file"], a.get("height", 720), a.get("opts"))
+        show_sim(a["file"], a.get("height", 720), _view_opts(a, "explore"))
         st.subheader("Try this: predict, then test")
         for i, p in enumerate(a["tasks"], 1):
             st.markdown(f"{i}. {p}")
@@ -168,7 +197,7 @@ def chapter_page(title: str, los: str, applets: list, questions: list, key: str,
         left, right = st.columns([1.15, 1], gap="medium")
         with left:
             a = _pick_applet(applets, key + "_gapplet")
-            show_sim(a["file"], a.get("height", 720), a.get("opts"))
+            show_sim(a["file"], a.get("height", 720), _view_opts(a, "guided"))
         with right:
             if a.get("guide") or GUIDES.get(a["file"]):
                 _guided(a, key)
@@ -180,7 +209,7 @@ def chapter_page(title: str, los: str, applets: list, questions: list, key: str,
         left, right = st.columns([1.15, 1], gap="medium")
         with left:
             a = _pick_applet(applets, key + "_iapplet")
-            show_sim(a["file"], a.get("height", 720), a.get("opts"))
+            show_sim(a["file"], a.get("height", 720), _view_opts(a, "inquiry"))
         with right:
             _inquiry(a, key)
 
@@ -188,6 +217,6 @@ def chapter_page(title: str, los: str, applets: list, questions: list, key: str,
         left, right = st.columns([1.15, 1], gap="medium")
         with left:
             a = _pick_applet(applets, key + "_qapplet")
-            show_sim(a["file"], a.get("height", 720), a.get("opts"))
+            show_sim(a["file"], a.get("height", 720), _view_opts(a, "quiz"))
         with right:
             quiz(questions, key)

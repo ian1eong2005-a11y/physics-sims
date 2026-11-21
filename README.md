@@ -6,6 +6,17 @@ Each chapter page has four tabs: **Explore** (the applet plus predict-then-test 
 
 Every applet can be zoomed (Ctrl + scroll, pinch, or the +/− buttons on the canvas; the `scroll = zoom` button makes the plain wheel zoom). Space pauses, R resets. This is injected by `sims/_shared.js` through the embed helper.
 
+### Show / hide (focus mode)
+
+Every applet has a **Show / hide** button next to the zoom buttons. It lists the parts of the current mode (graphs, tables, readouts, labels, arrows, explanations, the "What to notice" box…) with two presets: **Simple** (only the one or two key parts) and **Everything**. Each viewer's choices are remembered in their browser, per applet and per mode.
+
+A teacher can open an applet already focused:
+
+- **In a page** (`pages/*.py`, `lowersec/*.py`): add to the applet dict `opts={"preset": "simple"}`, or `opts={"show": ["lines", "compasses"]}` (only these parts), `opts={"hide": ["notice"]}`, `opts={"mode": "force"}` (start in that mode). These combine with other opts such as `{"sec2": True}`.
+- **In a link or QR code**: add the same settings to the page URL, e.g. `…/Magnetism?show=lines&mode=bar` or `…/forces-energy?applet=energy-coaster&preset=simple`. With `?applet=` they apply to that applet only; without it, to every applet on the page. A URL view replaces the page's own view.
+
+Layer ids for each applet are declared at the top of its script in `sims/<name>.html` (`window.SIM_LAYERS`). Page and URL settings win over a viewer's saved choices. The **Guided** and **Inquiry** tabs always open in the applet's normal view (so every part a step mentions is visible), though students can still use Show / hide there.
+
 | Page | Chapter | Applets |
 |---|---|---|
 | Waves | Ch 9 General Wave Properties | Wave Graph Mapper, Sound Lab, Ripple Tank |
