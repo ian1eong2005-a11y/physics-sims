@@ -9,7 +9,7 @@ APPLETS = [
      "try": ["Which plate has the most colonies? Which has the fewest?", "Why do we need the plate with water only?"]},
     {"name": "💊 Antibiotic course", "file": "health-antibiotic", "inq": True,
      "try": ["Stop the antibiotic after 3 days. What happens to the bacteria after that?", "Now take the full 7-day course."]},
-    {"name": "⚖️ BMI", "file": "health-bmi", "height": 860,
+    {"name": "⚖️ BMI", "file": "health-bmi", "inq": True, "height": 860,
      "try": ["Set a mass of 50 kg and a height of 1.60 m. Work out the BMI yourself, then check.", "Find a mass that is in the healthy range for a height of 1.70 m."]},
     {"name": "🥗 Balanced diet", "file": "health-diet", "height": 900,
      "try": ["Match all 7 nutrients to their jobs."]},

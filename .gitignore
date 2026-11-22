@@ -5,3 +5,7 @@ __pycache__/
 .harness_server.py
 .harness_test.js
 .harness_wrap.py
+ntsci/tools/worksheets/out/
+ntsci/tools/worksheets/pdf/
+ntsci/tools/worksheets/img/qr/
+ntsci/tools/worksheets/img/qr_*.png

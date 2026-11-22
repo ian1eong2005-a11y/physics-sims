@@ -9,11 +9,11 @@ NT.sim({
   title: 'Body mass index (BMI)', emoji: '⚖️',
   idea: 'BMI = mass (kg) ÷ [height (m) × height (m)]. It shows if a person\'s mass is in the healthy range.',
   controls: [
-    { id: 'm', label: 'Mass', type: 'range', min: 30, max: 100, step: 1, value: 50, unit: 'kg' },
-    { id: 'h', label: 'Height', type: 'range', min: 1.3, max: 1.9, step: 0.01, value: 1.6, unit: 'm', fmt: v => v.toFixed(2) },
+    { id: 'm', label: 'Mass', noun: 'the mass', type: 'range', min: 30, max: 100, step: 1, value: 50, unit: 'kg' },
+    { id: 'h', label: 'Height', noun: 'the height', type: 'range', min: 1.3, max: 1.9, step: 0.01, value: 1.6, unit: 'm', fmt: v => v.toFixed(2) },
   ],
   readings: [
-    { id: 'bmi', label: 'BMI', always: true, dp: 1, get: bmi },
+    { id: 'bmi', label: 'BMI', noun: 'the BMI', always: true, dp: 1, get: bmi },
     { id: 'z', label: 'This mass is', always: true, get: s => zone(bmi(s))[0] },
   ],
   say: s => 'BMI = ' + s.m + ' ÷ (' + s.h.toFixed(2) + ' × ' + s.h.toFixed(2) + ') = ' + s.m + ' ÷ ' + (s.h * s.h).toFixed(2) + ' = ' + bmi(s).toFixed(1),
@@ -37,6 +37,20 @@ NT.sim({
     P.poly([[X(b), 196], [X(b) - 12, 170], [X(b) + 12, 170]], { fill: C.ink }); P.text('BMI ' + b.toFixed(1), X(b), 150, { size: 26 });
     P.tag(z[0], x0 + wd / 2, 90, { bg: z[1], size: 20 }); P.text('Healthy range used here: 18.5 to 22.9', x0 + wd / 2, 320, { size: 16, color: C.mute }); P.text('(your teacher may give you a different table)', x0 + wd / 2, 344, { size: 15, color: C.mute, bold: false });
   },
+  inquiry: [
+    { name: 'Change the mass', q: 'Same height (1.60 m). What happens to the BMI when the mass goes up?',
+      guess: ['The BMI goes up', 'The BMI goes down', 'The BMI stays the same'], guessAns: 0,
+      change: 'm', measure: ['bmi', 'z'], dv: 'the BMI', fix: { h: 1.6 }, tests: [40, 50, 60, 70],
+      same: ['the height (1.60 m)', 'the same healthy range table'],
+      found: ['At the same height, a bigger mass gives a ', ['bigger', 'smaller'], ' BMI. For 1.60 m, a mass of ', ['50 kg', '70 kg'], ' is in the healthy range.'], foundAns: [0, 0],
+      why: 'BMI = mass (kg) ÷ [height (m) × height (m)]. BMI helps us check whether the mass of a person is in the healthy range for their height.' },
+    { name: 'Change the height', q: 'Same mass (60 kg). What happens to the BMI when the person is taller?',
+      guess: ['The BMI goes down', 'The BMI goes up', 'The BMI stays the same'], guessAns: 0,
+      change: 'h', measure: ['bmi', 'z'], dv: 'the BMI', fix: { m: 60 }, tests: [1.5, 1.6, 1.7, 1.8],
+      same: ['the mass (60 kg)', 'the same healthy range table'],
+      found: ['For the same mass, a taller person has a ', ['smaller', 'bigger'], ' BMI. So we must compare mass ', ['with height', 'on its own'], '.'], foundAns: [0, 0],
+      why: 'The same mass can be healthy for a tall person but too much for a short person. That is why BMI uses both mass and height.' },
+  ],
 });
 })();
 </script>

@@ -47,6 +47,7 @@ SHEETS = [
     ("7.2", "safe-milk", [0], "Can heat keep milk fresh?", "Heat and milk"),
     ("8.1", "health-germs", [0], "Germ killers", "Germ killers"),
     ("8.2", "health-antibiotic", [0], "Finish the antibiotic course", "Antibiotic course"),
+    ("8.3", "health-bmi", [0, 1], "What changes the BMI?", "BMI"),
     ("9.1", "dig-enzyme", [0], "Enzymes and pH", "Enzymes at work"),
     ("9.2", "dig-enzyme", [1], "Enzymes and temperature", "Enzymes at work"),
     ("10.1", "breath-air", [0], "Inhaled and exhaled air", "Inhaled and exhaled air"),
