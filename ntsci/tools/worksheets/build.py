@@ -15,7 +15,9 @@ import wsinq  # noqa: E402  (the QTSS one-page inquiry builder, patched for N(T)
 
 SITE = "qtss-g1-science.streamlit.app"
 DATA = json.load(open(HERE / "wsdata.json", encoding="utf-8"))
-TOPIC = {1: ("energy", "Energy"), 2: ("electricity", "Electricity"), 3: ("wave", "Wave"), 4: ("force", "Effects of Force"), 5: ("food", "Sources of Food")}
+TOPIC = {1: ("energy", "Energy"), 2: ("electricity", "Electricity"), 3: ("wave", "Wave"), 4: ("force", "Effects of Force"), 5: ("food", "Sources of Food"),
+         6: ("food-chemistry", "Food Chemistry"), 7: ("food-safety", "Food Safety"), 8: ("staying-healthy", "Staying Healthy"), 9: ("digestion", "Digestion"),
+         10: ("breathing", "Breathing"), 11: ("blood", "Blood Circulation")}
 # code, applet, investigations on the sheet, short title, name of the applet button in the app
 SHEETS = [
     ("1.1", "energy-swing", [0], "Swinging bottle", "Swinging bottle"),
@@ -36,6 +38,20 @@ SHEETS = [
     ("5.2", "food-fertiliser", [0], "Does fertiliser help?", "Fertiliser"),
     ("5.3", "food-banana", [0], "Ripening bananas", "Ripening bananas"),
     ("5.4", "food-farm", [0], "More food from the farm", "Farm and pond"),
+    ("6.1", "chem-chroma", [0], "One dye or a mixture?", "Chromatography"),
+    ("6.2", "chem-ph", [0], "Acid, neutral or alkali?", "pH"),
+    ("6.3", "chem-neutral", [0], "Neutralisation", "Neutralisation"),
+    ("6.4", "chem-acid", [0], "What do acids react with?", "Acid reactions"),
+    ("6.5", "chem-rust", [0], "What makes iron rust?", "Rusting"),
+    ("7.1", "safe-bread", [0], "Protect my bread", "Protect my bread"),
+    ("7.2", "safe-milk", [0], "Can heat keep milk fresh?", "Heat and milk"),
+    ("8.1", "health-germs", [0], "Germ killers", "Germ killers"),
+    ("8.2", "health-antibiotic", [0], "Finish the antibiotic course", "Antibiotic course"),
+    ("9.1", "dig-enzyme", [0], "Enzymes and pH", "Enzymes at work"),
+    ("9.2", "dig-enzyme", [1], "Enzymes and temperature", "Enzymes at work"),
+    ("10.1", "breath-air", [0], "Inhaled and exhaled air", "Inhaled and exhaled air"),
+    ("11.1", "blood-pulse", [0], "Exercise and pulse rate", "Exercise and pulse"),
+    ("11.2", "blood-plaque", [0], "Plaque and heart disease", "Plaque"),
 ]
 W = 15.07
 
