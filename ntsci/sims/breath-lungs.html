@@ -1,0 +1,35 @@
+<title>Breathing system</title>
+<div id="nt"></div>
+<script>
+(() => {
+NT.sim({
+  title: 'The breathing system', emoji: '🫁', h: 500,
+  idea: 'Breathing moves air in and out of the lungs. Respiration in our cells uses oxygen to release energy.',
+  controls: [{ id: 'b', label: 'Watch', value: 'auto', options: [['auto', 'Breathing in and out'], ['choke', 'Choking (windpipe blocked)', '🍬']] }],
+  spots: [
+    { id: 'wind', x: 450, y: 120, name: 'Windpipe', emoji: '🌬️', info: 'Air goes down the windpipe to the lungs. If food blocks it (choking), no air can reach the lungs.' },
+    { id: 'bron', x: 450, y: 210, name: 'Bronchi', emoji: '🌿', info: 'The windpipe splits into two bronchi, one to each lung.' },
+    { id: 'lung', x: 330, y: 260, name: 'Lungs', emoji: '🫁', info: 'Oxygen passes from the air into the blood. Carbon dioxide passes out of the blood into the air.' },
+    { id: 'rib', x: 600, y: 300, name: 'Ribcage', emoji: '🦴', info: 'Protects the lungs. It moves up and out when we breathe in.' },
+    { id: 'dia', x: 450, y: 410, name: 'Diaphragm', emoji: '〰️', info: 'A sheet of muscle under the lungs. It moves down when we breathe in.' },
+  ],
+  readings: [{ id: 'st', label: 'Right now', always: true, get: (s, p, t) => (s.b === 'choke' ? 'no air can get in' : Math.sin(t * 1.4) > 0 ? 'breathing IN' : 'breathing OUT') }],
+  live: true,
+  draw(P, s, p, t) {
+    const C = P.C, choke = s.b === 'choke', ph = choke ? 0 : Math.sin(t * 1.4), k = 1 + 0.12 * ph, sel = s._spot, hl = id => (sel === id && !s._test ? C.orange : null);
+    // ribcage
+    for (let i = 0; i < 6; i++) { const y = 170 + i * 40; P.curve([[450, y], [450 - 190 * k, y + 20], [450 - 200 * k, y + 50]], { color: hl('rib') || '#d9d2c3', lw: 9 }); P.curve([[450, y], [450 + 190 * k, y + 20], [450 + 200 * k, y + 50]], { color: hl('rib') || '#d9d2c3', lw: 9 }); }
+    // lungs
+    [[-1], [1]].forEach(([sd]) => P.oval(450 + sd * 105 * k, 270, 85 * k, 125 * k, { fill: hl('lung') || (choke ? '#d9a4a4' : '#f2a7b0'), stroke: C.dark, lw: 3 }));
+    // windpipe and bronchi
+    P.line(450, 40, 450, 200, { color: hl('wind') || '#f5d1c8', lw: 26 }); P.line(450, 40, 450, 200, { color: C.dark, lw: 2, alpha: 0.4 });
+    P.curve([[450, 200], [400, 230], [370, 270]], { color: hl('bron') || '#f5d1c8', lw: 18 }); P.curve([[450, 200], [500, 230], [530, 270]], { color: hl('bron') || '#f5d1c8', lw: 18 });
+    if (choke) { P.emoji('🍬', 450, 110, 34); P.tag('blocked!', 560, 110, { bg: C.red, size: 17 }); }
+    // diaphragm
+    const dy = 410 + 18 * ph; P.curve([[230, 410], [340, dy - 25], [450, dy - 30], [560, dy - 25], [670, 410]], { color: hl('dia') || '#c76b5a', lw: 12 });
+    // air arrows
+    if (!choke) { const inn = ph > 0; P.arrow(520, inn ? 30 : 120, 520, inn ? 120 : 30, { color: inn ? C.blue : C.grey, lw: 7 }); P.text(inn ? 'air in: oxygen' : 'air out: carbon dioxide', 640, 74, { size: 18, color: inn ? C.blue : C.grey }); }
+  },
+});
+})();
+</script>

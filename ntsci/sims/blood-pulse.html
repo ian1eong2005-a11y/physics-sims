@@ -1,0 +1,39 @@
+<title>Pulse rate and exercise</title>
+<div id="nt"></div>
+<script>
+(() => {
+// pulse (beats/min), breathing (breaths/min)
+const R = { rest: ['Resting', '🧘', 70, 14], walk: ['Walking', '🚶', 95, 20], jog: ['Jogging', '🏃', 130, 30], run: ['Running fast', '🏃‍♂️', 165, 42] };
+NT.sim({
+  title: 'Exercise and pulse rate', emoji: '❤️',
+  idea: 'During exercise, muscles need more oxygen and glucose. The heart beats faster to deliver them.',
+  controls: [{ id: 'a', label: 'Activity for 2 minutes', noun: 'the activity', value: 'rest', options: Object.entries(R).map(([k, v]) => [k, v[0], v[1]]) }],
+  go: { label: 'Do it, then count the pulse', time: 4 },
+  readings: [
+    { id: 'pulse', label: 'Pulse rate', noun: 'the pulse rate', unit: 'beats/min', get: s => R[s.a][2] },
+    { id: 'breath', label: 'Breathing rate', noun: 'the breathing rate', unit: 'breaths/min', get: s => R[s.a][3] },
+  ],
+  say: (s, done) => done ? (s.a === 'rest' ? 'At rest the muscles need only a little oxygen.' : 'The muscles are working hard. They need more oxygen and glucose, and must get rid of more carbon dioxide.') : '',
+  draw(P, s, p, t) {
+    const C = P.C, r = R[s.a], bpm = p >= 1 ? r[2] : 70 + (r[2] - 70) * p, beat = Math.pow(Math.max(0, Math.sin(t * Math.PI * bpm / 60)), 8);
+    P.rect(0, 420, 900, 60, { fill: '#e9edf1' });
+    P.emoji(r[1], 150, 230, 140, { flip: true }); if (p > 0 && p < 1 && s.a !== 'rest') P.emoji('💦', 210, 150, 34);
+    P.emoji('❤️', 420, 200, 90 + 26 * beat); P.text(Math.round(bpm) + ' beats/min', 420, 290, { size: 26 });
+    // pulse trace
+    const g = P.graph(560, 90, 300, 150, { xmax: 3, ymax: 1, nx: 3, ny: 1, xl: 'time / s' });
+    const pts = []; for (let i = 0; i <= 150; i++) { const x = (3 * i) / 150, ph = ((t - 3 + x) * bpm / 60) % 1; pts.push([g.X(x), g.Y(0.2 + 0.7 * Math.exp(-Math.pow((ph - 0.1) * 18, 2)))]); }
+    P.curve(pts, { color: C.red, lw: 4 });
+    P.emoji('🫁', 710, 340, 70 + 10 * Math.sin(t * Math.PI * r[3] / 60 * (p >= 1 ? 1 : 0.5))); P.text((p >= 1 ? r[3] : '…') + ' breaths/min', 710, 400, { size: 20 });
+    P.tag(p === 0 ? 'press the green button' : p < 1 ? r[0] + '…' : 'count for 1 minute', 420, 70, { bg: C.ink, size: 17 });
+  },
+  inquiry: [{
+    q: 'What happens to your pulse rate when you exercise harder?',
+    guess: ['It goes up', 'It goes down', 'It stays the same'], guessAns: 0,
+    change: 'a', measure: ['pulse', 'breath'], dv: 'the pulse rate',
+    same: ['the same person', 'the same time for each activity (2 min)', 'count the pulse for 1 minute each time'],
+    found: ['The harder the exercise, the ', ['higher', 'lower'], ' the pulse rate. The muscles need more ', ['oxygen', 'water'], ' and glucose, so the heart beats ', ['faster', 'slower'], '.'], foundAns: [0, 0, 0],
+    why: 'Breathing rate, heart rate and pulse rate increase during physical activity to bring more oxygen and glucose to the muscles and remove carbon dioxide faster.',
+  }],
+});
+})();
+</script>

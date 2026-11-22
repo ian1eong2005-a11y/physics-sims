@@ -1,0 +1,25 @@
+<title>Smoking</title>
+<div id="nt"></div>
+<script>
+NT.match({
+  title: 'Smoking and breathing', emoji: '🚭',
+  intro: 'Sort each card into the right box.',
+  ask: 'Which box does it go in? Tap a box.',
+  bins: [
+    { id: 'bron', label: 'Bronchitis', emoji: '😷', sub: 'swollen airways, a lot of mucus, coughing' },
+    { id: 'cancer', label: 'Lung cancer', emoji: '⚠️', sub: 'cells in the lungs grow out of control' },
+    { id: 'passive', label: 'Passive smoking', emoji: '👶', sub: 'breathing in other people\'s smoke' },
+    { id: 'choke', label: 'Choking', emoji: '🍬', sub: 'something blocks the windpipe' },
+  ],
+  cards: [
+    { t: 'Tar irritates the airways, so they make more mucus', emoji: '🫁', bin: 'bron' },
+    { t: 'A smoker coughs a lot every morning', emoji: '🤧', bin: 'bron' },
+    { t: 'Chemicals in tar cause cells to grow out of control', emoji: '🧬', bin: 'cancer' },
+    { t: 'Most cases are caused by smoking', emoji: '🚬', bin: 'cancer' },
+    { t: 'A child at home breathes in a parent\'s cigarette smoke', emoji: '🏠', bin: 'passive', why: 'Non-smokers are harmed too.' },
+    { t: 'Why smoking is not allowed in many public places', emoji: '🚫', bin: 'passive' },
+    { t: 'Food goes down the windpipe instead of the gullet', emoji: '🍖', bin: 'choke', why: 'No air can reach the lungs.' },
+    { t: 'The person cannot breathe or speak', emoji: '🙊', bin: 'choke' },
+  ],
+});
+</script>

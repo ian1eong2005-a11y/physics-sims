@@ -1,0 +1,24 @@
+<title>Healthy gut</title>
+<div id="nt"></div>
+<script>
+NT.match({
+  title: 'Keeping the digestive system healthy', emoji: '🥦',
+  intro: 'Match each card to the problem it is about.',
+  ask: 'Which problem is this about? Tap a box.',
+  bins: [
+    { id: 'con', label: 'Constipation', emoji: '🚽', sub: 'faeces are hard and difficult to pass' },
+    { id: 'liver', label: 'Damaged liver', emoji: '🍺', sub: 'from too much alcohol' },
+    { id: 'dia', label: 'Diabetes', emoji: '🍩', sub: 'too much sugar in the blood' },
+  ],
+  cards: [
+    { t: 'Eating too little fibre (vegetables, fruit, wholegrains)', emoji: '🥬', bin: 'con', why: 'Fibre helps faeces move along the large intestine.' },
+    { t: 'Not drinking enough water', emoji: '💧', bin: 'con', why: 'Too much water is absorbed from the faeces, so they become hard.' },
+    { t: 'Prevent it: eat more fibre and drink plenty of water', emoji: '✅', bin: 'con' },
+    { t: 'Drinking a lot of alcohol for many years', emoji: '🍷', bin: 'liver', why: 'Alcohol can damage the liver and cause liver cancer.' },
+    { t: 'Can lead to liver cancer', emoji: '⚠️', bin: 'liver' },
+    { t: 'A diet with a lot of sugary drinks and snacks', emoji: '🥤', bin: 'dia', why: 'A high-sugar diet raises the risk of diabetes.' },
+    { t: 'Not exercising and being overweight', emoji: '🛋️', bin: 'dia', why: 'Little physical activity raises the risk of diabetes.' },
+    { t: 'Lower the risk: exercise often and cut down on sugar', emoji: '🏃', bin: 'dia' },
+  ],
+});
+</script>

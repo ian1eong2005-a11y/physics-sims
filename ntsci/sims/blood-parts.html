@@ -1,0 +1,24 @@
+<title>Blood</title>
+<div id="nt"></div>
+<script>
+NT.match({
+  title: 'What does each part of the blood do?', emoji: '🩸',
+  intro: 'Blood has four parts. Match each job to the right part.',
+  ask: 'Which part of the blood does this? Tap a box.',
+  bins: [
+    { id: 'plasma', label: 'Plasma', emoji: '🟡', sub: 'the liquid part' },
+    { id: 'rbc', label: 'Red blood cells', emoji: '🔴' },
+    { id: 'wbc', label: 'White blood cells', emoji: '⚪' },
+    { id: 'plat', label: 'Platelets', emoji: '🩹' },
+  ],
+  cards: [
+    { t: 'Carries digested food around the body', emoji: '🍞', bin: 'plasma' },
+    { t: 'Carries carbon dioxide (a waste) to the lungs', emoji: '💨', bin: 'plasma' },
+    { t: 'Carries oxygen', emoji: '🫁', bin: 'rbc' },
+    { t: 'Makes antibodies', emoji: '🛡️', bin: 'wbc' },
+    { t: 'Destroys bacteria and viruses', emoji: '🦠', bin: 'wbc' },
+    { t: 'Causes tissue rejection after an organ transplant', emoji: '🫀', bin: 'wbc', why: 'White blood cells attack the new organ as if it were a germ.' },
+    { t: 'Helps the blood to clot when you cut yourself', emoji: '🩹', bin: 'plat' },
+  ],
+});
+</script>

@@ -1,0 +1,49 @@
+<title>Digestive system</title>
+<div id="nt"></div>
+<script>
+(() => {
+const SPOTS = [
+  { id: 'mouth', x: 370, y: 74, name: 'Mouth', emoji: '👄', info: 'Teeth break food into small pieces. Saliva starts to digest starch.' },
+  { id: 'sal', x: 470, y: 92, name: 'Salivary glands', emoji: '💧', info: 'Make saliva, which has an enzyme and makes food moist.' },
+  { id: 'gullet', x: 410, y: 160, name: 'Gullet', emoji: '⬇️', info: 'A tube that pushes food from the mouth to the stomach.' },
+  { id: 'liver', x: 330, y: 250, name: 'Liver', emoji: '🟫', info: 'Makes bile. Too much alcohol damages the liver.' },
+  { id: 'gall', x: 380, y: 290, name: 'Gall bladder', emoji: '🟢', info: 'Stores bile. Bile breaks fat into small droplets.' },
+  { id: 'stomach', x: 490, y: 250, name: 'Stomach', emoji: '🫃', info: 'Mixes food with acid and an enzyme to digest protein.' },
+  { id: 'pan', x: 470, y: 312, name: 'Pancreas', emoji: '🧡', info: 'Makes enzymes that go into the small intestine.' },
+  { id: 'small', x: 440, y: 370, name: 'Small intestine', emoji: '🌀', info: 'Digestion is completed here. Digested food is absorbed into the blood.' },
+  { id: 'large', x: 330, y: 360, name: 'Large intestine', emoji: '🔁', info: 'Water is absorbed here. Fibre helps the waste move along.' },
+  { id: 'rectum', x: 410, y: 440, name: 'Rectum', emoji: '📦', info: 'Stores faeces (undigested waste).' },
+  { id: 'anus', x: 410, y: 470, name: 'Anus', emoji: '🚪', info: 'Faeces leave the body here.' },
+];
+NT.sim({
+  title: 'The digestive system', emoji: '🍽️', h: 500,
+  idea: 'Digestion breaks big food molecules into small ones that can be absorbed into the blood.',
+  spots: SPOTS,
+  draw(P, s, p, t) {
+    const C = P.C, sel = s._spot;
+    const hl = id => (sel === id && !s._test ? C.orange : null);
+    // body outline
+    P.oval(410, 70, 70, 60, { fill: '#fde3cf', stroke: C.dark, lw: 3 }); P.rect(300, 120, 220, 370, { fill: '#fdeee2', stroke: C.dark, lw: 3, r: 60 });
+    // salivary gland
+    P.oval(470, 92, 16, 10, { fill: hl('sal') || '#9ed0f5', stroke: C.dark, lw: 2 });
+    // gullet
+    P.curve([[410, 110], [410, 180], [460, 215]], { color: hl('gullet') || '#e8a6a0', lw: 18 });
+    // liver and gall bladder
+    P.poly([[300, 210], [440, 205], [400, 270], [310, 280]], { fill: hl('liver') || '#9c5138', stroke: C.dark, lw: 3 }); P.oval(380, 290, 16, 12, { fill: hl('gall') || '#5fae5f', stroke: C.dark, lw: 2 });
+    // stomach
+    P.oval(495, 250, 52, 38, { fill: hl('stomach') || '#f0a090', stroke: C.dark, lw: 3, rot: -0.4 });
+    // pancreas
+    P.oval(450, 312, 52, 12, { fill: hl('pan') || '#f6c56b', stroke: C.dark, lw: 2 });
+    // large intestine (frame) and small intestine (coil)
+    P.curve([[340, 440], [325, 330], [330, 325], [490, 325], [495, 330], [490, 420], [430, 430], [410, 430]], { color: hl('large') || '#d9a07a', lw: 24 });
+    for (let i = 0; i < 5; i++) P.curve([[365, 345 + i * 16], [515 - 15 * (i % 2), 352 + i * 16]], { color: hl('small') || '#f2b8a6', lw: 13 });
+    P.line(410, 430, 410, 458, { color: hl('rectum') || '#c98a62', lw: 22 }); P.circle(410, 470, 8, { fill: hl('anus') || '#a8664a' });
+    // a bite of food travelling, for fun
+    const path = [[410, 80], [410, 180], [470, 230], [500, 260], [470, 340], [380, 360], [330, 330], [490, 330], [490, 420], [410, 440], [410, 470]];
+    const u = (t * 0.06) % 1, seg = u * (path.length - 1), k = Math.floor(seg), f = seg - k, a = path[k], b = path[Math.min(k + 1, path.length - 1)];
+    P.emoji('🍔', a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 22);
+    P.text('food takes about 1 day', 700, 470, { size: 15, color: C.mute, bold: false });
+  },
+});
+})();
+</script>

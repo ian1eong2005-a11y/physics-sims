@@ -1,0 +1,36 @@
+<title>Plaque and heart disease</title>
+<div id="nt"></div>
+<script>
+(() => {
+// plaque build-up after 30 years (% of the artery blocked)
+const R = { healthy: ['Healthy diet, active, no smoking', '🥗', 10], fatty: ['Fatty food, not active', '🍟', 50], smoke: ['Fatty food, not active, smokes', '🚬', 80] };
+NT.sim({
+  title: 'How plaque blocks an artery', emoji: '🫀',
+  idea: 'Plaque (fatty deposits) narrows the arteries. If an artery is blocked, it can cause a heart attack or a stroke.',
+  controls: [{ id: 'life', label: 'Lifestyle', noun: 'the lifestyle', value: 'healthy', options: Object.entries(R).map(([k, v]) => [k, v[0], v[1]]) }],
+  go: { label: 'Fast-forward 30 years', time: 5 },
+  readings: [{ id: 'block', label: 'Artery blocked by plaque', noun: 'how much of the artery is blocked', unit: '%', get: s => R[s.life][2] }],
+  say: (s, done) => !done ? '' : R[s.life][2] >= 70 ? 'The artery is nearly blocked. Very little blood gets through: high risk of a heart attack or stroke.' : R[s.life][2] >= 40 ? 'The artery is narrower. The heart must work harder: blood pressure goes up.' : 'Only a little plaque. Blood flows easily.',
+  draw(P, s, p, t) {
+    const C = P.C, b = (R[s.life][2] / 100) * p, top = 140, bot = 340, mid = 240, th = (bot - top) / 2 * b;
+    P.rect(60, top - 26, 780, 26, { fill: '#e8576b' }); P.rect(60, bot, 780, 26, { fill: '#e8576b' }); P.text('artery wall', 450, top - 40, { size: 16, color: C.mute });
+    P.rect(60, top, 780, bot - top, { fill: '#ffd9dd' });
+    const gap = (bot - top) - 2 * th, sp = 1 - 0.85 * b;
+    for (let i = 0; i < 26; i++) { const x = 60 + ((t * 160 * sp + i * 61) % 780), near = Math.abs(x - 450) < 260 ? 1 - Math.pow((x - 450) / 260, 2) : 0, half = (bot - top) / 2 - th * near - 8, y = mid + Math.max(-half, Math.min(half, ((i * 37) % 100 - 50) / 50 * ((bot - top) / 2 - 10)));
+      P.oval(x, y, 9, 5, { fill: '#c0182d' }); }
+    if (th > 1) { P.oval(450, top, 260, th, { fill: '#f4d35e', stroke: '#c9a227', lw: 3 }); P.oval(450, bot, 260, th, { fill: '#f4d35e', stroke: '#c9a227', lw: 3 }); P.tag('plaque', 450, top + th / 2, { bg: '#c9a227', size: 16 }); }
+    P.arrow(70, 400, 230, 400, { color: C.red, lw: 6 }); P.text('blood flow', 300, 400, { size: 17, color: C.red });
+    P.emoji(R[s.life][1], 760, 420, 46); P.tag('Year ' + Math.round(p * 30), 800, 60, { bg: C.ink, size: 20 });
+    P.text('gap left: ' + Math.round(100 * gap / (bot - top)) + '%', 600, 400, { size: 18 });
+  },
+  inquiry: [{
+    q: 'How does lifestyle affect the plaque in an artery?',
+    guess: ['Fatty food, no exercise and smoking cause more plaque', 'Lifestyle makes no difference', 'A healthy lifestyle causes more plaque'], guessAns: 0,
+    change: 'life', measure: 'block',
+    same: ['the same person (same age at the start)', 'the same time (30 years)'],
+    found: ['Fatty food, little exercise and smoking ', ['increase', 'decrease'], ' the plaque. A blocked artery to the heart can cause a heart ', ['attack', 'murmur'], '; to the brain, a ', ['stroke', 'sneeze'], '.'], foundAns: [0, 0, 0],
+    why: 'Diet, physical activity and smoking affect the risk of heart disease, high blood pressure and stroke. Blood pressure, heart rate and pulse rate help doctors check the circulatory system.',
+  }],
+});
+})();
+</script>

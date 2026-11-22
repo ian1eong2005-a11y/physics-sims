@@ -1,0 +1,35 @@
+<title>Heart and lungs</title>
+<div id="nt"></div>
+<script>
+(() => {
+const RED = '#d7263d', BLUE = '#3d6fd6';
+NT.sim({
+  title: 'Blood through the heart and lungs', emoji: '🫀', h: 500,
+  idea: 'Blood picks up oxygen in the lungs and gives it to the body. It picks up carbon dioxide in the body and gets rid of it in the lungs.',
+  spots: [
+    { id: 'lungs', x: 450, y: 70, name: 'Lungs', emoji: '🫁', info: 'Blood takes in oxygen and gives out carbon dioxide. It becomes oxygen-rich (red).' },
+    { id: 'right', x: 380, y: 250, name: 'Right side of the heart', emoji: '🔵', info: 'Pumps oxygen-poor blood (from the body) to the lungs.' },
+    { id: 'left', x: 520, y: 250, name: 'Left side of the heart', emoji: '🔴', info: 'Pumps oxygen-rich blood (from the lungs) to the rest of the body. Its wall is thicker.' },
+    { id: 'artery', x: 700, y: 330, name: 'Artery', emoji: '➡️', info: 'Carries blood AWAY from the heart. Thick, muscular wall for high pressure.' },
+    { id: 'cap', x: 450, y: 455, name: 'Capillaries', emoji: '🕸️', info: 'Very thin walls (one cell thick). Oxygen and food pass to the cells; carbon dioxide passes into the blood.' },
+    { id: 'vein', x: 200, y: 330, name: 'Vein', emoji: '⬅️', info: 'Carries blood BACK to the heart. Thinner wall and valves to stop blood flowing backwards.' },
+  ],
+  draw(P, s, p, t) {
+    const C = P.C, beat = 1 + 0.05 * Math.pow(Math.max(0, Math.sin(t * 4)), 6);
+    // lungs and body
+    P.oval(360, 70, 70, 40, { fill: '#f6c3c9', stroke: C.dark, lw: 3 }); P.oval(540, 70, 70, 40, { fill: '#f6c3c9', stroke: C.dark, lw: 3 }); P.text('lungs', 450, 22, { size: 17 });
+    P.rect(300, 430, 300, 50, { fill: '#fde3cf', stroke: C.dark, lw: 3, r: 16 }); P.text('body cells', 450, 495, { size: 15, color: C.mute });
+    // loops: lungs loop (top), body loop (big)
+    const lungIn = [[380, 220], [300, 140], [330, 90]], lungOut = [[570, 90], [600, 140], [520, 220]];
+    const bodyOut = [[540, 290], [700, 300], [700, 455], [600, 455]], bodyIn = [[300, 455], [200, 455], [200, 300], [360, 290]];
+    P.curve(lungIn, { color: BLUE, lw: 14 }); P.curve(lungOut, { color: RED, lw: 14 }); P.curve(bodyOut, { color: RED, lw: 18 }); P.curve(bodyIn, { color: BLUE, lw: 14 });
+    for (let i = 0; i < 9; i++) P.line(320 + i * 32, 440, 320 + i * 32, 470, { color: i % 2 ? RED : BLUE, lw: 3 });
+    const sp = t * 70; P.flow(lungIn, sp, 34, { color: '#9db8f0', r: 5 }); P.flow(lungOut, sp, 34, { color: '#ff8a96', r: 5 }); P.flow(bodyOut, sp, 34, { color: '#ff8a96', r: 6 }); P.flow(bodyIn, sp, 34, { color: '#9db8f0', r: 5 });
+    // heart
+    P.ctx.save(); P.ctx.translate(450, 250); P.ctx.scale(beat, beat); P.oval(-62, 0, 64, 70, { fill: '#7f9fe0', stroke: C.dark, lw: 4 }); P.oval(62, 0, 70, 74, { fill: '#e8576b', stroke: C.dark, lw: 4 }); P.ctx.restore();
+    P.text('heart', 450, 340, { size: 18 });
+    P.tag('oxygen-rich', 760, 220, { bg: RED, size: 15 }); P.tag('oxygen-poor', 140, 220, { bg: BLUE, size: 15 });
+  },
+});
+})();
+</script>

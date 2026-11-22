@@ -16,7 +16,7 @@ NT.sim({
     P.emoji(A[s.a][1], 150, 220, 110); P.text(A[s.a][0], 150, 310, { size: 20 }); P.arrow(230, 240, 310, 240, { color: C.mute, lw: 6 });
     // petri dish with agar
     P.circle(520, 240, 190, { fill: '#f4f7fa', stroke: C.dark, lw: 5 }); P.circle(520, 240, 172, { fill: '#f6e7a8', stroke: '#d9c46a', lw: 3 });
-    for (let i = 0; i < n; i++) { const a = i * 2.399, r = 22 + ((i * 53) % 138); P.circle(520 + r * Math.cos(a), 240 + r * Math.sin(a), 7 + ((i * 3) % 6) * Math.min(1, p * 1.4), { fill: '#fff6dc', stroke: '#b89a52', lw: 2 }); }
+    for (let i = 0; i < n; i++) { const a = (((i * 2654435761) % 1000) / 1000) * 2 * Math.PI, r = 18 + 148 * Math.sqrt(((i * 7841 + 13) % 1009) / 1009); P.circle(520 + r * Math.cos(a), 240 + r * Math.sin(a), 7 + ((i * 3) % 6) * Math.min(1, p * 1.4), { fill: '#fff6dc', stroke: '#b89a52', lw: 2 }); }
     P.text('agar plate with bacteria', 520, 452, { size: 17, color: C.mute });
     P.tag('Day ' + Math.round(p * 2), 800, 50, { bg: C.ink, size: 22 });
     if (p >= 1) P.tag(A[s.a][2] + ' colonies', 790, 240, { bg: A[s.a][2] > 20 ? C.red : C.green, size: 19 });

@@ -1,0 +1,46 @@
+<title>Inhaled and exhaled air</title>
+<div id="nt"></div>
+<script>
+(() => {
+// time for limewater to turn milky (s), cobalt chloride colour, CO2 %
+const A = { in: [300, 'stays blue', 0.04], out: [30, 'turns pink', 4] };
+NT.sim({
+  title: 'Breathing in and breathing out', emoji: '🌬️',
+  idea: 'Exhaled air has more carbon dioxide and more water vapour than inhaled air.',
+  controls: [{ id: 'air', label: 'Bubble through the limewater', noun: 'the air bubbled through', value: 'in', options: [['in', 'Inhaled air (breathe in)'], ['out', 'Exhaled air (breathe out)']] }],
+  go: { label: 'Bubble the air through', time: 4 },
+  readings: [
+    { id: 'lime', label: 'Time for limewater to turn milky', noun: 'the time for the limewater to turn milky', unit: 's', get: s => A[s.air][0] },
+    { id: 'cocl', label: 'Blue cobalt chloride paper', get: s => A[s.air][1] },
+    { id: 'co2', label: 'Carbon dioxide in the air', unit: '%', get: s => A[s.air][2] },
+  ],
+  say: (s, done) => !done ? '' : s.air === 'out' ? 'Exhaled air turns limewater milky quickly: it has a lot of carbon dioxide. The paper turns pink: there is water vapour.' : 'Inhaled air takes a very long time to turn limewater milky: it has very little carbon dioxide.',
+  draw(P, s, p, t) {
+    const C = P.C, out = s.air === 'out', milky = out ? Math.min(1, p * 1.3) : p * 0.12, bub = p > 0 && p < 1;
+    P.rect(0, 420, 900, 60, { fill: '#e9edf1' });
+    P.emoji(out ? '😮‍💨' : '😤', 140, 170, 110); P.text(out ? 'breathing OUT' : 'breathing IN', 140, 260, { size: 19 });
+    // tube to the limewater
+    P.curve([[210, 170], [330, 170], [330, 360]], { color: C.grey, lw: 12 });
+    P.beaker(270, 220, 130, 200, { level: 0.75, color: 'rgb(' + Math.round(210 + 40 * milky) + ',' + Math.round(232 + 18 * milky) + ',' + Math.round(250 - 4 * milky) + ')' });
+    if (bub) P.bubbles(285, 280, 100, 130, 14, t * 1.4, { color: '#8fb3d0', r: 4 });
+    P.text('limewater', 335, 446, { size: 17, color: C.mute }); P.tag(milky > 0.6 ? 'milky!' : 'clear', 335, 200, { bg: milky > 0.6 ? C.grey : C.blue, size: 17 });
+    // cobalt chloride paper
+    const pink = out ? Math.min(1, p * 1.5) : 0; P.rect(520, 150, 80, 110, { fill: 'rgb(' + Math.round(70 + 170 * pink) + ',' + Math.round(110 + 40 * pink) + ',' + Math.round(220 - 40 * pink) + ')', stroke: C.dark, lw: 3, r: 6 });
+    P.text('cobalt chloride paper', 560, 286, { size: 15, color: C.mute }); P.text(pink > 0.6 ? 'pink: water vapour!' : 'blue', 560, 308, { size: 16, color: pink > 0.6 ? C.pink : C.blue });
+    if (out && bub) for (let i = 0; i < 4; i++) { const u = (t * 0.5 + i / 4) % 1; P.emoji('💨', 440 + u * 70, 200 + i * 12, 26, { alpha: 1 - u }); }
+    // what is in the air
+    P.text('In 100 parts of air:', 770, 120, { size: 17 });
+    const rows = out ? [['oxygen', 16, C.blue], ['carbon dioxide', 4, C.grey], ['water vapour', 'more', C.pink]] : [['oxygen', 21, C.blue], ['carbon dioxide', 0.04, C.grey], ['water vapour', 'less', C.pink]];
+    rows.forEach((r, i) => { P.text(r[0], 700, 160 + i * 50, { size: 17, align: 'left', color: r[2] }); P.text(String(r[1]), 860, 160 + i * 50, { size: 20, align: 'right' }); });
+  },
+  inquiry: [{
+    q: 'Which has more carbon dioxide: the air we breathe in, or the air we breathe out?',
+    guess: ['Exhaled air (breathing out)', 'Inhaled air (breathing in)', 'They are the same'], guessAns: 0,
+    change: 'air', measure: ['lime', 'cocl'], dv: 'the time for the limewater to turn milky',
+    same: ['the same amount of limewater', 'the same size of test tube'],
+    found: ['Exhaled air turns limewater milky ', ['faster', 'more slowly'], ', so it has more ', ['carbon dioxide', 'oxygen'], '. It turns blue cobalt chloride paper ', ['pink', 'green'], ', so it has more water vapour.'], foundAns: [0, 0, 0],
+    why: 'Limewater tests for carbon dioxide. Cobalt chloride paper tests for water vapour. Our cells make carbon dioxide and water in respiration, and we breathe them out.',
+  }],
+});
+})();
+</script>

@@ -16,6 +16,14 @@ TOPICS = [
     ]),
     ("Food Matters", [
         ("ntsci/t5_food.py", "🌱", "5 · Sources of Food", "What plants need, fertiliser, ripening, farming methods"),
+        ("ntsci/t6_chem.py", "🧪", "6 · Food Chemistry", "Separating mixtures, pH, neutralisation, acid reactions, rusting"),
+        ("ntsci/t7_safety.py", "🥫", "7 · Food Safety", "Microbes, keeping food fresh, food additives"),
+    ]),
+    ("Our Body and Health", [
+        ("ntsci/t8_health.py", "💪", "8 · Staying Healthy", "Germ killers, antibiotics, BMI, diet, bones and joints"),
+        ("ntsci/t9_digestion.py", "🍽️", "9 · Digestion", "Digestive system, enzymes, a healthy gut"),
+        ("ntsci/t10_breathing.py", "🫁", "10 · Breathing", "Breathing system, inhaled and exhaled air, smoking"),
+        ("ntsci/t11_blood.py", "❤️", "11 · Blood Circulation", "Pulse and exercise, heart and lungs, blood, plaque"),
     ]),
 ]
 for section, items in TOPICS:
@@ -29,5 +37,4 @@ for section, items in TOPICS:
             st.page_link(path, label="Open", icon="▶")
 
 st.divider()
-st.caption("Topics 6 to 11 (Food Chemistry, Food Safety, Staying Healthy, Digestion, Breathing, Blood Circulation) are coming soon. "
-           "Built for Queenstown Secondary School Science. The applets are simple models: they show the idea, not every detail.")
+st.caption("Built for Queenstown Secondary School Science. The applets are simple models: they show the idea, not every detail.")

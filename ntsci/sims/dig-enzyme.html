@@ -1,0 +1,51 @@
+<title>Enzymes at work</title>
+<div id="nt"></div>
+<script>
+(() => {
+// height of bubbles (mm) after 5 minutes: shows how fast the enzyme works
+const BYPH = { 2: 5, 4: 18, 6: 34, 7: 40, 8: 32, 10: 10 };
+const BYT = { 10: 8, 25: 22, 37: 40, 50: 16, 70: 0 };
+const foam = s => (s.mode === 'ph' ? BYPH[s.ph] : BYT[s.temp]);
+NT.sim({
+  title: 'Enzymes at work', emoji: '🧪',
+  idea: 'Enzymes speed up digestion. Each enzyme works best at its own optimum pH and temperature.',
+  controls: [
+    { id: 'mode', label: 'Change the', value: 'ph', options: [['ph', 'pH'], ['temp', 'Temperature']] },
+    { id: 'ph', label: 'pH', noun: 'the pH', value: 7, options: [[2, '2'], [4, '4'], [6, '6'], [7, '7'], [8, '8'], [10, '10']], show: s => s.mode === 'ph' },
+    { id: 'temp', label: 'Temperature', noun: 'the temperature', value: 37, options: [[10, '10 °C'], [25, '25 °C'], [37, '37 °C'], [50, '50 °C'], [70, '70 °C']], show: s => s.mode === 'temp' },
+  ],
+  go: { label: 'Add the enzyme and wait 5 min', time: 4 },
+  readings: [{ id: 'foam', label: 'Height of bubbles after 5 min', noun: 'the height of the bubbles', unit: 'mm', get: foam }],
+  say: (s, done) => !done ? '' : foam(s) >= 40 ? 'The most bubbles: the enzyme works fastest here. This is its optimum.' : foam(s) === 0 ? 'No bubbles: the high temperature has destroyed the enzyme.' : 'Fewer bubbles: the enzyme works more slowly here.',
+  draw(P, s, p, t) {
+    const C = P.C, f = foam(s) * p, x = 330, w = 90, top = 80, h = 330;
+    P.rect(0, 420, 900, 60, { fill: '#e9edf1' });
+    // water bath
+    if (s.mode === 'temp') { P.rect(250, 230, 250, 190, { fill: s.temp >= 50 ? 'rgba(240,120,80,0.25)' : s.temp <= 10 ? 'rgba(120,190,255,0.35)' : 'rgba(150,210,255,0.25)', stroke: C.dark, lw: 3, r: 10 }); P.text('water bath ' + s.temp + ' °C', 375, 446, { size: 17, color: C.mute }); }
+    else P.text('pH ' + s.ph, 375, 446, { size: 19 });
+    // test tube with liquid and foam
+    P.tube(x, top, w, h, { level: 0.35, color: '#f1e4b3', inside: lt => { const fh = f * 3.2; if (fh > 1) { P.rect(x, lt - fh, w, fh, { fill: '#ffffff' }); for (let i = 0; i < Math.round(fh / 6); i++) P.circle(x + 10 + ((i * 29) % 70), lt - 4 - ((i * 13) % Math.max(2, fh - 4)), 6, { stroke: C.grey, lw: 2 }); } } });
+    // ruler
+    P.rect(x + w + 20, top + h * 0.65 - 140, 26, 140, { fill: '#fff8d6', stroke: C.dark, lw: 2 }); for (let mm = 0; mm <= 40; mm += 10) { const y = top + h * 0.65 - mm * 3.2; P.line(x + w + 20, y, x + w + 34, y, { color: C.dark, lw: 2 }); P.text(mm + ' mm', x + w + 82, y, { size: 14, color: C.mute }); }
+    if (p > 0 && p < 1 && foam(s) > 0) P.bubbles(x + 8, top + h * 0.66, w - 16, h * 0.3, 10, t, { color: '#fff', r: 3 });
+    // small graph of what has been tried
+    const g = P.graph(600, 80, 250, 260, s.mode === 'ph' ? { xmax: 12, ymax: 40, nx: 6, ny: 4, xl: 'pH', yl: 'bubbles / mm' } : { xmax: 80, ymax: 40, nx: 4, ny: 4, xl: 'temperature / °C', yl: 'bubbles / mm' });
+    const pts = s.mode === 'ph' ? Object.entries(BYPH) : Object.entries(BYT);
+    P.curve(pts.map(([k, v]) => [g.X(+k), g.Y(v)]), { color: C.line, lw: 3, dash: [6, 6] });
+    if (p >= 1) { const k = s.mode === 'ph' ? s.ph : s.temp; P.circle(g.X(k), g.Y(foam(s)), 9, { fill: C.red }); }
+  },
+  inquiry: [
+    { name: 'Effect of pH', q: 'At which pH does the enzyme work best?',
+      guess: ['At one pH in the middle (its optimum)', 'The more acidic, the better', 'pH makes no difference'], guessAns: 0,
+      change: 'ph', measure: 'foam', fix: { mode: 'ph' }, same: ['the same amount of enzyme', 'the same temperature', 'the same time (5 min)'],
+      found: ['The enzyme works best at pH ', ['7', '2'], '. At other pH values it works ', ['more slowly', 'faster'], '.'], foundAns: [0, 0],
+      why: 'Enzymes need an optimum pH to work efficiently. The more bubbles, the faster the enzyme is working.' },
+    { name: 'Effect of temperature', q: 'At which temperature does the enzyme work best?',
+      guess: ['At body temperature (37 °C)', 'The hotter, the better', 'Temperature makes no difference'], guessAns: 0,
+      change: 'temp', measure: 'foam', fix: { mode: 'temp' }, same: ['the same amount of enzyme', 'the same pH', 'the same time (5 min)'],
+      found: ['The enzyme works best at ', ['37 °C', '70 °C'], '. At 70 °C there are no bubbles because the enzyme is ', ['destroyed', 'asleep'], '.'], foundAns: [0, 0],
+      why: 'Enzymes speed up digestion. They need an optimum temperature (about body temperature). Too hot, and they stop working.' },
+  ],
+});
+})();
+</script>
